@@ -25,9 +25,18 @@ export class InputController {
   private boostButton = false;
   private readonly touchRoot: HTMLElement;
 
-  constructor(parent: HTMLElement, showTouchControls: boolean) {
+  /**
+   * `isBlocked` says when something is covering the game (the settings panel): steering and boost keys
+   * are then ignored, so the rocket does not fly around behind it.
+   */
+  constructor(
+    parent: HTMLElement,
+    showTouchControls: boolean,
+    private readonly isBlocked: () => boolean = () => false,
+  ) {
     window.addEventListener('keydown', (e) => {
       if (!(e.code in KEYS)) return;
+      if (this.isBlocked()) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return; // leave browser shortcuts like Cmd+D and Cmd+S alone
       if (e.target instanceof HTMLElement && e.target.closest('button') && e.code === 'Space') return; // let Space press a focused button
       e.preventDefault();
@@ -69,11 +78,13 @@ export class InputController {
 
   /** True while the player is steering (used to cancel autopilot). */
   isSteering(): boolean {
+    if (this.isBlocked()) return false;
     const h = this.held;
     return h.has('left') || h.has('right') || h.has('up') || h.has('down') || Math.hypot(this.stick.x, this.stick.y) > DEAD_ZONE;
   }
 
   read(): FlightInput {
+    if (this.isBlocked()) return { turn: 0, pitch: 0, boost: false };
     const h = this.held;
     const keyTurn = (h.has('right') ? 1 : 0) - (h.has('left') ? 1 : 0);
     const keyPitch = (h.has('up') ? 1 : 0) - (h.has('down') ? 1 : 0);

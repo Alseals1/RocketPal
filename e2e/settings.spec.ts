@@ -244,9 +244,7 @@ test('everything in the settings panel works with the keyboard alone', async ({ 
 
   await page.keyboard.press('Enter'); // Done
   await expect(page.getByTestId('settings-panel')).toBeHidden();
-  // The first Tab starts at the top of the page. (Headless Chromium lands here even without the focus fix; the
-  // "wasted first Tab" only shows in a real browser with an address bar, where it was checked by hand.)
-  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab'); // the first Tab starts at the top of the page
   await expect(page.getByTestId('where-button')).toBeFocused();
 });
 
@@ -281,4 +279,60 @@ test("before the game has started, the computer's reduced-motion setting already
   };
   expect(await durationFor('no-preference')).not.toBe('0s');
   expect(await durationFor('reduce')).toBe('0s');
+});
+
+test('the first Tab after closing the settings panel with Escape starts at the top of the page', async ({ page }) => {
+  await start(page);
+  await page.getByTestId('settings-button').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('settings-panel')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Tab');
+  await expect(page.getByTestId('where-button')).toBeFocused(); // not the page body
+});
+
+test('the first Tab after closing the destination picker with Escape starts at the top of the page', async ({ page }) => {
+  await start(page);
+  await page.getByTestId('where-button').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.picker')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Tab');
+  await expect(page.getByTestId('where-button')).toBeFocused();
+});
+
+test('the settings panel tells screen readers it is a modal dialog', async ({ page }) => {
+  await start(page);
+  await expect(page.getByTestId('settings-panel')).toHaveAttribute('aria-modal', 'true');
+  await expect(page.getByTestId('settings-panel')).toHaveAttribute('role', 'dialog');
+});
+
+test('while the settings panel is open the rocket does not steer or boost behind it', async ({ page }) => {
+  await start(page);
+  const yaw = () => page.evaluate(() => (window as unknown as { rocketPals: { getShip(): { yaw: number } } }).rocketPals.getShip().yaw);
+  const speed = () => page.evaluate(() => (window as unknown as { rocketPals: { getShip(): { speed: number } } }).rocketPals.getShip().speed);
+  const before = await yaw();
+
+  await open(page);
+  for (const key of ['KeyD', 'KeyA', 'ArrowRight', 'ArrowLeft']) {
+    await page.keyboard.down(key);
+    await page.waitForTimeout(400);
+    await page.keyboard.up(key);
+  }
+  await page.getByTestId('settings-done').focus();
+  await page.keyboard.down('ArrowRight'); // even with Done focused
+  await page.waitForTimeout(400);
+  await page.keyboard.up('ArrowRight');
+  expect(Math.abs((await yaw()) - before)).toBeLessThan(0.01);
+  await page.keyboard.down('Space');
+  await page.waitForTimeout(1200);
+  expect(await speed()).toBeLessThan(60);
+  await page.keyboard.up('Space');
+
+  // Closed again: steering works again.
+  await page.keyboard.press('Escape');
+  await page.keyboard.down('KeyD');
+  await page.waitForTimeout(500);
+  await page.keyboard.up('KeyD');
+  expect((await yaw()) - before).toBeLessThan(-0.2);
 });

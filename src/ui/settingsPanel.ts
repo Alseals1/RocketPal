@@ -7,6 +7,7 @@ import {
   type Settings,
   type TextSize,
 } from '../core/settings';
+import { focusGameArea } from './focus';
 
 const TEXT_SIZE_LABELS: Record<TextSize, string> = { normal: 'Normal', big: 'Big', huge: 'Extra big' };
 const MOTION_LABELS: Record<MotionChoice, string> = { system: 'Same as my computer', on: 'On', off: 'Off' };
@@ -20,12 +21,6 @@ export function applySettingsToPage(settings: Settings, systemPrefersReduced: bo
 }
 
 /** The Settings button and its panel. Every change is handed to `onChange` straight away. */
-/** Puts keyboard focus on the (non-button) game area. Exported for the other panels. */
-export function focusGameArea(area: HTMLElement): void {
-  area.tabIndex = -1;
-  area.focus({ preventScroll: true });
-}
-
 export class SettingsPanel {
   private readonly panel: HTMLElement;
   private readonly button: HTMLButtonElement;
@@ -87,9 +82,14 @@ export class SettingsPanel {
     });
   }
 
+  /** True while the panel is showing. The game ignores the steering keys then. */
+  get isOpen(): boolean {
+    return !this.panel.hidden;
+  }
+
   /** While the panel is open, Tab and Shift+Tab go round the panel's own buttons, not the game behind it. */
   private keepTabInside(e: KeyboardEvent): void {
-    const buttons = [...this.panel.querySelectorAll<HTMLButtonElement>('button')].filter((b) => b.tabIndex >= 0);
+    const buttons = [...this.panel.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')].filter((b) => b.tabIndex >= 0);
     const first = buttons[0];
     const last = buttons[buttons.length - 1];
     const inside = this.panel.contains(document.activeElement);
@@ -108,11 +108,7 @@ export class SettingsPanel {
     this.panel.querySelector<HTMLElement>('[aria-checked="true"]')?.focus();
   }
 
-  /**
-   * Focus is not handed back to the gear button: Space is the boost key, and Space on a focused
-   * button would press it again instead of boosting. It goes to the game area instead, so the next
-   * Tab starts from the top of the page.
-   */
+  /** Focus goes to the game area, not back to the gear button (see `focusGameArea`). */
   private close(): void {
     this.panel.hidden = true;
     this.button.setAttribute('aria-expanded', 'false');

@@ -1,6 +1,6 @@
 import type { BodyLayout } from '../scene/layout';
 import type { ScreenPoint } from '../scene/spaceScene';
-import { focusGameArea } from './settingsPanel';
+import { focusGameArea } from './focus';
 
 export interface HudCallbacks {
   onSelect(worldId: string): void;

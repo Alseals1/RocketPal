@@ -54,6 +54,7 @@ export class Game {
   /** The world the rocket is right next to, if any. You cannot pick it as a destination. */
   private here: string | null = null;
   private reportedError = false;
+  private settingsPanel?: SettingsPanel;
   private settings: Settings;
   private reducedMotion: boolean;
   private readonly systemMotion = matchMedia(REDUCED_MOTION_QUERY);
@@ -76,7 +77,7 @@ export class Game {
     root.appendChild(stage);
 
     this.scene = new SpaceScene(stage, this.layouts, this.quality, this.reducedMotion, options.debug);
-    this.input = new InputController(stage, options.touchControls);
+    this.input = new InputController(stage, options.touchControls, () => this.settingsPanel?.isOpen ?? false);
     this.hud = new Hud(stage, this.layouts, {
       onSelect: (id) => this.pickTarget(id),
       onAutopilot: (on) => this.setAutopilot(on),
@@ -85,7 +86,7 @@ export class Game {
     this.refreshHere();
     this.hud.setAutopilot(false);
 
-    new SettingsPanel(stage, this.settings, (next) => this.changeSettings(next));
+    this.settingsPanel = new SettingsPanel(stage, this.settings, (next) => this.changeSettings(next));
     // "Same as my computer" keeps following the computer if it changes while we are playing.
     this.systemMotion.addEventListener('change', () => this.changeSettings(this.settings, false));
 
