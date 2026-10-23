@@ -4,6 +4,9 @@ import { qualitySettings, type Quality } from '../quality/quality';
 import type { BodyLayout } from './layout';
 import { makeGlowTexture, makeWorldTexture } from './textures';
 
+/** What the picture of space is, for people who cannot see it. */
+export const SPACE_VIEW_LABEL = 'A 3D view of the solar system from your rocket';
+
 const STAR_FIELD_RADIUS = 15_000;
 const CAMERA_BACK = 16;
 const CAMERA_UP = 5;
@@ -59,7 +62,7 @@ export class SpaceScene {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatioCap));
     this.canvas = this.renderer.domElement;
     this.canvas.setAttribute('role', 'img');
-    this.canvas.setAttribute('aria-label', 'A 3D view of the solar system from your rocket');
+    this.canvas.setAttribute('aria-label', SPACE_VIEW_LABEL);
     parent.appendChild(this.canvas);
 
     this.scene.background = new THREE.Color(0x03040c);

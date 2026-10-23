@@ -10,6 +10,7 @@ const mars = surfaces.surfaces.find((s) => s.worldId === 'mars')!;
 interface DebugHandle {
   getMode(): string;
   getLook(): { azimuth: number; elevation: number } | undefined;
+  isLookTurning(): boolean;
   getFound(): number;
   hasPanorama(): boolean;
   getShip(): { docked: boolean };
@@ -18,6 +19,24 @@ interface DebugHandle {
   setAutopilot(on: boolean): void;
 }
 const debug = <T>(page: Page, fn: (h: DebugHandle) => T) => page.evaluate(`(${fn.toString()})(window.rocketPals)`) as Promise<T>;
+
+/** A pretend voice that starts reading straight away. Real browsers differ (headless Chrome has no voices at all). */
+const WORKING_VOICE = `
+  const utterances = [];
+  window.__utterances = utterances;
+  Object.defineProperty(window, 'speechSynthesis', {
+    value: {
+      getVoices: () => [{ lang: 'en-US', localService: true, name: 'Pretend' }],
+      speak(u) { utterances.push(u); setTimeout(() => u.onstart && u.onstart(new Event('start')), 0); },
+      cancel() {},
+    },
+    configurable: true,
+  });`;
+
+test.beforeEach(async ({ page }) => {
+  // Tests that are about voices install their own after this one, which replaces it.
+  await page.addInitScript(WORKING_VOICE);
+});
 
 function watchForErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -150,17 +169,14 @@ test('you can look around by dragging, by swiping, and with the arrow keys', asy
   expect(turned).toBeLessThan(85);
 
   // Arrow keys: right turns right, up tilts up, and the tilt stops before the picture could flip over.
+  // Hold each key until the view has really moved: how long that takes depends on how busy the computer is.
   await page.keyboard.down('ArrowRight');
-  await page.waitForTimeout(500);
+  await expect.poll(async () => ((await look()).azimuth - dragged.azimuth + 360) % 360, { timeout: 15_000 }).toBeGreaterThan(20);
   await page.keyboard.up('ArrowRight');
-  const keyed = await look();
-  expect((keyed.azimuth - dragged.azimuth + 360) % 360).toBeGreaterThan(20);
   await page.keyboard.down('ArrowUp');
-  await page.waitForTimeout(3000);
+  await expect.poll(async () => (await look()).elevation, { timeout: 30_000 }).toBeGreaterThan(40);
   await page.keyboard.up('ArrowUp');
-  const tilted = await look();
-  expect(tilted.elevation).toBeGreaterThan(40);
-  expect(tilted.elevation).toBeLessThan(90);
+  expect((await look()).elevation).toBeLessThan(90);
 });
 
 test('Tab reaches each dot, and a dot that is round the back swings into view', async ({ page }) => {
@@ -171,13 +187,10 @@ test('Tab reaches each dot, and a dot that is round the back swings into view', 
   await rover.focus();
   await expect(rover).toHaveCSS('opacity', '1', { timeout: 5000 });
   const want = mars.hotspots.find((s) => s.id === 'rover')!;
-  // The view keeps swinging for a moment after the dot first appears; wait for it to arrive.
-  await expect
-    .poll(async () => {
-      const look = (await debug(page, (h) => h.getLook()))!;
-      return Math.abs(((look.azimuth - want.azimuth + 540) % 360) - 180);
-    })
-    .toBeLessThan(2);
+  // The view keeps swinging for a moment after the dot first appears; wait for it to say it has arrived.
+  await expect.poll(() => debug(page, (h) => h.isLookTurning())).toBe(false);
+  const look = (await debug(page, (h) => h.getLook()))!;
+  expect(Math.abs(((look.azimuth - want.azimuth + 540) % 360) - 180)).toBeLessThan(2);
   // Every dot has a name for screen readers.
   for (const spot of mars.hotspots) {
     await expect(page.getByTestId(`spot-${spot.id}`)).toHaveAttribute('aria-label', `${spot.label}: tap to learn more`);
@@ -200,15 +213,8 @@ test('the fact card is a proper dialog: Tab stays inside, Escape closes it, and 
   await page.keyboard.press('Shift+Tab');
   await expect(page.getByTestId('close-card')).toBeFocused();
 
-  // The view may still be swinging round to the dot as the card opens: let it settle first.
-  await expect
-    .poll(async () => {
-      const a = (await debug(page, (h) => h.getLook()))!;
-      await page.waitForTimeout(200);
-      const b = (await debug(page, (h) => h.getLook()))!;
-      return Math.abs(a.azimuth - b.azimuth) + Math.abs(a.elevation - b.elevation);
-    })
-    .toBeLessThan(0.01);
+  // The view may still be swinging round to the dot as the card opens: wait until it says it has arrived.
+  await expect.poll(() => debug(page, (h) => h.isLookTurning())).toBe(false);
 
   // While the card is open, the arrow keys do not turn the view behind it.
   const before = await debug(page, (h) => h.getLook());
@@ -236,6 +242,7 @@ test.describe('read aloud', () => {
           speak(u: SpeechSynthesisUtterance) {
             current = u;
             log.push(u.text);
+            setTimeout(() => u.onstart?.(new Event('start') as SpeechSynthesisEvent), 0);
           },
           cancel() {
             (window as unknown as { __cancels: number }).__cancels++;
@@ -541,17 +548,8 @@ test('the dots say whether you have found them, and the picture describes itself
 });
 
 test.describe('read aloud, the tricky bits', () => {
-  const fakeVoice = (voices: string) => `
-    const utterances = [];
-    window.__utterances = utterances;
-    Object.defineProperty(window, 'speechSynthesis', {
-      value: { getVoices: () => ${voices}, speak(u) { utterances.push(u); }, cancel() {} },
-      configurable: true,
-    });`;
-
   test('a late "cancelled" message from an old reading does not stop the new one', async ({ page }) => {
-    await page.addInitScript(fakeVoice("[{ lang: 'en-US', localService: true, name: 'Pretend' }]"));
-    await landOnMars(page);
+    await landOnMars(page); // uses the working pretend voice from beforeEach, which also records every reading
     await (await reachSpot(page, 'rim')).press('Enter');
     const listen = page.getByTestId('listen');
 
@@ -571,15 +569,36 @@ test.describe('read aloud, the tricky bits', () => {
     await expect(listen).toHaveText('Stop'); // number 2 is still going
   });
 
-  test('says so when the computer has the speech tool but no voices at all', async ({ page }) => {
-    await page.addInitScript(fakeVoice('[]'));
-    await start(page);
-    await page.waitForTimeout(3300); // voices can arrive a moment after the page opens; give them time
-    await debug(page, (h) => h.dockAt('mars'));
-    await expect(page.locator('.surface-loading')).toBeHidden({ timeout: 20_000 });
+  test('a computer that lists voices but never actually speaks gets an honest message, not a button that does nothing', async ({ page }) => {
+    // This pretend voice accepts the request and then stays silent forever.
+    await page.addInitScript(`
+      Object.defineProperty(window, 'speechSynthesis', {
+        value: { getVoices: () => [{ lang: 'en-US', localService: true, name: 'Silent' }], speak() {}, cancel() {} },
+        configurable: true,
+      });`);
+    await landOnMars(page);
     await (await reachSpot(page, 'sky')).press('Enter');
-    await expect(page.getByTestId('listen')).toHaveText('No voice on this computer');
-    await expect(page.getByTestId('listen')).toBeDisabled();
+    const listen = page.getByTestId('listen');
+    await listen.click();
+    await expect(listen).toHaveText('Stop'); // we asked, and are waiting for it to start
+    await expect(listen).toHaveText('No voice on this computer', { timeout: 6000 });
+    await expect(listen).toBeDisabled();
+    await expect(page.getByTestId('fact-card')).toContainText('dust'); // the words are still there to read
+  });
+
+  test('a voice that starts a little late is fine', async ({ page }) => {
+    await page.addInitScript(`
+      Object.defineProperty(window, 'speechSynthesis', {
+        value: { getVoices: () => [], speak(u) { setTimeout(() => u.onstart && u.onstart(new Event('start')), 1500); }, cancel() {} },
+        configurable: true,
+      });`);
+    await landOnMars(page);
+    await (await reachSpot(page, 'sky')).press('Enter');
+    const listen = page.getByTestId('listen');
+    await listen.click();
+    await page.waitForTimeout(2000); // past the start, still before any timeout
+    await expect(listen).toHaveText('Stop'); // an empty voice list did not stop it from reading
+    await expect(listen).toBeEnabled();
   });
 });
 

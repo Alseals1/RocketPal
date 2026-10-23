@@ -17,6 +17,11 @@ export class LookController {
     this.state = { ...start };
   }
 
+  /** True while the view is still swinging round to a dot. */
+  get isTurning(): boolean {
+    return this.target !== null;
+  }
+
   /** Lets people drag or swipe the picture on `element`. */
   attach(element: HTMLElement, viewHeight: () => number, verticalFov: number): void {
     this.detach();

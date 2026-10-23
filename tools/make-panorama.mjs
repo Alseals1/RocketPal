@@ -9,7 +9,7 @@
 //   1. Re-projects the photo (cylindrical, so it only covers part of the sky-to-ground range) onto a full sphere picture.
 //   2. Where the photo stops, FILLS IN the rest: the photo's own edge colours (blurred sideways by about 9 degrees) are
 //      continued upward and darkened toward the top of the sky (to roughly half brightness), and continued downward and
-//      darkened to near black, with a narrow blend where they meet the photo. This is invented, not photographed: the game
+//      darkened to about a fifth of the edge brightness, with a narrow blend where they meet the photo. This is invented, not photographed: the game
 //      must say so on screen (the `creditNote` in public/data/surfaces.json does). No new detail is drawn.
 //   3. Writes <name>-4096.jpg (4096 x 2048) and <name>-2048.jpg (2048 x 1024, used in low-quality mode).
 //
@@ -26,8 +26,8 @@ if (!source || !outDir || !name) {
 
 // Where the horizon is in the photo, as a fraction of its height from the top (the far hills meet the sky there).
 const HORIZON = 0.088;
-// The photo has a thin black border at the top and bottom edge (measured: dark until row 28, dark again from row 2418; a few extra rows are cut so smoothing never touches them
-// of 2451). Those rows are cut off so they never reach the game.
+// The photo has a thin black border at the top and bottom edge (measured: dark until row 28, and dark again from row 2418
+// of 2451). Those rows are cut off so they never reach the game, with a few extra rows so smoothing never touches them.
 const CROP_TOP = 38;
 const CROP_BOTTOM = 45;
 const JPEG_QUALITY = 0.86;

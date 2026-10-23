@@ -8,15 +8,16 @@ export interface Speaker {
   stop(): void;
 }
 
-/** Voices can arrive a moment after the page opens. After this long with none, we say there is no voice. */
-const VOICE_GRACE_MS = 3000;
+/** If reading has not begun this long after we asked, the computer has no working voice. */
+const START_TIMEOUT_MS = 2500;
 
 export function createSpeaker(synth: SpeechSynthesis | undefined = typeof speechSynthesis === 'undefined' ? undefined : speechSynthesis): Speaker {
   let speaking = false;
   let finish: (() => void) | undefined;
   /** Which reading is current. A late "I was cancelled" message from an older reading must not stop the new one. */
   let current = 0;
-  const created = Date.now();
+  /** Set once a reading failed to start: this computer cannot read aloud, so stop offering. */
+  let broken = false;
 
   /** A clear English voice if there is one; otherwise the browser's default. */
   const pickVoice = (): SpeechSynthesisVoice | undefined => {
@@ -32,10 +33,7 @@ export function createSpeaker(synth: SpeechSynthesis | undefined = typeof speech
   };
 
   return {
-    isSupported: () =>
-      Boolean(synth) &&
-      typeof SpeechSynthesisUtterance !== 'undefined' &&
-      ((synth?.getVoices().length ?? 0) > 0 || Date.now() - created < VOICE_GRACE_MS),
+    isSupported: () => Boolean(synth) && typeof SpeechSynthesisUtterance !== 'undefined' && !broken,
     isSpeaking: () => speaking,
     speak(text, onEnd) {
       if (!synth || typeof SpeechSynthesisUtterance === 'undefined') {
@@ -58,11 +56,23 @@ export function createSpeaker(synth: SpeechSynthesis | undefined = typeof speech
       }
       speaking = true;
       finish = onEnd;
+      let started = false;
+      utterance.onstart = () => {
+        if (mine === current) started = true;
+      };
       const finished = () => {
         if (mine === current) done();
       };
       utterance.onend = finished;
       utterance.onerror = finished;
+      // Some computers list no voices and never speak. Rather than guess from the voice list, watch whether it really starts.
+      setTimeout(() => {
+        if (mine === current && speaking && !started) {
+          broken = true;
+          synth.cancel();
+          done();
+        }
+      }, START_TIMEOUT_MS);
       try {
         synth.speak(utterance);
       } catch {

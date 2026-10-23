@@ -24,7 +24,7 @@ import {
 } from './scale/readout';
 import { planLeg } from './scale/leg';
 import { layoutWorlds, type BodyLayout } from './scene/layout';
-import { SpaceScene } from './scene/spaceScene';
+import { SPACE_VIEW_LABEL, SpaceScene } from './scene/spaceScene';
 import { PanoramaScene } from './surface/panoramaScene';
 import { LookController } from './surface/look';
 import { Hud } from './ui/hud';
@@ -45,7 +45,6 @@ interface Options {
   debug: boolean;
 }
 
-const SPACE_LABEL = 'A 3D view of the solar system from your rocket';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 export class Game {
@@ -326,7 +325,7 @@ export class Game {
   private leaveSurfaceScreen(): void {
     this.visit++; // any picture still loading is now out of date
     this.mode = 'space';
-    this.scene.setCanvasLabel(SPACE_LABEL);
+    this.scene.setCanvasLabel(SPACE_VIEW_LABEL);
     this.stage.classList.remove('is-surface');
     this.speaker.stop();
     this.look?.detach();
@@ -403,6 +402,7 @@ export class Game {
       getSettings: () => this.settings,
       getMode: () => this.mode,
       getLook: () => this.look?.state,
+      isLookTurning: () => this.look?.isTurning ?? false,
       getFound: () => this.surfaceHud?.foundCount ?? 0,
       hasPanorama: () => this.panorama?.isLoaded ?? false,
       dockAt: (id: string) => this.debugDockAt(id),
