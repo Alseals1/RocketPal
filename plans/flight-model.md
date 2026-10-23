@@ -32,4 +32,4 @@ The rules of how the rocket moves, with no graphics, so they can be tested exact
 ## Testing
 Vitest only (no UI in this PR). Docking is tested over planet radii 0.5 to 100, frame rates 60/30/15/10 fps, boost on and off, with 40 seeded random starts each (plus a one-off 13,500-start fuzz over radii 0.2 to 200 and fresh seeds while fixing review comments). The tests were mutation-checked: removing the slow-down, obstacle push-out, destination pull, speed-aware capture, full takeover, creep speed, or obstacle sub-stepping each makes a test fail.
 
-Build and the existing Playwright smoke test must also pass. `npm run build` and the existing Playwright smoke test must still pass.
+`npm run build` and the existing Playwright smoke test must also pass.
