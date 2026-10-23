@@ -134,6 +134,7 @@ export class SurfaceHud {
   hide(): void {
     this.closeCard(false);
     this.root.hidden = true;
+    this.root.classList.remove('is-loading'); // leaving mid-load must not leave the next visit's dots and bubble hidden
   }
 
   /** Removes this view from the page for good (used when another world's view takes over). */

@@ -208,6 +208,21 @@ test('a dot is drawn above Orbit, and the fact card is above both', async ({ pag
   expect(order.face).toBeGreaterThanOrEqual(0);
   expect(order.spot, 'dot is on top of Orbit').toBeLessThan(order.face);
 
+  // Back to space and the settings gear stay on top of a dot parked over them (a dot must never hide the way out).
+  for (const button of ['[data-testid="back-to-space"]', '#settings-button, [data-testid="settings-button"]']) {
+    const buttonOnTop = await page.evaluate((selector) => {
+      const target = document.querySelector<HTMLElement>(selector)!;
+      const r = target.getBoundingClientRect();
+      const spot = [...document.querySelectorAll<HTMLElement>('.spot')].find((el) => getComputedStyle(el).opacity === '0' || el.style.opacity === '1')!;
+      spot.style.opacity = '1';
+      spot.style.pointerEvents = 'auto';
+      spot.style.transform = `translate(${r.x + r.width / 2}px, ${r.y + r.height / 2}px) translate(-50%, -50%)`;
+      const top = document.elementsFromPoint(r.x + r.width / 2, r.y + r.height / 2)[0];
+      return top === target || target.contains(top);
+    }, button);
+    expect(buttonOnTop, `${button} is above a dot`).toBe(true);
+  }
+
   // A fact card covers everything, Orbit included.
   await page.getByTestId('spot-sky').focus();
   await expect(page.getByTestId('spot-sky')).toHaveCSS('opacity', '1', { timeout: 5000 });
