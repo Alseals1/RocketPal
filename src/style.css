@@ -617,6 +617,19 @@ button:focus-visible {
   height: 64px;
 }
 
+/* One picture of Orbit at a time, chosen by data-mood. Nothing moves, so reduced motion needs nothing. */
+.orbit-face img {
+  display: none;
+  width: 64px;
+  height: 64px;
+}
+
+.orbit-face[data-mood='neutral'] .mood-neutral,
+.orbit-face[data-mood='happy'] .mood-happy,
+.orbit-face[data-mood='thinking'] .mood-thinking {
+  display: block;
+}
+
 .orbit-bubble {
   margin: 0 0 8px;
   padding: 8px 14px;

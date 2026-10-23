@@ -6,13 +6,12 @@ The Blender MCP is now connected (2026-10-23) and models are built one family at
 
 ## Models
 
-**Done:** Rocket ship (`public/models/ship.glb`, built in Blender; source in `assets-src/ship.blend`; see `plans/ship-model.md`). The simple placeholder rocket stays in code as the fallback if the file cannot load. Still to build, in the table below. The "3 swappable color trims" idea for upgrades is not built yet: the ship has one `Trim` material to recolour later.
+**Done:** Orbit, the robot guide (`public/models/orbit.glb` with four faces, plus three portraits in `public/images/`; source `assets-src/orbit.blend`; see `plans/orbit-model.md`). The landing screen shows the portraits; the 3D model is not shown anywhere in 3D yet. Rocket ship (`public/models/ship.glb`, built in Blender; source in `assets-src/ship.blend`; see `plans/ship-model.md`). The simple placeholder rocket stays in code as the fallback if the file cannot load. Still to build, in the table below. The "3 swappable color trims" idea for upgrades is not built yet: the ship has one `Trim` material to recolour later.
 
 | Name | Purpose | Polygon budget | Target path | Style notes |
 | --- | --- | --- | --- | --- |
 | Rover | Surface driving on Mars/Moon | 2,500 tris | `public/models/rover.glb` | Chunky wheels, small antenna, friendly face-like front. |
 | Astronaut | Surface exploring | 2,500 tris | `public/models/astronaut.glb` | Round helmet, big visor, waving idle pose. |
-| Orbit (robot guide) | Narrator, appears on every screen | 3,000 tris | `public/models/orbit.glb` | Floating round body, two big eyes (blink, happy, thinking), tiny antenna. |
 | Flag | Planted on each landing | 300 tris | `public/models/flag.glb` | Simple pole and flag. |
 | Comet | Random event | 800 tris | `public/models/comet.glb` | Glowing rock with soft tail card. |
 | Satellite | Earth orbit prop / Easter egg | 1,200 tris | `public/models/satellite.glb` | Two panels, small dish. |
