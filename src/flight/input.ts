@@ -24,6 +24,8 @@ export class InputController {
   private stick = { x: 0, y: 0 };
   private boostButton = false;
   private readonly touchRoot: HTMLElement;
+  private touchWanted: boolean;
+  private touchSuspended = false;
 
   /**
    * `isBlocked` says when something is covering the game (the settings panel): steering and boost keys
@@ -53,6 +55,7 @@ export class InputController {
 
     this.touchRoot = document.createElement('div');
     this.touchRoot.className = 'touch-controls';
+    this.touchWanted = showTouchControls;
     this.touchRoot.hidden = !showTouchControls;
     this.touchRoot.innerHTML = `
       <div class="stick" data-testid="stick" aria-label="Steering stick"><div class="stick-thumb"></div></div>
@@ -66,7 +69,15 @@ export class InputController {
   }
 
   showTouchControls(): void {
-    this.touchRoot.hidden = false;
+    this.touchWanted = true;
+    this.touchRoot.hidden = this.touchSuspended;
+  }
+
+  /** Hides the stick and boost button while something else (a surface scene) is using the screen. */
+  suspendTouchControls(suspended: boolean): void {
+    this.touchSuspended = suspended;
+    this.touchRoot.hidden = suspended || !this.touchWanted;
+    if (suspended) this.releaseAll();
   }
 
   private readonly releaseHandlers: Array<() => void> = [];

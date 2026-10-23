@@ -28,6 +28,10 @@ The rocket always drifts forward and levels itself out when you let go. Pick a d
 
 **Settings** (the gear button under **Where to?**): text size (Normal, Big, Extra big) and **Reduce motion** (Same as my computer, On, Off). They apply straight away and are remembered in this browser only (nothing is sent anywhere). If the browser will not save anything, the game still works; the choices just are not remembered.
 
+**Landing:** when the rocket docks at a world that has a real NASA photograph (Mars for now), you stand inside the 360 degree picture. Drag or swipe to look around (arrow keys or WASD also work), tap the glowing dots to read short facts, press **Listen** to hear a card read aloud, and press **Back to space** to lift off. Other worlds still show a plain "You landed" card until their pictures are added (`ASSETS.md`).
+
+Making a surface picture: `node tools/make-panorama.mjs <NASA photo.jpg> public/textures/surfaces <name>` turns a NASA panorama into the two sphere pictures the game loads (see the comments at the top of the script; the numbers in it describe the Mars photo). The facts for each dot live in `public/data/surfaces.json` and each carries the NASA page it was checked against.
+
 Page options (add to the address, for example `http://localhost:5173/?quality=low`):
 
 * `?quality=low` or `?quality=high` forces a quality level. Without it the game starts at the right level for the computer and switches to low by itself if it runs slowly.

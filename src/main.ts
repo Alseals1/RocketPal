@@ -1,5 +1,6 @@
 import './style.css';
 import { loadPlanets } from './data/planets';
+import { loadSurfaces } from './data/surfaces';
 import { browserStorage, loadSettings } from './core/settings';
 import { Game } from './game';
 import type { Quality } from './quality/quality';
@@ -37,8 +38,14 @@ function start(): void {
   const settings = loadSettings(browserStorage());
   applySettingsToPage(settings, matchMedia('(prefers-reduced-motion: reduce)').matches);
   loadPlanets()
-    .then((data) => {
+    .then(async (data) => {
+      // If the landing pictures' data cannot be loaded, the game still flies and lands: worlds just show the plain card.
+      const surfaces = await loadSurfaces(data.worlds.map((w) => w.id)).catch((error) => {
+        console.error(error);
+        return { lastChecked: '', surfaces: [] };
+      });
       new Game(root, data, {
+        surfaces,
         forcedQuality: forced === 'low' || forced === 'high' ? (forced as Quality) : undefined,
         touchControls: params.has('touch') || matchMedia('(pointer: coarse)').matches,
         settings,

@@ -7,7 +7,7 @@ import {
   type Settings,
   type TextSize,
 } from '../core/settings';
-import { focusGameArea } from './focus';
+import { focusGameArea, keepTabInside } from './focus';
 
 const TEXT_SIZE_LABELS: Record<TextSize, string> = { normal: 'Normal', big: 'Big', huge: 'Extra big' };
 const MOTION_LABELS: Record<MotionChoice, string> = { system: 'Same as my computer', on: 'On', off: 'Off' };
@@ -78,28 +78,13 @@ export class SettingsPanel {
     window.addEventListener('keydown', (e) => {
       if (this.panel.hidden) return;
       if (e.code === 'Escape') this.close();
-      else if (e.code === 'Tab') this.keepTabInside(e);
+      else if (e.code === 'Tab') keepTabInside(this.panel, e);
     });
   }
 
   /** True while the panel is showing. The game ignores the steering keys then. */
   get isOpen(): boolean {
     return !this.panel.hidden;
-  }
-
-  /** While the panel is open, Tab and Shift+Tab go round the panel's own buttons, not the game behind it. */
-  private keepTabInside(e: KeyboardEvent): void {
-    const buttons = [...this.panel.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')].filter((b) => b.tabIndex >= 0);
-    const first = buttons[0];
-    const last = buttons[buttons.length - 1];
-    const inside = this.panel.contains(document.activeElement);
-    if (!inside || (e.shiftKey && document.activeElement === first)) {
-      e.preventDefault();
-      (e.shiftKey ? last : first).focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
-    }
   }
 
   private open(): void {

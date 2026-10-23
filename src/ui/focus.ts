@@ -7,3 +7,22 @@ export function focusGameArea(area: HTMLElement): void {
   area.tabIndex = -1;
   area.focus({ preventScroll: true });
 }
+
+/**
+ * While a dialog is open, Tab and Shift+Tab go round its own buttons and never reach the game behind it.
+ * Call this from a keydown handler when the key is Tab.
+ */
+export function keepTabInside(container: HTMLElement, e: KeyboardEvent): void {
+  const buttons = [...container.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')].filter((b) => b.tabIndex >= 0);
+  if (buttons.length === 0) return;
+  const first = buttons[0];
+  const last = buttons[buttons.length - 1];
+  const inside = container.contains(document.activeElement);
+  if (!inside || (e.shiftKey && document.activeElement === first)) {
+    e.preventDefault();
+    (e.shiftKey ? last : first).focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}

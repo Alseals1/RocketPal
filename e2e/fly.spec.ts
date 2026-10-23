@@ -98,26 +98,26 @@ test('keyboard steers, pitches, and boosts', async ({ page }) => {
   await page.keyboard.up('Space');
 });
 
-test('tap-only: pick Mars, tap Autopilot, and land', async ({ page }) => {
+test('tap-only: pick Earth, tap Autopilot, and land', async ({ page }) => {
   test.setTimeout(180_000);
   const errors = watchForErrors(page);
   await start(page);
 
   await expect(page.locator('[data-testid="autopilot-button"]')).toBeHidden(); // nothing to fly to yet
   await page.getByTestId('where-button').click();
-  await page.getByRole('button', { name: 'Mars' }).click();
+  await page.getByRole('button', { name: 'Earth' }).click();
 
-  await expect(page.locator('.stats-title')).toHaveText('Flying to Mars');
+  await expect(page.locator('.stats-title')).toHaveText('Flying to Earth');
   const lines = page.locator('.stats-line');
   await expect(lines.nth(0)).toHaveText(/^[\d.,]+ million km to go$/);
   await expect(lines.nth(1)).toHaveText(/^Light needs \d+ (seconds?|minutes?|hours?) to get there$/);
   await expect(lines.nth(2)).toHaveText(/^Pretend speed: [\d.,]+( million| billion)? km per second$/);
   await expect(page.locator('.stats-note')).toHaveText('Real rockets are much slower!');
 
-  // Starting near the Sun: the real Sun-to-Mars gap is 228.0 million km, and the rocket is a little off to one side.
+  // Starting near the Sun and facing Earth: the real Sun-to-Earth gap is 149.6 million km, and the rocket has already set off a little.
   const atStart = await distanceShown(page);
-  expect(atStart).toBeGreaterThan(200_000_000);
-  expect(atStart).toBeLessThan(260_000_000);
+  expect(atStart).toBeGreaterThan(100_000_000);
+  expect(atStart).toBeLessThan(160_000_000);
 
   await page.getByTestId('autopilot-button').click();
   await page.waitForTimeout(2500);
@@ -127,15 +127,15 @@ test('tap-only: pick Mars, tap Autopilot, and land', async ({ page }) => {
   expect(await distanceShown(page)).toBeLessThan(later);
 
   await expect(page.getByTestId('landed')).toBeVisible({ timeout: 150_000 });
-  await expect(page.locator('#landed-title')).toHaveText('You landed on Mars!');
+  await expect(page.locator('#landed-title')).toHaveText('You landed on Earth!');
   expect((await ship(page)).docked).toBe(true);
 
-  // Fly again: the rocket lifts off and Mars is now "you're here".
+  // Fly again: the rocket lifts off and Earth is now "you're here".
   await page.getByTestId('fly-again').click();
   await expect(page.getByTestId('landed')).toBeHidden();
   expect((await ship(page)).docked).toBe(false);
   await page.getByTestId('where-button').click();
-  await expect(page.getByRole('button', { name: /Mars/ })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Earth/ })).toBeDisabled();
   expect(errors).toEqual([]);
 });
 
