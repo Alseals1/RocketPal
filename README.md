@@ -14,6 +14,24 @@ npm run build        # type-check + production build into dist/
 npm run test:e2e     # browser smoke test (Playwright; first run: npx playwright install chromium)
 ```
 
+## How to play
+
+| | Keyboard | Touch | Tap or click only |
+| --- | --- | --- | --- |
+| Steer left / right | A / D or Left / Right arrows | Drag the stick left / right | |
+| Nose up / down | W / S or Up / Down arrows | Drag the stick up / down | |
+| Boost | Space | Hold the BOOST button | |
+| Pick a destination | **Where to?** button | **Where to?** button | **Where to?** button |
+| Fly there for me | | | **Autopilot** button (steering by hand takes over again) |
+
+The rocket always drifts forward and levels itself out when you let go. Pick a destination and it gently pulls you in, slows you down, and docks. The card in the corner shows the *real* distance, how long light would take, and a "pretend speed" (the scene is shrunk so trips take seconds).
+
+Page options (add to the address, for example `http://localhost:5173/?quality=low`):
+
+* `?quality=low` or `?quality=high` forces a quality level. Without it the game starts at the right level for the computer and switches to low by itself if it runs slowly.
+* `?touch=1` shows the touch controls on a computer.
+* `?debug=1` adds a read-only `window.rocketPals` object used by the browser tests.
+
 Project rules, branch workflow, and product rules are in `CLAUDE.md`. Per-feature plans are in `plans/`. Game content (planets, quizzes, missions) lives in `public/data/*.json` so it can be edited without code.
 
 ## Connecting the Blender MCP to Claude Code (macOS)
