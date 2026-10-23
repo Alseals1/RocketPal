@@ -12,7 +12,7 @@ A runnable, testable, buildable empty shell so every later feature has the same 
 * Docs: `README.md` (how to run, how to connect Blender MCP), `ASSETS.md`, `CREDITS.md`.
 
 ## Files touched
-`package.json`, `tsconfig.json`, `vite.config.ts`, `vitest` config (inside `vite.config.ts`), `playwright.config.ts`, `index.html`, `src/main.ts`, `src/style.css`, `tests/smoke.test.ts`, `e2e/smoke.spec.ts`, `README.md`, `ASSETS.md`, `CREDITS.md`, `plans/*`.
+`package.json`, `tsconfig.json`, `vite.config.ts`, `vitest` config (inside `vite.config.ts`), `playwright.config.ts`, `index.html`, `src/app.ts`, `src/main.ts`, `src/style.css`, `tests/app.test.ts`, `e2e/smoke.spec.ts`, `README.md`, `ASSETS.md`, `CREDITS.md`, `plans/*`.
 
 ## Skills / tools
 `tdd` (the single unit test is written first and seen failing), `frontend-design` is not needed yet (no UI). Playwright for the browser check.
