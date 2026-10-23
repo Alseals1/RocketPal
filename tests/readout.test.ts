@@ -26,6 +26,11 @@ describe('formatDistanceKm', () => {
     expect(formatDistanceKm(1_432_000_000)).toBe('1.4 billion km');
     expect(formatDistanceKm(4_515_000_000)).toBe('4.5 billion km');
   });
+
+  it('moves up a unit instead of showing 1000.0 million or 1,000,000 km', () => {
+    expect(formatDistanceKm(999_999.6)).toBe('1.0 million km');
+    expect(formatDistanceKm(999_960_000)).toBe('1.0 billion km');
+  });
 });
 
 describe('lightTravelSeconds', () => {
