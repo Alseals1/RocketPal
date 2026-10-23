@@ -1,4 +1,4 @@
-import { applyDrag, clampLook, stepLook, wrapDegrees, type LookInput, type LookLimits, type LookState } from './geometry';
+import { applyDrag, clampLook, lookToShow, stepLook, wrapDegrees, type LookInput, type LookLimits, type LookState } from './geometry';
 
 const TURN_SPEED = 240; // degrees per second when a dot pulls the view round to itself
 
@@ -83,6 +83,15 @@ export class LookController {
     this.cleanup = undefined;
     this.dragging = false;
     this.activeId = null;
+  }
+
+  /**
+   * Swings the view round so that a direction is on the screen: the best look the limits allow (see `lookToShow`).
+   * Without limits (a 360 degree picture) it simply turns to face the direction.
+   */
+  turnToShow(azimuth: number, elevation: number, view: { horizontalFov: number; verticalFov: number }, instant: boolean): void {
+    const look = this.limits ? lookToShow(this.limits, view, azimuth, elevation) : { azimuth, elevation };
+    this.turnTo(look.azimuth, look.elevation, instant);
   }
 
   /** Swings the view round to a direction (or jumps there, if motion is reduced). */

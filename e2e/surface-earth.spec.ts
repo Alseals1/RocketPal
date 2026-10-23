@@ -188,16 +188,22 @@ test.describe('how far you can look round', () => {
       return gap;
     });
 
-  test('on a wide screen the photo exactly fills the window, so there is nothing to look round', async ({ page }) => {
+  test('on a wide screen the camera never sees more than the photo, and you can tilt by the hand-worked amount', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await landAtEarth(page);
-    // The camera zoomed in until the screen sees exactly the photo's width: 73.74 degrees across.
-    expect((await viewFov(page)).horizontalFov).toBeCloseTo(PHOTO_WIDE, 1);
-    for (const [dx, dy] of [[-3000, 0], [3000, 0], [0, 3000], [0, -3000]]) {
-      const look = await dragFar(page, dx, dy);
-      expect(Math.abs(offsetFromMiddle(look.azimuth)), `dragging ${dx},${dy}`).toBeLessThan(0.1);
-      expect(Math.abs(look.elevation), `dragging ${dx},${dy}`).toBeLessThan(0.1);
-    }
+    const fov = await viewFov(page);
+    // Worked by hand (see the geometry tests): a 16:9 screen needs 44.338 degrees up and down, so it sees 71.84 degrees across
+    // (2 x atan(tan(22.169) x 1.77778) = 2 x atan(0.72411)), a little less than the photo's 73.74, leaving 0.95 degrees to turn
+    // and (53.13 - 44.338) / 2 = 4.40 degrees to tilt.
+    expect(fov.verticalFov).toBeCloseTo(44.338, 1);
+    expect(fov.horizontalFov).toBeLessThanOrEqual(PHOTO_WIDE + 0.01);
+    const up = await dragFar(page, 0, 3000); // finger down: the view tilts up
+    expect(up.elevation).toBeCloseTo(4.4, 1);
+    const down = await dragFar(page, 0, -6000);
+    expect(down.elevation).toBeCloseTo(-4.4, 1);
+    const side = await dragFar(page, -6000, 0);
+    expect(Math.abs(offsetFromMiddle(side.azimuth))).toBeGreaterThan(0.9);
+    expect(Math.abs(offsetFromMiddle(side.azimuth))).toBeLessThan(0.97);
   });
 
   test('on a tall phone the camera zooms in a little, and you can look as far sideways as the photo reaches', async ({ page }) => {
@@ -214,29 +220,34 @@ test.describe('how far you can look round', () => {
     }
   });
 
-  test('looking as far as you can in every direction on a tall phone never shows empty space beyond the photo', async ({ page }) => {
-    // The empty space around the photo is painted bright magenta for this test, so any gap is easy to see.
-    // (An earlier version showed a black wedge in the top corner when you looked fully sideways and then up.)
-    for (const size of [
-      { width: 390, height: 844 },
-      { width: 420, height: 900 },
-      { width: 600, height: 800 },
-    ]) {
+  // One test per screen shape: each is quick, and they can run side by side.
+  // The empty space around the photo is painted bright magenta for these tests (test only), so any gap is easy to see.
+  // (An earlier version showed a black wedge in the top corner when you looked fully sideways and then up on a portrait phone.)
+  for (const size of [
+    { width: 390, height: 844 },
+    { width: 420, height: 900 },
+    { width: 600, height: 800 },
+    { width: 1280, height: 720 },
+    { width: 2560, height: 1080 },
+    { width: 844, height: 340 },
+  ]) {
+    test(`looking as far as you can in every direction never shows empty space beyond the photo at ${size.width}x${size.height}`, async ({ page }) => {
+      test.setTimeout(90_000);
       await page.setViewportSize(size);
       await landAtEarth(page);
       await debug(page, (h) => h.setBackdrop(0xff00ff));
       for (const [dx, dy] of [[-3000, 3000], [3000, 3000], [-3000, -3000], [3000, -3000], [-3000, 0], [3000, 0], [0, 3000], [0, -3000]]) {
         await dragFar(page, dx, dy);
         await page.waitForTimeout(100); // let a frame draw
-        expect(await gapPixels(page), `${size.width}x${size.height} after dragging ${dx},${dy}`).toBeLessThan(3);
+        expect(await gapPixels(page), `after dragging ${dx},${dy}`).toBeLessThan(3);
       }
-    }
-  });
+    });
+  }
 
   test('turning the phone while you look out of the window: the view re-zooms and the limits follow the new shape', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 720 }); // wide: the photo exactly fills the screen
+    await page.setViewportSize({ width: 1280, height: 720 }); // wide: only 0.95 degrees to turn
     await landAtEarth(page);
-    expect(Math.abs(offsetFromMiddle((await dragFar(page, -3000, 0)).azimuth))).toBeLessThan(0.1);
+    expect(Math.abs(offsetFromMiddle((await dragFar(page, -3000, 0)).azimuth))).toBeLessThan(0.97);
 
     // Now turn it upright: a tall screen can look sideways.
     await page.setViewportSize({ width: 420, height: 900 });
@@ -249,7 +260,7 @@ test.describe('how far you can look round', () => {
 
     // And back to wide: the view is pulled back to the middle at once, not left looking past the photo.
     await page.setViewportSize({ width: 1280, height: 720 });
-    await expect.poll(async () => Math.abs(offsetFromMiddle((await debug(page, (h) => h.getLook())!)!.azimuth)), { timeout: 5000 }).toBeLessThan(0.1);
+    await expect.poll(async () => Math.abs(offsetFromMiddle((await debug(page, (h) => h.getLook())!)!.azimuth)), { timeout: 5000 }).toBeLessThan(0.97);
   });
 
   test('arrow keys stop at the same edge', async ({ page }) => {
@@ -275,8 +286,58 @@ test.describe('how far you can look round', () => {
     await expect.poll(() => debug(page, (h) => h.isLookTurning())).toBe(false);
     const look = (await debug(page, (h) => h.getLook()))!;
     const reach = (PHOTO_WIDE - (await viewFov(page)).horizontalFov) / 2;
-    expect(offsetFromMiddle(look.azimuth)).toBeGreaterThan(reach - 0.3); // as far as it can go
-    expect(offsetFromMiddle(look.azimuth)).toBeLessThan(reach + 0.01); // and no further
+    // It turned a good way toward the dot (which is 28 degrees to the right), picking the look that shows it best, and never past the limit.
+    expect(offsetFromMiddle(look.azimuth)).toBeGreaterThan(15);
+    expect(offsetFromMiddle(look.azimuth)).toBeLessThan(reach + 0.01);
+    await expect(array).toHaveCSS('opacity', '1'); // and the dot is on the screen once the view has stopped
+  });
+});
+
+test.describe('every dot can be found, on every shape of screen', () => {
+  // A 21:9 monitor and a short wide browser window once hid two dots for good, and Tab could focus a dot nobody could see.
+  const shapes = [
+    { width: 2560, height: 1080 },
+    { width: 1920, height: 700 },
+    { width: 1500, height: 500 },
+    { width: 844, height: 340 },
+    { width: 1280, height: 720 },
+    { width: 1024, height: 768 },
+    { width: 1000, height: 1000 },
+    { width: 768, height: 1024 },
+    { width: 600, height: 800 },
+    { width: 390, height: 844 },
+    { width: 360, height: 640 },
+    { width: 320, height: 568 },
+  ];
+  for (const size of shapes) {
+    test(`all six dots can be brought on screen at ${size.width}x${size.height}`, async ({ page }) => {
+      await page.setViewportSize(size);
+      await landAtEarth(page);
+      for (const spot of earth.hotspots) {
+        const button = page.getByTestId(`spot-${spot.id}`);
+        await button.focus(); // Tab does this: the view swings round to bring the dot on screen
+        await expect(button, `${spot.id} at ${size.width}x${size.height}`).toHaveCSS('opacity', '1', { timeout: 5000 });
+        await expect.poll(() => debug(page, (h) => h.isLookTurning())).toBe(false);
+        await expect(button).toHaveCSS('opacity', '1'); // and it stays on screen once the view has stopped
+        await button.blur();
+      }
+    });
+  }
+
+  test('found 6 of 6 is possible with a mouse on an ultra-wide monitor', async ({ page }) => {
+    await page.setViewportSize({ width: 2560, height: 1080 });
+    await landAtEarth(page);
+    for (const spot of earth.hotspots) {
+      const button = page.getByTestId(`spot-${spot.id}`);
+      await button.focus();
+      await expect(button).toHaveCSS('opacity', '1', { timeout: 5000 });
+      await expect.poll(() => debug(page, (h) => h.isLookTurning())).toBe(false);
+      const box = (await button.boundingBox())!;
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); // a real click on the visible dot
+      await page.getByTestId('close-card').click();
+    }
+    await expect(page.getByTestId('found')).toHaveText('Found 6 of 6');
+    await expect(page.getByTestId('orbit')).toContainText('You found everything here');
   });
 });
 

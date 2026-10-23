@@ -9,6 +9,9 @@ import {
   LOOK_LIMITS,
   rectilinearPhotoToAzEl,
   viewHorizontalFov,
+  clampLook,
+  directionOnScreen,
+  lookToShow,
   windowCameraFov,
   windowCornersInside,
   windowLookLimits,
@@ -297,14 +300,21 @@ describe('windowLookLimits: exactly as far as the screen stays on the photo', ()
     // cos(a) - 0.26231 sin(a) = 1.0338 cos(a + 14.70), so a + 14.70 <= acos(0.93262 / 1.0338) = 25.57, so a <= 10.87.
     const limits = windowLookLimits(photo, { horizontalFov: viewHorizontalFov(50, 9 / 16), verticalFov: 50 }, 0);
     expect(limits.azimuthHalfRange).toBeCloseTo(10.87, 1);
-    expect(limits.maxElevation).toBeCloseTo(0, 1); // no room up or down once the corners touch the top and bottom edges
+    // Looking straight ahead you can still tilt by the 1.565 degrees the photo is taller than the screen...
+    expect(limits.maxElevation).toBeCloseTo((53.1301 - 50) / 2, 1);
+    // ...but by the time you have turned that far sideways the top and bottom corners touch the edges, so there is no tilt left.
+    expect(limits.tiltAt!(10.87)).toBeLessThan(0.05);
+    expect(limits.tiltAt!(0)).toBeCloseTo(1.565, 1);
+    expect(limits.tiltAt!(5)).toBeGreaterThan(0);
+    expect(limits.tiltAt!(5)).toBeLessThan(1.565);
   });
 
   it('on a wide screen where the photo exactly fills the width there is nothing to look round at all', () => {
     // Tilt by an angle t and the top corners reach out to 0.75 / (cos t - 0.42187 sin t): wider than the photo's 0.75 half-width.
     // (0.42187 is the half-height of that screen.) So a photo that exactly fills the screen cannot be moved even a little.
-    const fov = windowCameraFov(photo, 16 / 9);
-    const limits = windowLookLimits(photo, { horizontalFov: viewHorizontalFov(fov, 16 / 9), verticalFov: fov }, 0);
+    // (The game no longer zooms like this: see windowCameraFov, which leaves room to tilt. This is the view for the exact-fill zoom.)
+    const fill = (2 * Math.atan(0.75 / (16 / 9)) * 180) / Math.PI;
+    const limits = windowLookLimits(photo, { horizontalFov: viewHorizontalFov(fill, 16 / 9), verticalFov: fill }, 0);
     expect(limits.azimuthHalfRange).toBeLessThan(0.01);
     expect(limits.maxElevation).toBeLessThan(0.01);
   });
@@ -316,15 +326,19 @@ describe('windowLookLimits: exactly as far as the screen stays on the photo', ()
       [45, 3 / 4],
       [40, 0.46],
       [windowCameraFov(photo, 9 / 16), 9 / 16], // the zoom the game really uses on a tall phone
-      [windowCameraFov(photo, 16 / 9), 16 / 9], // ...and on a wide screen
-      [windowCameraFov(photo, 844 / 390), 844 / 390], // ...and on a phone held sideways
+      [windowCameraFov(photo, 16 / 9), 16 / 9], // ...on a wide screen
+      [windowCameraFov(photo, 844 / 390), 844 / 390], // ...on a phone held sideways
+      [windowCameraFov(photo, 2560 / 1080), 2560 / 1080], // ...on an ultra-wide monitor
+      [windowCameraFov(photo, 0.3), 0.3], // ...and on a very tall, thin screen
     ];
     for (const [verticalFov, aspect] of cases) {
       const view = { horizontalFov: viewHorizontalFov(verticalFov, aspect), verticalFov };
       const limits = windowLookLimits(photo, view, 0);
       for (const yaw of [-1, -0.5, 0, 0.5, 1]) {
         for (const pitch of [-1, -0.5, 0, 0.5, 1]) {
-          const ok = windowCornersInside(photo, view, yaw * limits.azimuthHalfRange, pitch * limits.maxElevation);
+          const yawDegrees = yaw * limits.azimuthHalfRange;
+          const pitchDegrees = pitch * limits.tiltAt!(Math.abs(yawDegrees));
+          const ok = windowCornersInside(photo, view, yawDegrees, pitchDegrees);
           expect(ok, `fov ${verticalFov.toFixed(2)}, aspect ${aspect.toFixed(2)}, yaw ${yaw}, pitch ${pitch}`).toBe(true);
         }
       }
@@ -341,12 +355,17 @@ describe('windowLookLimits: exactly as far as the screen stays on the photo', ()
 describe('windowCameraFov: zoom so the photo covers the screen AND every corner can reach every part of it', () => {
   const photo = { horizontalFov: 73.7398, verticalFov: 53.1301 };
 
-  it('zooms in on a wide screen so the picture is not letterboxed in black (16:9 needs 45.75 degrees)', () => {
-    // Half the photo's width is tan = 0.75, so half the screen's height is atan(0.75 / 1.77778) = atan(0.421875) = 22.874 degrees,
-    // which is 45.747 degrees tall.
-    expect(windowCameraFov(photo, 16 / 9)).toBeCloseTo(45.747, 2);
-    // A phone held sideways, 844 x 390 (2.16410:1): atan(0.75 / 2.1641) = atan(0.34657) = 19.1145 degrees, so 38.229 degrees tall.
-    expect(windowCameraFov(photo, 844 / 390)).toBeCloseTo(38.229, 2);
+  it('zooms in on a wide screen so the picture is not letterboxed in black, and so there is room to tilt (16:9 needs 44.34 degrees)', () => {
+    // Just filling the width would be 45.747 degrees, but then tilting pushes the top corners past the photo's sides, so the top
+    // and bottom of the photo could never be reached. Zoom in until a full tilt just fits. Check by hand at 44.338 degrees:
+    // half-height tan(22.169) = 0.40735, half-width 0.40735 x 1.77778 = 0.72418; the full tilt is (53.13 - 44.338) / 2 = 4.396
+    // degrees (cos 0.99706, sin 0.07665); the top corner reaches across to 0.72418 / (0.99706 - 0.40735 x 0.07665) = 0.74979,
+    // which is the photo's half-width, 0.75. Any bigger and it pokes out.
+    expect(windowCameraFov(photo, 16 / 9)).toBeCloseTo(44.338, 2);
+    // A phone held sideways, 844 x 390 (2.1641:1): worked the same way, 36.116 degrees.
+    expect(windowCameraFov(photo, 844 / 390)).toBeCloseTo(36.116, 2);
+    // A 2560 x 1080 monitor: 32.879 degrees.
+    expect(windowCameraFov(photo, 2560 / 1080)).toBeCloseTo(32.879, 2);
   });
 
   it('zooms in a little on a tall phone too, so the whole width of the photo can be reached without a corner leaving it', () => {
@@ -360,9 +379,102 @@ describe('windowCameraFov: zoom so the photo covers the screen AND every corner 
     expect(windowCornersInside(photo, slightlyBigger, (photo.horizontalFov - slightlyBigger.horizontalFov) / 2, 0)).toBe(false); // and not zoomed more than needed
   });
 
+  it('leaves room to tilt so the top and bottom of the photo can be reached too, even on a very wide screen', () => {
+    // On 2560 x 1080 (2.37:1) zooming only to fill the width leaves no room to tilt (tilting pushes the top corners past the sides),
+    // so the clouds near the top and the station near the bottom could never come on screen.
+    for (const aspect of [16 / 9, 2.16, 2560 / 1080, 3]) {
+      const fov = windowCameraFov(photo, aspect);
+      const view = { horizontalFov: viewHorizontalFov(fov, aspect), verticalFov: fov };
+      const fullTilt = (photo.verticalFov - fov) / 2;
+      expect(windowCornersInside(photo, view, 0, fullTilt), `tilt up, aspect ${aspect}`).toBe(true);
+      expect(windowCornersInside(photo, view, 0, -fullTilt), `tilt down, aspect ${aspect}`).toBe(true);
+      // ...and it is not zoomed in more than that needs.
+      const looser = { horizontalFov: viewHorizontalFov(fov + 0.3, aspect), verticalFov: fov + 0.3 };
+      const looserTilt = (photo.verticalFov - looser.verticalFov) / 2;
+      const stillFits =
+        windowCornersInside(photo, looser, 0, looserTilt) &&
+        windowCornersInside(photo, looser, (photo.horizontalFov - looser.horizontalFov) / 2, 0);
+      expect(stillFits, `not tighter than needed, aspect ${aspect}`).toBe(false);
+    }
+  });
+
+  it('never goes mad on a silly screen shape', () => {
+    for (const aspect of [0.01, 1000]) {
+      const fov = windowCameraFov(photo, aspect);
+      expect(Number.isFinite(fov)).toBe(true);
+      expect(fov).toBeGreaterThan(0);
+      expect(fov).toBeLessThanOrEqual(50);
+    }
+  });
+
   it('keeps the normal 50 degrees on a 4:3 screen, where nothing is lost', () => {
     // 4:3: half-width tan(25 degrees) x 1.3333 = 0.62175 (63.3 degrees across), so the sideways range is (73.74 - 63.3) / 2 = 5.2 degrees,
     // and the top corner reaches 0.46631 / (cos 5.2 - 0.62175 sin 5.2) = 0.46631 / 0.93951 = 0.4963: inside the 0.5 edge.
     expect(windowCameraFov(photo, 4 / 3)).toBe(50);
+  });
+});
+
+describe('directionOnScreen', () => {
+  const view = { horizontalFov: 60, verticalFov: 40 };
+
+  it('says a direction is on the screen when it is inside the field of view', () => {
+    expect(directionOnScreen({ azimuth: 100, elevation: 0 }, view, 100, 0)).toBe(true); // straight ahead
+    expect(directionOnScreen({ azimuth: 100, elevation: 0 }, view, 125, 0)).toBe(true); // 25 degrees right: inside +-30
+    expect(directionOnScreen({ azimuth: 100, elevation: 0 }, view, 100, 15)).toBe(true); // 15 up: inside +-20
+  });
+
+  it('says it is not when it is outside, or behind', () => {
+    expect(directionOnScreen({ azimuth: 100, elevation: 0 }, view, 135, 0)).toBe(false); // 35 right: past 30
+    expect(directionOnScreen({ azimuth: 100, elevation: 0 }, view, 100, 25)).toBe(false); // 25 up: past 20
+    expect(directionOnScreen({ azimuth: 100, elevation: 0 }, view, 280, 0)).toBe(false); // behind
+  });
+});
+
+describe('looking round when the room to tilt depends on how far you have turned', () => {
+  const photo = { horizontalFov: 73.7398, verticalFov: 53.1301 };
+  const view = { horizontalFov: viewHorizontalFov(50, 9 / 16), verticalFov: 50 };
+  const limits = windowLookLimits(photo, view, 0);
+
+  it('lets you tilt freely looking straight ahead, and not at all at the sideways limit', () => {
+    expect(clampLook({ azimuth: 0, elevation: 1.5 }, limits).elevation).toBeCloseTo(1.5, 6);
+    const turned = clampLook({ azimuth: limits.azimuthHalfRange, elevation: 1.5 }, limits);
+    expect(turned.elevation).toBeLessThan(0.05);
+  });
+
+  it('slides along the edge: turning further sideways takes tilt away smoothly instead of stopping dead', () => {
+    const a = clampLook({ azimuth: 4, elevation: 5 }, limits).elevation;
+    const b = clampLook({ azimuth: 8, elevation: 5 }, limits).elevation;
+    expect(a).toBeGreaterThan(b);
+    expect(b).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('lookToShow: the best allowed look for bringing a direction onto the screen', () => {
+  const photo = { horizontalFov: 73.7398, verticalFov: 53.1301 };
+  const aspect = 2560 / 1080;
+  const fov = windowCameraFov(photo, aspect);
+  const view = { horizontalFov: viewHorizontalFov(fov, aspect), verticalFov: fov };
+  const limits = windowLookLimits(photo, view, 0);
+
+  it('looks straight at a direction when it is already allowed', () => {
+    const look = lookToShow(limits, view, 0, 0);
+    expect(look.azimuth).toBeCloseTo(0, 6);
+    expect(look.elevation).toBeCloseTo(0, 6);
+  });
+
+  it('keeps the tilt a high dot needs, giving up some turning instead (turning first would leave no room to tilt)', () => {
+    // On an ultra-wide monitor the clouds dot sits 17.3 degrees up and 12.8 to the right: past what is reachable by turning.
+    const look = lookToShow(limits, view, 12.8, 17.3);
+    expect(look.elevation).toBeGreaterThan(2); // it did tilt up, not stay level
+    expect(directionOnScreen(look, view, 12.8, 17.3)).toBe(true);
+  });
+
+  it('never picks a look outside the safe region', () => {
+    for (const [az, el] of [[12.8, 17.3], [28.4, -16.2], [330, -10], [0, 25], [0, -25], [36, 20]]) {
+      const look = lookToShow(limits, view, az, el);
+      const turn = ((look.azimuth + 540) % 360) - 180;
+      expect(Math.abs(turn)).toBeLessThanOrEqual(limits.azimuthHalfRange + 1e-6);
+      expect(Math.abs(look.elevation)).toBeLessThanOrEqual(limits.tiltAt!(Math.abs(turn)) + 1e-6);
+    }
   });
 });

@@ -3,7 +3,15 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import surfacesJson from '../public/data/surfaces.json';
 import { validateSurfaces } from '../src/data/surfaces';
-import { cylindricalPhotoToAzEl, rectilinearPhotoToAzEl } from '../src/surface/geometry';
+import {
+  cylindricalPhotoToAzEl,
+  directionOnScreen,
+  lookToShow,
+  rectilinearPhotoToAzEl,
+  viewHorizontalFov,
+  windowCameraFov,
+  windowLookLimits,
+} from '../src/surface/geometry';
 
 const WORLDS = ['sun', 'mercury', 'venus', 'earth', 'moon', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'];
 const copy = () => structuredClone(surfacesJson) as any;
@@ -62,6 +70,11 @@ describe('surfaces.json', () => {
     expect(earth.description).not.toMatch(/360|rover/i);
     expect(earth.description).toMatch(/astronaut/i);
     expect(earth.description).toMatch(/window/i);
+    // In the photo, Earth fills the top and the dark sky with the stars is BELOW it: the label must not say "above".
+    expect(earth.description).not.toMatch(/above/i);
+    expect(earth.description).toMatch(/stars below/i);
+    // Mars: 360 degrees, but the sky and ground beyond the photographed band are filled in, and the label says so.
+    expect(mars.description).toMatch(/filled in/i);
   });
 
   it('tells the player which parts of the picture are filled in, not photographed', () => {
@@ -117,6 +130,22 @@ describe('the Earth window view from the International Space Station', () => {
       const spot = earth().hotspots.find((h) => h.id === id)!;
       expect(Math.abs(((spot.azimuth - want.azimuth + 540) % 360) - 180), `${id} azimuth`).toBeLessThan(2);
       expect(Math.abs(spot.elevation - want.elevation), `${id} elevation`).toBeLessThan(2);
+    }
+  });
+
+  it('can put every dot on the screen, on every screen shape from very tall and thin to very wide and short', () => {
+    // The look-around only helps if you can actually bring each dot onto the screen. (A 21:9 monitor once hid two dots for good.)
+    const photo = earth().photo!;
+    const shapes = [0.3, 0.46, 0.5625, 0.75, 1, 1.33, 1.78, 2.16, 2.37, 2.5, 3, 4];
+    for (const aspect of shapes) {
+      const fov = windowCameraFov(photo, aspect);
+      const view = { horizontalFov: viewHorizontalFov(fov, aspect), verticalFov: fov };
+      const limits = windowLookLimits(photo, view, 0);
+      for (const spot of earth().hotspots) {
+        // Turn to the best allowed look for that dot (as Tab does), then ask whether it is on the screen.
+        const look = lookToShow(limits, view, spot.azimuth, spot.elevation);
+        expect(directionOnScreen(look, view, spot.azimuth, spot.elevation), `${spot.id} at aspect ${aspect}`).toBe(true);
+      }
     }
   });
 

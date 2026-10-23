@@ -285,7 +285,13 @@ export class Game {
       this.surfaceHud = new SurfaceHud(
         this.stage,
         surface,
-        { onBack: () => this.leaveSurface(), onTurnTo: (az, el) => this.look?.turnTo(az, el, this.reducedMotion) },
+        {
+          onBack: () => this.leaveSurface(),
+          onTurnTo: (az, el) => {
+            const view = this.panorama?.viewFov();
+            if (view) this.look?.turnToShow(az, el, view, this.reducedMotion);
+          },
+        },
         this.speaker,
       );
       this.surfaceHudFor = surface.worldId;

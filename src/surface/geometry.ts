@@ -146,9 +146,17 @@ export function windowCameraFov(photo: Fovs, screenAspect: number, maxVerticalFo
   const reachesWholePhoto = (verticalFov: number): boolean => {
     const view = { horizontalFov: viewHorizontalFov(verticalFov, aspect), verticalFov };
     const fullSideways = Math.max(0, (photo.horizontalFov - view.horizontalFov) / 2);
-    return windowCornersInside(photo, view, fullSideways, 0) && windowCornersInside(photo, view, -fullSideways, 0);
+    const fullTilt = Math.max(0, (photo.verticalFov - view.verticalFov) / 2);
+    // Straight to either side, and straight up and down. (Both are needed: on a very wide screen, zooming only to fill the width
+    // leaves no room to tilt, and the top and bottom of the photo could never come on screen.)
+    return (
+      windowCornersInside(photo, view, fullSideways, 0) &&
+      windowCornersInside(photo, view, -fullSideways, 0) &&
+      windowCornersInside(photo, view, 0, fullTilt) &&
+      windowCornersInside(photo, view, 0, -fullTilt)
+    );
   };
-  return Math.max(10, largestThatWorks(Math.min(maxVerticalFov, fillsWidth), reachesWholePhoto));
+  return Math.max(1, largestThatWorks(Math.min(maxVerticalFov, fillsWidth), reachesWholePhoto));
 }
 
 export interface LookLimits {
@@ -158,23 +166,83 @@ export interface LookLimits {
   azimuthHalfRange: number;
   minElevation: number;
   maxElevation: number;
+  /**
+   * Optional: how far you may tilt (up or down) when you have turned this many degrees from the middle. The further you turn,
+   * the less room there is to tilt, so the safe region is not a plain rectangle. Without it, min and max elevation apply everywhere.
+   */
+  tiltAt?: (degreesFromMiddle: number) => number;
 }
 
 /**
  * How far you may look round inside a window picture so that no corner of the screen ever leaves the photo. Found from the
- * exact corner geometry (see `windowCornersInside`): first as far sideways as stays safe, then as far up and down as stays safe
- * at that sideways limit. A screen that cannot fit on the photo even looking straight at it has nothing to look round.
+ * exact corner geometry (see `windowCornersInside`). The safe region is not a rectangle: the further you turn sideways, the less
+ * room there is to tilt (and the other way round). So the limits are: the furthest you may turn looking straight ahead, and
+ * `tiltAt(turn)`, the furthest you may tilt once turned by `turn`. A screen that cannot fit on the photo even looking straight at
+ * it has nothing to look round.
  */
 export function windowLookLimits(photo: Fovs, view: Fovs, centerAzimuth: number): LookLimits {
-  const none: LookLimits = { azimuthCenter: centerAzimuth, azimuthHalfRange: 0, minElevation: 0, maxElevation: 0 };
+  const none: LookLimits = { azimuthCenter: centerAzimuth, azimuthHalfRange: 0, minElevation: 0, maxElevation: 0, tiltAt: () => 0 };
   if (!windowCornersInside(photo, view, 0, 0)) return none;
   const reachSideways = Math.max(0, (photo.horizontalFov - view.horizontalFov) / 2);
   const reachUp = Math.max(0, (photo.verticalFov - view.verticalFov) / 2);
   const yaw = largestThatWorks(reachSideways, (y) => windowCornersInside(photo, view, y, 0) && windowCornersInside(photo, view, -y, 0));
-  const pitch = largestThatWorks(reachUp, (p) =>
-    [yaw, -yaw].every((y) => windowCornersInside(photo, view, y, p) && windowCornersInside(photo, view, y, -p)),
-  );
-  return { azimuthCenter: centerAzimuth, azimuthHalfRange: yaw, minElevation: -pitch, maxElevation: pitch };
+  // The picture is the same either side of the middle (and up and down), so one side is enough.
+  const tiltAt = (turn: number): number =>
+    largestThatWorks(reachUp, (p) => windowCornersInside(photo, view, turn, p) && windowCornersInside(photo, view, turn, -p));
+  const tilt = tiltAt(0);
+  return { azimuthCenter: centerAzimuth, azimuthHalfRange: yaw, minElevation: -tilt, maxElevation: tilt, tiltAt };
+}
+
+/**
+ * The best allowed look for bringing a direction onto the screen (this is what Tab uses to swing the view round to a dot).
+ * Simply turning as far as allowed first and tilting second can leave no room to tilt, because the safe region shrinks as you turn,
+ * so this tries a spread of turns (up to the turn the direction itself needs), keeps the tilt the direction needs as far as that turn
+ * allows, and picks the one that puts the direction nearest the middle of the screen.
+ */
+export function lookToShow(limits: LookLimits, view: Fovs, azimuth: number, elevation: number): LookState {
+  const wantedTurn = ((azimuth - limits.azimuthCenter + 540) % 360) - 180;
+  const side = wantedTurn < 0 ? -1 : 1;
+  const mostTurn = Math.min(Math.abs(wantedTurn), limits.azimuthHalfRange);
+  const target = azElToDirection(azimuth, elevation);
+  let best: LookState = clampLook({ azimuth, elevation }, limits);
+  let bestScore = Infinity;
+  const steps = 24;
+  for (let i = 0; i <= steps; i++) {
+    const turn = (i / steps) * mostTurn;
+    const room = limits.tiltAt ? limits.tiltAt(turn) : Math.max(Math.abs(limits.minElevation), Math.abs(limits.maxElevation));
+    const candidate: LookState = {
+      azimuth: wrapDegrees(limits.azimuthCenter + side * turn),
+      elevation: clamp(elevation, -room, room),
+    };
+    const d = azElToDirection(candidate.azimuth, candidate.elevation);
+    const angleApart = Math.acos(clamp(d.x * target.x + d.y * target.y + d.z * target.z, -1, 1));
+    // Prefer looks that really show the direction; among those, the one that centres it best.
+    const score = angleApart + (directionOnScreen(candidate, view, azimuth, elevation) ? 0 : 10);
+    if (score < bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  }
+  return best;
+}
+
+/**
+ * Is a direction (azimuth, elevation) on the screen when looking at `look`? (False if it is behind you.)
+ * Used to check that every glowing dot can be brought onto the screen.
+ */
+export function directionOnScreen(look: LookState, view: Fovs, azimuth: number, elevation: number): boolean {
+  const psi = look.azimuth * DEG;
+  const theta = look.elevation * DEG;
+  const forward = { x: Math.cos(psi) * Math.cos(theta), y: Math.sin(theta), z: Math.sin(psi) * Math.cos(theta) };
+  const right = { x: -Math.sin(psi), y: 0, z: Math.cos(psi) };
+  const up = { x: -Math.cos(psi) * Math.sin(theta), y: Math.cos(theta), z: -Math.sin(psi) * Math.sin(theta) };
+  const d = azElToDirection(azimuth, elevation);
+  const along = d.x * forward.x + d.y * forward.y + d.z * forward.z;
+  if (along <= 1e-9) return false;
+  const across = (d.x * right.x + d.y * right.y + d.z * right.z) / along;
+  const high = (d.x * up.x + d.y * up.y + d.z * up.z) / along;
+  const tolerance = 1e-9;
+  return Math.abs(across) <= Math.tan((view.horizontalFov * DEG) / 2) + tolerance && Math.abs(high) <= Math.tan((view.verticalFov * DEG) / 2) + tolerance;
 }
 
 export interface LookState {
@@ -209,10 +277,12 @@ function keepInside(azimuth: number, elevation: number, limits?: LookLimits): Lo
       elevation: clamp(elevation, LOOK_LIMITS.minElevation, LOOK_LIMITS.maxElevation),
     };
   }
-  const fromMiddle = ((azimuth - limits.azimuthCenter + 540) % 360) - 180; // -180 to 180
+  const fromMiddle = clamp(((azimuth - limits.azimuthCenter + 540) % 360) - 180, -limits.azimuthHalfRange, limits.azimuthHalfRange); // -180 to 180
+  // How far you may tilt depends on how far you have turned (if the limits say so).
+  const room = limits.tiltAt ? limits.tiltAt(Math.abs(fromMiddle)) : undefined;
   return {
-    azimuth: wrapDegrees(limits.azimuthCenter + clamp(fromMiddle, -limits.azimuthHalfRange, limits.azimuthHalfRange)),
-    elevation: clamp(elevation, limits.minElevation, limits.maxElevation),
+    azimuth: wrapDegrees(limits.azimuthCenter + fromMiddle),
+    elevation: room === undefined ? clamp(elevation, limits.minElevation, limits.maxElevation) : clamp(elevation, -room, room),
   };
 }
 
