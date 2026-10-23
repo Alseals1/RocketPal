@@ -4,8 +4,8 @@ const SPEED_OF_LIGHT_KM_PER_SEC = 299_792.458;
 
 /** "384,400 km", "57.9 million km", "4.5 billion km". */
 export function formatDistanceKm(km: number): string {
-  if (km >= 1e9) return `${(km / 1e9).toFixed(1)} billion km`;
-  if (km >= 1e6) return `${(km / 1e6).toFixed(1)} million km`;
+  if (km >= 1e9 || Number((km / 1e6).toFixed(1)) >= 1000) return `${(km / 1e9).toFixed(1)} billion km`;
+  if (Math.round(km) >= 1e6) return `${(km / 1e6).toFixed(1)} million km`;
   return `${Math.round(km).toLocaleString('en-US')} km`;
 }
 

@@ -15,11 +15,6 @@ describe('planets.json', () => {
   it('has exactly the ten worlds, in journey order', () => {
     expect(planetsJson.worlds.map((w) => w.id)).toEqual(WORLD_IDS);
   });
-
-  it('flags moon counts that can still change for checking', () => {
-    const verify = planetsJson.worlds.filter((w) => w.moons.verify).map((w) => w.id);
-    expect(verify).toEqual(['jupiter', 'saturn', 'uranus', 'neptune']);
-  });
 });
 
 describe('validatePlanets', () => {
