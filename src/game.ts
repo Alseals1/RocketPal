@@ -125,6 +125,15 @@ export class Game {
 
     if (options.debug) this.exposeDebugHandle();
     requestAnimationFrame((t) => this.frame(t));
+
+    // The Blender rocket (and the code that reads it) loads after the first frame.
+    // If it cannot load, the simple rocket stays and the game carries on.
+    requestAnimationFrame(() => {
+      import('./scene/shipModel')
+        .then(({ loadShipModel }) => loadShipModel())
+        .then((ship) => this.scene.useShipModel(ship))
+        .catch((error) => console.warn('Rocket model not loaded, keeping the simple rocket.', error));
+    });
   }
 
   pickTarget(id: string): void {
@@ -428,6 +437,7 @@ export class Game {
       getTargetId: () => this.targetId,
       getQuality: () => this.quality,
       isGlowVisible: () => this.scene.glowVisible,
+      hasShipModel: () => this.scene.hasShipModel,
       getFps: () => this.monitor.fps(),
       getWorld: (id: string): World | undefined => this.layout(id)?.world,
       isReducedMotion: () => this.scene.isReducedMotion, // read from the scene itself, so tests cover the wiring
