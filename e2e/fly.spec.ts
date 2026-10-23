@@ -181,6 +181,33 @@ test.describe('on a touch screen', () => {
     await page.mouse.up();
   });
 
+  test('with the biggest text, nothing sits on top of the touch controls', async ({ page }) => {
+    await page.addInitScript(() =>
+      localStorage.setItem('rocketpals.settings', JSON.stringify({ version: 1, textSize: 'huge', reducedMotion: 'system' })),
+    );
+    for (const size of [
+      { width: 420, height: 900 },
+      { width: 844, height: 390 },
+    ]) {
+      await page.setViewportSize(size);
+      await start(page, '&touch=1');
+      await page.evaluate(() => (window as unknown as { rocketPals: { pickTarget(id: string): void } }).rocketPals.pickTarget('mars'));
+      const box = async (selector: string) => (await page.locator(selector).boundingBox())!;
+      const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>
+        a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+      const autopilot = await box('[data-testid="autopilot-button"]');
+      expect(overlaps(autopilot, await box('[data-testid="stick"]')), `autopilot over the stick at ${size.width}`).toBe(false);
+      expect(overlaps(autopilot, await box('[data-testid="boost-button"]')), `autopilot over BOOST at ${size.width}`).toBe(false);
+      expect(overlaps(await box('.stats'), autopilot), `stats over autopilot at ${size.width}`).toBe(false);
+      // The BOOST label fits inside its button.
+      const fits = await page.evaluate(() => {
+        const b = document.querySelector('[data-testid="boost-button"]') as HTMLElement;
+        return b.scrollWidth <= b.clientWidth && b.scrollHeight <= b.clientHeight;
+      });
+      expect(fits).toBe(true);
+    }
+  });
+
   test('every button is a big, easy target (56 px or more)', async ({ page }) => {
     await start(page, '&touch=1');
     await page.getByTestId('where-button').click();
@@ -253,6 +280,12 @@ test('Escape closes the picker, and Space goes back to boosting after a click', 
   await expect(page.locator('.picker')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.picker')).toBeHidden();
+  await page.keyboard.down('Space'); // Escape must not leave the button holding on to the Space bar either
+  await page.waitForTimeout(1500);
+  expect((await ship(page)).speed).toBeGreaterThan(80);
+  await expect(page.locator('.picker')).toBeHidden();
+  await page.keyboard.up('Space');
+  await page.waitForTimeout(2500);
 
   // A mouse click must not leave the button holding on to the Space bar.
   await page.getByTestId('where-button').click();

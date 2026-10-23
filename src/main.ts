@@ -1,7 +1,9 @@
 import './style.css';
 import { loadPlanets } from './data/planets';
+import { browserStorage, loadSettings } from './core/settings';
 import { Game } from './game';
 import type { Quality } from './quality/quality';
+import { applySettingsToPage } from './ui/settingsPanel';
 
 const root = document.getElementById('game-canvas')!;
 const params = new URLSearchParams(location.search);
@@ -31,12 +33,15 @@ if (!hasWebGL()) {
 }
 
 function start(): void {
+  // Apply saved text size and motion choice before anything is drawn, so nothing jumps.
+  const settings = loadSettings(browserStorage());
+  applySettingsToPage(settings, matchMedia('(prefers-reduced-motion: reduce)').matches);
   loadPlanets()
     .then((data) => {
       new Game(root, data, {
         forcedQuality: forced === 'low' || forced === 'high' ? (forced as Quality) : undefined,
         touchControls: params.has('touch') || matchMedia('(pointer: coarse)').matches,
-        reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+        settings,
         debug: params.has('debug'),
       });
     })
