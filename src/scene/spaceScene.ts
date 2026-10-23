@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { DEFAULT_FLIGHT, forwardVector, type ShipState, type Vec3 } from '../flight/flightModel';
 import { qualitySettings, type Quality } from '../quality/quality';
 import type { BodyLayout } from './layout';
+import type { ShipModel } from './shipModel';
 import { makeGlowTexture, makeWorldTexture } from './textures';
 
 /** What the picture of space is, for people who cannot see it. */
@@ -40,7 +41,9 @@ export class SpaceScene {
   private readonly glows: THREE.Sprite[] = [];
   private readonly spinners: THREE.Mesh[] = [];
   private readonly ship = new THREE.Group();
-  private readonly flame: THREE.Mesh;
+  /** Simple shapes shown until the Blender model has loaded (and kept if it never does). */
+  private readonly placeholder = new THREE.Group();
+  private flame: THREE.Object3D;
   private readonly cameraTarget = new THREE.Vector3();
   private readonly tmp = new THREE.Vector3();
   private readonly tmpView = new THREE.Vector3();
@@ -79,6 +82,7 @@ export class SpaceScene {
     this.scene.add(this.stars);
 
     this.flame = this.makeShip();
+    this.ship.add(this.placeholder);
     this.scene.add(this.ship);
 
     this.applyQuality(quality);
@@ -87,6 +91,23 @@ export class SpaceScene {
   /** Switched on and off from the settings panel, while the game is running. */
   setReducedMotion(on: boolean): void {
     this.reducedMotion = on;
+  }
+
+  /** Swaps the placeholder rocket for the real model once it has loaded. */
+  useShipModel({ model, flame }: ShipModel): void {
+    this.ship.remove(this.placeholder);
+    this.placeholder.traverse((node) => {
+      if (!(node instanceof THREE.Mesh)) return;
+      node.geometry.dispose();
+      (node.material as THREE.Material).dispose();
+    });
+    this.ship.add(model);
+    this.flame = flame;
+  }
+
+  /** Whether the Blender model has replaced the placeholder. */
+  get hasShipModel(): boolean {
+    return this.placeholder.parent === null;
   }
 
   /** What the picture is, for people who cannot see it. */
@@ -255,14 +276,14 @@ export class SpaceScene {
     nose.position.z = -1.4;
     const window = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 12), blue);
     window.position.set(0, 0.45, -0.45);
-    this.ship.add(body, nose, window);
+    this.placeholder.add(body, nose, window);
 
     for (let i = 0; i < 3; i++) {
       const fin = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 0.7), orange);
       const angle = (i / 3) * Math.PI * 2;
       fin.position.set(Math.sin(angle) * 0.7, Math.cos(angle) * 0.7, 0.75);
       fin.rotation.z = -angle;
-      this.ship.add(fin);
+      this.placeholder.add(fin);
     }
 
     const flame = new THREE.Mesh(
@@ -272,7 +293,7 @@ export class SpaceScene {
     flame.geometry.translate(0, 0.8, 0); // wide end at the engine, so it grows away from the rocket
     flame.rotation.x = Math.PI / 2; // tip points backward (+Z)
     flame.position.z = 0.9;
-    this.ship.add(flame);
+    this.placeholder.add(flame);
     return flame;
   }
 }

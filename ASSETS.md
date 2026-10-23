@@ -1,14 +1,15 @@
 # Assets still needed
 
-Blender MCP tools were **not available** in the Claude Code session that set up this project, so the game uses simple placeholder shapes (spheres, cones) until the models below exist.
+The Blender MCP is now connected (2026-10-23) and models are built one family at a time. The game still uses simple placeholder shapes (spheres, cones) for anything below that is not built yet.
 
 **How to get them built:** connect the Blender MCP to Claude Code (see `README.md`), or take this list to your Claude desktop chat where Blender is connected. Export each as compressed glTF (`.glb`, Draco or meshopt) to the target path. Style for all models: bright, rounded, friendly, chunky shapes, no sharp edges, flat-ish colors with a colorblind-safe palette, no scary details.
 
 ## Models
 
+**Done:** Rocket ship (`public/models/ship.glb`, built in Blender; source in `assets-src/ship.blend`; see `plans/ship-model.md`). The simple placeholder rocket stays in code as the fallback if the file cannot load. Still to build, in the table below. The "3 swappable color trims" idea for upgrades is not built yet: the ship has one `Trim` material to recolour later.
+
 | Name | Purpose | Polygon budget | Target path | Style notes |
 | --- | --- | --- | --- | --- |
-| Rocket ship | Player ship (flight, landing) | 3,000 tris | `public/models/ship.glb` | Small, rounded, big cockpit window, 3 swappable color trims for upgrades; engine flame as separate node. |
 | Rover | Surface driving on Mars/Moon | 2,500 tris | `public/models/rover.glb` | Chunky wheels, small antenna, friendly face-like front. |
 | Astronaut | Surface exploring | 2,500 tris | `public/models/astronaut.glb` | Round helmet, big visor, waving idle pose. |
 | Orbit (robot guide) | Narrator, appears on every screen | 3,000 tris | `public/models/orbit.glb` | Floating round body, two big eyes (blink, happy, thinking), tiny antenna. |

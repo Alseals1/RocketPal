@@ -24,6 +24,7 @@ import {
 } from './scale/readout';
 import { planLeg } from './scale/leg';
 import { layoutWorlds, type BodyLayout } from './scene/layout';
+import { loadShipModel } from './scene/shipModel';
 import { SPACE_VIEW_LABEL, SpaceScene } from './scene/spaceScene';
 import { windowLookLimits, viewHorizontalFov } from './surface/geometry';
 import { PanoramaScene } from './surface/panoramaScene';
@@ -125,6 +126,11 @@ export class Game {
 
     if (options.debug) this.exposeDebugHandle();
     requestAnimationFrame((t) => this.frame(t));
+
+    // The Blender rocket loads after the first frame. If it cannot load, the simple rocket stays and the game carries on.
+    loadShipModel()
+      .then((ship) => this.scene.useShipModel(ship))
+      .catch(() => {});
   }
 
   pickTarget(id: string): void {
@@ -428,6 +434,7 @@ export class Game {
       getTargetId: () => this.targetId,
       getQuality: () => this.quality,
       isGlowVisible: () => this.scene.glowVisible,
+      hasShipModel: () => this.scene.hasShipModel,
       getFps: () => this.monitor.fps(),
       getWorld: (id: string): World | undefined => this.layout(id)?.world,
       isReducedMotion: () => this.scene.isReducedMotion, // read from the scene itself, so tests cover the wiring
