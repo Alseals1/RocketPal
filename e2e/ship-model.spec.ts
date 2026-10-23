@@ -55,18 +55,27 @@ test('if the rocket file cannot be loaded, the simple rocket stays and the game 
 
 /** Files that arrive fine from the network but are not a usable rocket: the game must treat each like a missing file. */
 const goodFile = readFileSync('public/models/ship.glb');
-const brokenFiles: Record<string, { body: Buffer | string; contentType: string }> = {
+const brokenFiles: Record<string, { body: Buffer | string; contentType: string; warning?: RegExp }> = {
   'cut off half way': { body: goodFile.subarray(0, 20_000), contentType: 'model/gltf-binary' },
   'garbage': { body: Buffer.from('this is not a model at all'), contentType: 'model/gltf-binary' },
   // What a website serves for a missing file when it answers every address with its home page.
   'a web page instead': { body: '<!doctype html><title>Not found</title>', contentType: 'text/html' },
   // A real model, but its flame part is called something else, so the game cannot find it.
-  'no part called Flame': { body: Buffer.from(goodFile.toString('latin1').replace('"Flame"', '"Flamx"'), 'latin1'), contentType: 'model/gltf-binary' },
+  'no part called Flame': {
+    body: Buffer.from(goodFile.toString('latin1').replace('"Flame"', '"Flamx"'), 'latin1'),
+    contentType: 'model/gltf-binary',
+    // Fails for the right reason: the game says what was missing.
+    warning: /Flame/,
+  },
 };
 
-for (const [what, file] of Object.entries(brokenFiles)) {
+for (const [what, { warning, ...file }] of Object.entries(brokenFiles)) {
   test(`a rocket file that is ${what} leaves the simple rocket in place and the game still flies`, async ({ page }) => {
     const errors = watchForErrors(page, [/Failed to load resource/]);
+    const warnings: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'warning') warnings.push(msg.text());
+    });
     await page.route('**/models/ship.glb', (route) => route.fulfill({ status: 200, ...file }));
     await page.goto('/?debug=1');
     await expect(page.locator('#game-canvas canvas')).toBeVisible();
@@ -90,5 +99,6 @@ for (const [what, file] of Object.entries(brokenFiles)) {
     await page.waitForTimeout(500);
     expect(await debug(page, (h) => h.hasShipModel())).toBe(false);
     expect(errors).toEqual([]);
+    expect(warnings.some((w) => /Rocket model not loaded/.test(w) && (warning?.test(w) ?? true))).toBe(true);
   });
 }

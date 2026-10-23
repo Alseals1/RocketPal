@@ -19,10 +19,10 @@ export async function loadShipModel(url = SHIP_MODEL_URL): Promise<ShipModel> {
   model.traverse((node) => {
     if (node.name === 'Flame' && node instanceof THREE.Mesh) flame = node;
   });
-  if (!flame) throw new Error(`${url} has no single-material mesh called Flame`);
+  if (!flame) throw new Error(`${url} has no mesh called Flame`);
 
   // The flame glows by itself instead of being lit by the Sun, like the placeholder's.
-  (flame.material as THREE.Material).dispose();
+  for (const material of [flame.material].flat()) material.dispose();
   flame.material = new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.9 });
 
   return { model, flame };
