@@ -39,8 +39,8 @@ If you would rather use `uv` like the desktop app does (needs `brew install uv` 
 claude mcp add --scope user blender -- uv run --directory "$HOME/Library/Application Support/Claude/Claude Extensions/ant.dir.gh.blender.blender-mcp" blender-mcp
 ```
 
-### What is verified and what is not
+### Troubleshooting
 
-* Verified: the server binary starts, speaks MCP over stdio, reports `blender-mcp`; the server code defaults to port 9876 and reads `BLENDER_MCP_HOST` / `BLENDER_MCP_PORT` if you ever change the add-on's port; Blender is listening on 9876 now.
-* **Not verified:** that the tools can actually drive your open Blender scene from Claude Code (that needs the restart above). The path contains the extension's install location; if the Claude desktop app updates the extension the folder may change, so re-run `claude mcp add` if `blender` stops connecting.
-* **Not verified:** the official README at https://projects.blender.org/lab/blender_mcp (it returned HTTP 403 to automated fetches), so the command is based on the installed extension's `manifest.json`, `pyproject.toml`, and code rather than that page. Search results for "blender-mcp" mostly describe a different, community project (`uvx blender-mcp`); do not use that one.
+* `claude mcp list` should show `blender` as connected. Blender must be open with the Blender Lab MCP add-on running (it listens on `127.0.0.1:9876`). If you changed the add-on's port, set `BLENDER_MCP_PORT` (and `BLENDER_MCP_HOST` if needed) with `claude mcp add ... -e BLENDER_MCP_PORT=<port>`.
+* The path above is inside the Claude desktop extension folder. If the desktop app updates the extension and `blender` stops connecting, run the `claude mcp add` command again.
+* The official README (https://projects.blender.org/lab/blender_mcp) blocks automated fetches, so this command is based on the installed extension's `manifest.json`, `pyproject.toml`, and code. Search results for "blender-mcp" mostly describe a different, community project (`uvx blender-mcp`); do not use that one.

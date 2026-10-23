@@ -1,0 +1,118 @@
+{
+  "lastChecked": "2026-10-23",
+  "source": "NASA Planetary Fact Sheet (metric), updated 2025-03-18: https://nssdc.gsfc.nasa.gov/planetary/factsheet/",
+  "worlds": [
+    {
+      "id": "sun",
+      "name": "The Sun",
+      "kind": "star",
+      "diameterKm": 1391400,
+      "distanceFromSunKm": 0,
+      "orbitDays": null,
+      "moons": { "count": 0, "verify": false },
+      "hook": "The Sun is a giant ball of glowing gas. It holds 99.8% of everything in the solar system!",
+      "color": "#ffb703"
+    },
+    {
+      "id": "mercury",
+      "name": "Mercury",
+      "kind": "planet",
+      "diameterKm": 4879,
+      "distanceFromSunKm": 57900000,
+      "orbitDays": 88,
+      "moons": { "count": 0, "verify": false },
+      "hook": "Mercury is the smallest planet. One trip around the Sun takes just 88 days!",
+      "color": "#a8a29e"
+    },
+    {
+      "id": "venus",
+      "name": "Venus",
+      "kind": "planet",
+      "diameterKm": 12104,
+      "distanceFromSunKm": 108200000,
+      "orbitDays": 224.7,
+      "moons": { "count": 0, "verify": false },
+      "hook": "Venus is the hottest planet, over 460 degrees C. It also spins backward!",
+      "color": "#e9c46a"
+    },
+    {
+      "id": "earth",
+      "name": "Earth",
+      "kind": "planet",
+      "diameterKm": 12756,
+      "distanceFromSunKm": 149600000,
+      "orbitDays": 365.2,
+      "moons": { "count": 1, "verify": false },
+      "hook": "Earth is the only place we know that has life. It has 1 moon.",
+      "color": "#2a9d8f"
+    },
+    {
+      "id": "moon",
+      "name": "The Moon",
+      "kind": "moon",
+      "parent": "earth",
+      "diameterKm": 3475,
+      "distanceFromSunKm": 149600000,
+      "distanceFromParentKm": 384400,
+      "orbitDays": 27.3,
+      "moons": { "count": 0, "verify": false },
+      "hook": "On the Moon you weigh about 1/6 as much. Get ready for giant jumps!",
+      "color": "#d6d3d1"
+    },
+    {
+      "id": "mars",
+      "name": "Mars",
+      "kind": "planet",
+      "diameterKm": 6792,
+      "distanceFromSunKm": 228000000,
+      "orbitDays": 687,
+      "moons": { "count": 2, "verify": false },
+      "hook": "Mars is red because of rusty iron dust. It has the tallest volcano, Olympus Mons!",
+      "color": "#d1495b"
+    },
+    {
+      "id": "jupiter",
+      "name": "Jupiter",
+      "kind": "planet",
+      "diameterKm": 142984,
+      "distanceFromSunKm": 778500000,
+      "orbitDays": 4331,
+      "moons": { "count": 95, "verify": true },
+      "hook": "Jupiter is the biggest planet. Its Great Red Spot is a storm bigger than Earth!",
+      "color": "#d9a066"
+    },
+    {
+      "id": "saturn",
+      "name": "Saturn",
+      "kind": "planet",
+      "diameterKm": 120536,
+      "distanceFromSunKm": 1432000000,
+      "orbitDays": 10747,
+      "moons": { "count": 274, "verify": true },
+      "hook": "Saturn has shiny rings. It is so light that it could float in a giant bathtub!",
+      "color": "#e0c98f"
+    },
+    {
+      "id": "uranus",
+      "name": "Uranus",
+      "kind": "planet",
+      "diameterKm": 51118,
+      "distanceFromSunKm": 2867000000,
+      "orbitDays": 30589,
+      "moons": { "count": 28, "verify": true },
+      "hook": "Uranus spins on its side, like a ball rolling around the Sun!",
+      "color": "#8ecae6"
+    },
+    {
+      "id": "neptune",
+      "name": "Neptune",
+      "kind": "planet",
+      "diameterKm": 49528,
+      "distanceFromSunKm": 4515000000,
+      "orbitDays": 59800,
+      "moons": { "count": 16, "verify": true },
+      "hook": "Neptune has the fastest winds, over 2,000 km/h!",
+      "color": "#3a5fcd"
+    }
+  ]
+}
