@@ -49,7 +49,7 @@ export class SpaceScene {
     parent: HTMLElement,
     layouts: BodyLayout[],
     quality: Quality,
-    private readonly reducedMotion: boolean,
+    private reducedMotion: boolean,
     /** Keeps the picture readable after it is drawn. Only for the browser tests, which check the pixels. */
     keepPicture = false,
   ) {
@@ -79,6 +79,15 @@ export class SpaceScene {
     this.scene.add(this.ship);
 
     this.applyQuality(quality);
+  }
+
+  /** Switched on and off from the settings panel, while the game is running. */
+  setReducedMotion(on: boolean): void {
+    this.reducedMotion = on;
+  }
+
+  get isReducedMotion(): boolean {
+    return this.reducedMotion;
   }
 
   setSize(width: number, height: number): void {

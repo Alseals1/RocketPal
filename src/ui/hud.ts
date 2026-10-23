@@ -1,5 +1,6 @@
 import type { BodyLayout } from '../scene/layout';
 import type { ScreenPoint } from '../scene/spaceScene';
+import { focusGameArea } from './focus';
 
 export interface HudCallbacks {
   onSelect(worldId: string): void;
@@ -43,7 +44,7 @@ export class Hud {
   private height = 1;
 
   constructor(
-    root: HTMLElement,
+    private readonly root: HTMLElement,
     private readonly layouts: BodyLayout[],
     private readonly callbacks: HudCallbacks,
   ) {
@@ -102,7 +103,7 @@ export class Hud {
       name.appendChild(here);
       button.append(dot, name);
       this.onPress(button, () => {
-        this.closePicker(false);
+        this.closePicker();
         this.callbacks.onSelect(layout.world.id);
       });
       this.els.grid.appendChild(button);
@@ -232,9 +233,10 @@ export class Hud {
     }
   }
 
-  private closePicker(returnFocus = true): void {
+  /** Focus is not handed back to the button: Space is the boost key, and must not press it again. */
+  private closePicker(): void {
     this.els.picker.hidden = true;
     this.whereButton.setAttribute('aria-expanded', 'false');
-    if (returnFocus) this.whereButton.focus();
+    focusGameArea(this.root);
   }
 }

@@ -52,6 +52,10 @@ body {
 
 /* ---- The 3D view and the layer on top of it ---- */
 
+.stage:focus {
+  outline: none;
+}
+
 .stage canvas {
   display: block;
   touch-action: none;
@@ -76,6 +80,7 @@ body {
 }
 
 .stats {
+  z-index: 2; /* above the name tags */
   position: absolute;
   top: var(--gap);
   left: var(--gap);
@@ -142,9 +147,16 @@ button:focus-visible {
   right: var(--gap);
 }
 
+/* Panels that cover the game are solid, so the text underneath cannot show through. */
+.picker,
+.settings-card,
+.landed-card {
+  background: var(--navy);
+}
+
 .picker {
   position: absolute;
-  top: calc(var(--gap) + 70px);
+  top: calc(var(--gap) + 140px);
   right: var(--gap);
   width: min(26em, calc(100% - 2 * var(--gap)));
   max-height: calc(100% - 100px);
@@ -219,6 +231,15 @@ button:focus-visible {
   left: 50%;
   bottom: calc(var(--gap) + 8px);
   transform: translateX(-50%);
+}
+
+/* A phone held upright has no room beside the stick and boost button, so the autopilot button sits above them. */
+@media (max-width: 700px) {
+  .touch-controls:not([hidden]) ~ .hud .autopilot-button {
+    bottom: calc(var(--gap) + 12px + 150px + 24px);
+    max-width: calc(100% - 2 * var(--gap));
+    text-align: center;
+  }
 }
 
 .autopilot-button:active,
@@ -349,6 +370,7 @@ button:focus-visible {
 }
 
 .boost-button {
+  font-size: 18px; /* the round controls keep their size, so the label always fits */
   position: absolute;
   right: calc(var(--gap) + 12px);
   bottom: calc(var(--gap) + 12px);
@@ -372,6 +394,24 @@ button:focus-visible {
 }
 
 @media (max-height: 520px) {
+  /* A short settings panel, so "Done" is on the screen without scrolling. */
+  .settings-card {
+    padding: 8px 16px;
+    margin: 6px auto;
+  }
+  .settings-card h2 {
+    margin-bottom: 2px;
+  }
+  .setting-group {
+    margin-bottom: 8px;
+  }
+  .setting-help {
+    display: none;
+  }
+  .choice {
+    min-height: 56px;
+    padding: 4px 10px;
+  }
   /* Short screens (a phone held sideways): the picker uses the whole height and sits beside the button. */
   .picker {
     top: var(--gap);
@@ -403,9 +443,91 @@ button:focus-visible {
   }
 }
 
+/* The player's choice in Settings wins (data-reduced-motion). Until the game has set it, follow the computer. */
+:root[data-reduced-motion='true'] *,
+:root[data-reduced-motion='true'] *::before,
+:root[data-reduced-motion='true'] *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  * {
+  :root:not([data-reduced-motion]) *,
+  :root:not([data-reduced-motion]) *::before,
+  :root:not([data-reduced-motion]) *::after {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* ---- Settings ---- */
+
+.settings-button {
+  position: absolute;
+  top: calc(var(--gap) + 70px);
+  right: var(--gap);
+  width: 56px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.settings-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  background: rgba(3, 4, 12, 0.6);
+  overflow-y: auto;
+}
+
+.settings-overlay[hidden] {
+  display: none;
+}
+
+.settings-card {
+  width: min(30em, calc(100% - 2 * var(--gap)));
+  /* "auto" centres the card when there is room, and lets it scroll from the top when there is not. */
+  margin: var(--gap) auto;
+}
+
+.settings-card h2 {
+  margin: 0 0 10px;
+  color: var(--sun);
+}
+
+.setting-group {
+  margin-bottom: 16px;
+}
+
+.setting-label {
+  margin: 0 0 4px;
+  font-weight: 800;
+}
+
+.setting-help {
+  margin: 0 0 8px;
+  font-size: 0.9em;
+  color: var(--sky);
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.choice {
+  flex: 1 1 6em;
+  min-height: 56px;
+  padding: 8px 12px;
+  border: 3px solid var(--sun);
+  border-radius: 16px;
+  background: transparent;
+  font-weight: 700;
+}
+
+.choice[aria-checked='true'] {
+  background: var(--sun);
+  color: var(--navy);
 }

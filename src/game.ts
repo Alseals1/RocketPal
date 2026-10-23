@@ -9,6 +9,7 @@ import {
   type ShipState,
 } from './flight/flightModel';
 import { InputController } from './flight/input';
+import { browserStorage, effectiveReducedMotion, saveSettings, type Settings } from './core/settings';
 import { FrameMonitor } from './quality/monitor';
 import { chooseQuality, initialQuality, type Quality } from './quality/quality';
 import {
@@ -23,6 +24,7 @@ import { planLeg } from './scale/leg';
 import { layoutWorlds, type BodyLayout } from './scene/layout';
 import { SpaceScene } from './scene/spaceScene';
 import { Hud } from './ui/hud';
+import { SettingsPanel, applySettingsToPage } from './ui/settingsPanel';
 
 const START_POSITION = { x: 0, y: 40, z: 330 }; // near the Sun, facing it
 const STATS_EVERY_MS = 250;
@@ -33,9 +35,11 @@ interface Options {
   /** 'high' or 'low' from the page address, to force a quality (and turn off the automatic chooser). */
   forcedQuality?: Quality;
   touchControls: boolean;
-  reducedMotion: boolean;
+  settings: Settings;
   debug: boolean;
 }
+
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 export class Game {
   private readonly layouts: BodyLayout[];
@@ -50,6 +54,10 @@ export class Game {
   /** The world the rocket is right next to, if any. You cannot pick it as a destination. */
   private here: string | null = null;
   private reportedError = false;
+  private settingsPanel?: SettingsPanel;
+  private settings: Settings;
+  private reducedMotion: boolean;
+  private readonly systemMotion = matchMedia(REDUCED_MOTION_QUERY);
   private autopilot = false;
   private lastFrame = 0;
   private lastStats = 0;
@@ -61,13 +69,15 @@ export class Game {
     this.layouts = layoutWorlds(data.worlds);
     this.ship = this.startFacing('earth');
     this.quality = options.forcedQuality ?? initialQuality(readHardwareHints());
+    this.settings = options.settings;
+    this.reducedMotion = effectiveReducedMotion(this.settings.reducedMotion, this.systemMotion.matches);
 
     const stage = document.createElement('div');
     stage.className = 'stage';
     root.appendChild(stage);
 
-    this.scene = new SpaceScene(stage, this.layouts, this.quality, options.reducedMotion, options.debug);
-    this.input = new InputController(stage, options.touchControls);
+    this.scene = new SpaceScene(stage, this.layouts, this.quality, this.reducedMotion, options.debug);
+    this.input = new InputController(stage, options.touchControls, () => this.settingsPanel?.isOpen ?? false);
     this.hud = new Hud(stage, this.layouts, {
       onSelect: (id) => this.pickTarget(id),
       onAutopilot: (on) => this.setAutopilot(on),
@@ -75,6 +85,10 @@ export class Game {
     });
     this.refreshHere();
     this.hud.setAutopilot(false);
+
+    this.settingsPanel = new SettingsPanel(stage, this.settings, (next) => this.changeSettings(next));
+    // "Same as my computer" keeps following the computer if it changes while we are playing.
+    this.systemMotion.addEventListener('change', () => this.changeSettings(this.settings, false));
 
     const resize = () => {
       this.scene.setSize(stage.clientWidth, stage.clientHeight);
@@ -100,6 +114,14 @@ export class Game {
     this.sceneLeg = leg.sceneLeg;
     this.hud.setPlaces(this.here, id);
     this.updateStats();
+  }
+
+  /** Called when the player picks something in the settings panel (or the computer's motion setting changes). */
+  private changeSettings(next: Settings, save = true): void {
+    this.settings = next;
+    if (save) saveSettings(next, browserStorage());
+    this.reducedMotion = applySettingsToPage(next, this.systemMotion.matches);
+    this.scene.setReducedMotion(this.reducedMotion);
   }
 
   setAutopilot(on: boolean): void {
@@ -247,7 +269,8 @@ export class Game {
       isGlowVisible: () => this.scene.glowVisible,
       getFps: () => this.monitor.fps(),
       getWorld: (id: string): World | undefined => this.layout(id)?.world,
-      isReducedMotion: () => this.options.reducedMotion,
+      isReducedMotion: () => this.scene.isReducedMotion, // read from the scene itself, so tests cover the wiring
+      getSettings: () => this.settings,
       pickTarget: (id: string) => this.pickTarget(id),
       setAutopilot: (on: boolean) => this.setAutopilot(on),
     };

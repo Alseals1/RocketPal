@@ -26,6 +26,8 @@ npm run test:e2e     # browser smoke test (Playwright; first run: npx playwright
 
 The rocket always drifts forward and levels itself out when you let go. Pick a destination and it gently pulls you in, slows you down, and docks. The card in the corner shows the *real* distance, how long light would take, and a "pretend speed" (the scene is shrunk so trips take seconds).
 
+**Settings** (the gear button under **Where to?**): text size (Normal, Big, Extra big) and **Reduce motion** (Same as my computer, On, Off). They apply straight away and are remembered in this browser only (nothing is sent anywhere). If the browser will not save anything, the game still works; the choices just are not remembered.
+
 Page options (add to the address, for example `http://localhost:5173/?quality=low`):
 
 * `?quality=low` or `?quality=high` forces a quality level. Without it the game starts at the right level for the computer and switches to low by itself if it runs slowly.
