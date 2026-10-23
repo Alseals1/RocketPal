@@ -602,6 +602,7 @@ button:focus-visible {
 
 .orbit {
   position: absolute;
+  z-index: 6; /* above the loading screen (also 6, but later on the page) so Orbit can think while the picture loads; below Back to space and the fact card */
   left: var(--gap);
   bottom: var(--gap);
   display: flex;

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
 
 /** The parts of the `?debug=1` test handle used here. */
@@ -44,6 +45,10 @@ test('Orbit has three pictures, only the one for its mood shows, and they are de
     expect(await img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0);
     await expect(img).toHaveAttribute('alt', '');
   }
+  // Each mood has its own picture file.
+  for (const mood of ['neutral', 'happy', 'thinking']) {
+    await expect(face(page).locator(`.mood-${mood}`)).toHaveAttribute('src', `/images/orbit-${mood}.png`);
+  }
   await expect(page.locator('.orbit-face img:visible')).toHaveCount(1);
   const box = await page.locator('.orbit-face img:visible').boundingBox();
   expect(Math.round(box!.width)).toBe(64);
@@ -64,6 +69,14 @@ test('Orbit thinks while the picture loads, is calm after, and is happy after a 
   await expect(page.locator('.surface-loading')).toBeVisible();
   await expect(face(page)).toHaveAttribute('data-mood', 'thinking');
   await expect(page.locator('.orbit-face .mood-thinking')).toBeVisible();
+  // "Visible" is not enough: the loading screen must not be drawn over Orbit. Ask the browser what is at Orbit's spot.
+  const topmostIsOrbit = await page.locator('.orbit-face .mood-thinking').evaluate((img) => {
+    // Orbit ignores the mouse, and the browser skips such things when asked what is on top, so let it listen just for this question.
+    (img.closest('.orbit') as HTMLElement).style.pointerEvents = 'auto';
+    const r = img.getBoundingClientRect();
+    return !!document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest('.orbit-face');
+  });
+  expect(topmostIsOrbit).toBe(true);
 
   await expect(page.locator('.surface-loading')).toBeHidden({ timeout: 20_000 });
   await expect(face(page)).toHaveAttribute('data-mood', 'neutral');
@@ -120,4 +133,27 @@ test('if Orbit\'s pictures cannot load, the screen still works and Orbit still t
   await page.getByTestId('close-card').click();
   await expect(page.getByTestId('orbit')).toContainText('Nice find');
   expect(errors).toEqual([]);
+});
+
+test('a find made while the picture is still loading keeps Orbit happy when loading ends', async ({ page }) => {
+  await slowMarsPicture(page, 2000);
+  await start(page);
+  await debug(page, (h) => h.dockAt('mars'));
+  await expect(page.locator('.surface-loading')).toBeVisible();
+  // The dots can be reached from the keyboard even behind the loading screen.
+  await page.getByTestId('spot-sky').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('found')).toHaveText('Found 1 of 5');
+  await expect(page.locator('.surface-loading')).toBeHidden({ timeout: 20_000 });
+  await expect(face(page)).toHaveAttribute('data-mood', 'happy');
+});
+
+test('the portraits carry no local file paths or other text in their metadata', () => {
+  for (const mood of ['neutral', 'happy', 'thinking']) {
+    const bytes = readFileSync(`public/images/orbit-${mood}.png`);
+    const text = bytes.toString('latin1');
+    expect(text).not.toMatch(/\/Users\//);
+    expect(text).not.toMatch(/Untitled|\.blend/);
+    for (const chunk of ['tEXt', 'iTXt', 'zTXt']) expect(text).not.toContain(chunk);
+  }
 });

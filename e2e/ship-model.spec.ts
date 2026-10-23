@@ -11,6 +11,12 @@ interface DebugHandle {
 const debug = <T>(page: Page, fn: (h: DebugHandle) => T) =>
   page.evaluate(`(${fn.toString()})(window.rocketPals)`) as Promise<T>;
 
+/** Opens the game and waits until it has started and exposed its test handle (how long that takes depends on how busy the computer is). */
+async function openGame(page: Page) {
+  await page.goto('/?debug=1');
+  await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
+}
+
 function watchForErrors(page: Page, ignore: RegExp[] = []): string[] {
   const errors: string[] = [];
   page.on('console', (msg) => {
@@ -22,7 +28,7 @@ function watchForErrors(page: Page, ignore: RegExp[] = []): string[] {
 
 test('the Blender rocket replaces the simple one, with no console errors', async ({ page }) => {
   const errors = watchForErrors(page);
-  await page.goto('/?debug=1');
+  await openGame(page);
   await expect.poll(() => debug(page, (h) => h.hasShipModel()), { timeout: 20_000 }).toBe(true);
   expect(errors).toEqual([]);
 });
@@ -31,7 +37,7 @@ test('if the rocket file cannot be loaded, the simple rocket stays and the game 
   // The browser reports the blocked file as a console error by itself; that one is expected here.
   const errors = watchForErrors(page, [/Failed to load resource/]);
   await page.route('**/models/ship.glb', (route) => route.abort());
-  await page.goto('/?debug=1');
+  await openGame(page);
   await expect(page.locator('#game-canvas canvas')).toBeVisible();
 
   await debug(page, (h) => {
@@ -77,7 +83,7 @@ for (const [what, { warning, ...file }] of Object.entries(brokenFiles)) {
       if (msg.type() === 'warning') warnings.push(msg.text());
     });
     await page.route('**/models/ship.glb', (route) => route.fulfill({ status: 200, ...file }));
-    await page.goto('/?debug=1');
+    await openGame(page);
     await expect(page.locator('#game-canvas canvas')).toBeVisible();
 
     await debug(page, (h) => {
