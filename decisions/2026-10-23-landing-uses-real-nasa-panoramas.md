@@ -17,5 +17,5 @@ Landing on a world puts the player inside a real NASA panorama, wrapped round a 
 - A walkable placeholder surface scene (no real images; needs Blender models we do not have).
 - A cylinder instead of a sphere (exact for this photo, but the sphere is the standard format for the other worlds' pictures).
 
-## Needs the user
-Licensing: see the question in the PR and chat. NASA's guidelines do not name games.
+## Licensing: the user decided
+`CLAUDE.md` says licensing questions go to the user first. The user was asked (NASA's media guidelines say its content is generally not subject to copyright and allow educational use, but do not name games) and answered on 2026-10-23: **"Yes, use the NASA photos."** Recommendation, still open and not a blocker for `dev`: before anything is promoted to `main`, a human asks NASA directly (the guidelines page lists 202-358-1900). Credit is on screen beside the photo and in `CREDITS.md`.

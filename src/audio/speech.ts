@@ -6,6 +6,8 @@ export interface Speaker {
   /** Starts reading. Anything already being read stops first. `onEnd` runs when it finishes or is stopped. */
   speak(text: string, onEnd?: () => void): void;
   stop(): void;
+  /** Forgets an earlier failure to start, so the next reading gets a fresh try. */
+  reset(): void;
 }
 
 /** If reading has not begun this long after we asked, the computer has no working voice. */
@@ -78,6 +80,9 @@ export function createSpeaker(synth: SpeechSynthesis | undefined = typeof speech
       } catch {
         done(); // it could not start: put the button back instead of leaving it stuck on "Stop"
       }
+    },
+    reset() {
+      broken = false;
     },
     stop() {
       if (!synth) return;
