@@ -52,6 +52,10 @@ body {
 
 /* ---- The 3D view and the layer on top of it ---- */
 
+.stage:focus {
+  outline: none;
+}
+
 .stage canvas {
   display: block;
   touch-action: none;
@@ -439,9 +443,21 @@ button:focus-visible {
   }
 }
 
-:root[data-reduced-motion='true'] * {
+/* The player's choice in Settings wins (data-reduced-motion). Until the game has set it, follow the computer. */
+:root[data-reduced-motion='true'] *,
+:root[data-reduced-motion='true'] *::before,
+:root[data-reduced-motion='true'] *::after {
   transition: none !important;
   animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduced-motion]) *,
+  :root:not([data-reduced-motion]) *::before,
+  :root:not([data-reduced-motion]) *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 
 /* ---- Settings ---- */

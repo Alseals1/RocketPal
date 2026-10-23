@@ -1,5 +1,6 @@
 import type { BodyLayout } from '../scene/layout';
 import type { ScreenPoint } from '../scene/spaceScene';
+import { focusGameArea } from './settingsPanel';
 
 export interface HudCallbacks {
   onSelect(worldId: string): void;
@@ -43,7 +44,7 @@ export class Hud {
   private height = 1;
 
   constructor(
-    root: HTMLElement,
+    private readonly root: HTMLElement,
     private readonly layouts: BodyLayout[],
     private readonly callbacks: HudCallbacks,
   ) {
@@ -236,6 +237,6 @@ export class Hud {
   private closePicker(): void {
     this.els.picker.hidden = true;
     this.whereButton.setAttribute('aria-expanded', 'false');
-    (document.activeElement as HTMLElement | null)?.blur();
+    focusGameArea(this.root);
   }
 }

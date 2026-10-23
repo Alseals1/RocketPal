@@ -196,3 +196,89 @@ test.describe('phone-sized screens with the biggest text', () => {
     });
   }
 });
+
+test('everything in the settings panel works with the keyboard alone', async ({ page }) => {
+  await start(page);
+  const yawBefore = await page.evaluate(() => (window as unknown as { rocketPals: { getShip(): { yaw: number } } }).rocketPals.getShip().yaw);
+
+  await page.getByTestId('settings-button').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('settings-panel')).toBeVisible();
+  await expect(page.getByRole('radio', { name: 'Normal', exact: true })).toBeFocused();
+
+  // Arrow keys move between the choices and pick them, and wrap around at the ends.
+  await page.keyboard.down('ArrowRight'); // held for a moment: if the game heard it too, the rocket would turn
+  await page.waitForTimeout(500);
+  await page.keyboard.up('ArrowRight');
+  await expect(page.getByRole('radio', { name: 'Big', exact: true })).toBeFocused();
+  expect(await rootFontSize(page)).toBe(22.5);
+  await page.keyboard.press('ArrowDown');
+  expect(await rootFontSize(page)).toBe(27);
+  await page.keyboard.press('ArrowRight'); // wraps to the first
+  expect(await rootFontSize(page)).toBe(18);
+  await page.keyboard.press('ArrowLeft'); // wraps to the last
+  expect(await rootFontSize(page)).toBe(27);
+  await page.keyboard.press('Home');
+  expect(await rootFontSize(page)).toBe(18);
+  await page.keyboard.press('End');
+  expect(await rootFontSize(page)).toBe(27);
+
+  // Tab goes to the next group, and arrows change it too.
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('radio', { name: 'Same as my computer', exact: true })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('radio', { name: 'On', exact: true })).toBeChecked();
+  expect(await debug(page, (h) => h.isReducedMotion())).toBe(true);
+
+  // Tab stays inside the panel: Done, then back to the first choice; Shift+Tab goes back.
+  await page.keyboard.press('Tab');
+  await expect(page.getByTestId('settings-done')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('radio', { name: 'Extra big', exact: true })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(page.getByTestId('settings-done')).toBeFocused();
+
+  // The arrow keys picked settings; they did not steer the rocket.
+  const yawAfter = await page.evaluate(() => (window as unknown as { rocketPals: { getShip(): { yaw: number } } }).rocketPals.getShip().yaw);
+  expect(Math.abs(yawAfter - yawBefore)).toBeLessThan(0.01);
+
+  await page.keyboard.press('Enter'); // Done
+  await expect(page.getByTestId('settings-panel')).toBeHidden();
+  // The first Tab starts at the top of the page. (Headless Chromium lands here even without the focus fix; the
+  // "wasted first Tab" only shows in a real browser with an address bar, where it was checked by hand.)
+  await page.keyboard.press('Tab');
+  await expect(page.getByTestId('where-button')).toBeFocused();
+});
+
+test('turning reduced motion on really switches the animations off in the page', async ({ page }) => {
+  const duration = () => page.getByTestId('where-button').evaluate((el) => getComputedStyle(el).transitionDuration);
+  await start(page);
+  expect(await duration()).not.toBe('0s'); // buttons ease when pressed
+
+  await open(page);
+  await choose(page, 'On');
+  expect(await duration()).toBe('0s');
+  await choose(page, 'Off');
+  expect(await duration()).not.toBe('0s');
+});
+
+test("before the game has started, the computer's reduced-motion setting already applies to the page", async ({ browser }) => {
+  // The game script is blocked, so only the page's own stylesheet is at work. A button is added by hand to measure.
+  const durationFor = async (reducedMotion: 'reduce' | 'no-preference') => {
+    const context = await browser.newContext({ reducedMotion });
+    const page = await context.newPage();
+    await page.route('**/assets/*.js', (route) => route.abort());
+    await page.goto('/');
+    await expect(page.locator('html')).not.toHaveAttribute('data-reduced-motion', /.*/); // the game has not touched the page
+    const duration = await page.evaluate(() => {
+      const button = document.createElement('button');
+      button.className = 'big-button';
+      document.body.appendChild(button);
+      return getComputedStyle(button).transitionDuration;
+    });
+    await context.close();
+    return duration;
+  };
+  expect(await durationFor('no-preference')).not.toBe('0s');
+  expect(await durationFor('reduce')).toBe('0s');
+});

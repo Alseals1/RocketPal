@@ -20,13 +20,19 @@ export function applySettingsToPage(settings: Settings, systemPrefersReduced: bo
 }
 
 /** The Settings button and its panel. Every change is handed to `onChange` straight away. */
+/** Puts keyboard focus on the (non-button) game area. Exported for the other panels. */
+export function focusGameArea(area: HTMLElement): void {
+  area.tabIndex = -1;
+  area.focus({ preventScroll: true });
+}
+
 export class SettingsPanel {
   private readonly panel: HTMLElement;
   private readonly button: HTMLButtonElement;
   private settings: Settings;
 
   constructor(
-    parent: HTMLElement,
+    private readonly parent: HTMLElement,
     initial: Settings,
     private readonly onChange: (settings: Settings) => void,
   ) {
@@ -47,7 +53,7 @@ export class SettingsPanel {
     this.panel.className = 'settings-overlay';
     this.panel.hidden = true;
     this.panel.innerHTML = `
-      <div class="card settings-card" role="dialog" aria-labelledby="settings-title" data-testid="settings-panel">
+      <div class="card settings-card" role="dialog" aria-modal="true" aria-labelledby="settings-title" data-testid="settings-panel">
         <h2 id="settings-title">Settings</h2>
         <div class="setting-group" role="radiogroup" aria-labelledby="text-size-label">
           <p id="text-size-label" class="setting-label">Text size</p>
@@ -75,8 +81,25 @@ export class SettingsPanel {
       if (e.target === this.panel) this.close(); // tapping outside the card
     });
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'Escape' && !this.panel.hidden) this.close();
+      if (this.panel.hidden) return;
+      if (e.code === 'Escape') this.close();
+      else if (e.code === 'Tab') this.keepTabInside(e);
     });
+  }
+
+  /** While the panel is open, Tab and Shift+Tab go round the panel's own buttons, not the game behind it. */
+  private keepTabInside(e: KeyboardEvent): void {
+    const buttons = [...this.panel.querySelectorAll<HTMLButtonElement>('button')].filter((b) => b.tabIndex >= 0);
+    const first = buttons[0];
+    const last = buttons[buttons.length - 1];
+    const inside = this.panel.contains(document.activeElement);
+    if (!inside || (e.shiftKey && document.activeElement === first)) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   }
 
   private open(): void {
@@ -87,12 +110,13 @@ export class SettingsPanel {
 
   /**
    * Focus is not handed back to the gear button: Space is the boost key, and Space on a focused
-   * button would press it again instead of boosting.
+   * button would press it again instead of boosting. It goes to the game area instead, so the next
+   * Tab starts from the top of the page.
    */
   private close(): void {
     this.panel.hidden = true;
     this.button.setAttribute('aria-expanded', 'false');
-    (document.activeElement as HTMLElement | null)?.blur();
+    focusGameArea(this.parent);
   }
 
   private fill<K extends keyof Settings>(key: K, values: Settings[K][], labels: Record<string, string>): void {
@@ -106,13 +130,34 @@ export class SettingsPanel {
       choice.dataset.value = value;
       choice.textContent = labels[value];
       choice.addEventListener('click', (e) => {
-        this.settings = { ...this.settings, [key]: value };
-        this.refresh();
-        this.onChange({ ...this.settings });
+        this.select(key, value);
         if (e.detail > 0) choice.blur();
       });
       group.appendChild(choice);
     }
+    // Arrow keys move through the choices and pick them, like any radio group (the arrows do not steer the rocket while you do this).
+    group.addEventListener('keydown', (event) => {
+      const e = event as KeyboardEvent;
+      const radios = [...group.querySelectorAll<HTMLButtonElement>('.choice')];
+      const at = radios.indexOf(document.activeElement as HTMLButtonElement);
+      if (at < 0) return;
+      const move: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+      let next: number;
+      if (e.code in move) next = (at + move[e.code] + radios.length) % radios.length;
+      else if (e.code === 'Home') next = 0;
+      else if (e.code === 'End') next = radios.length - 1;
+      else return;
+      e.preventDefault();
+      e.stopPropagation();
+      radios[next].focus();
+      this.select(key, radios[next].dataset.value as Settings[K]);
+    });
+  }
+
+  private select<K extends keyof Settings>(key: K, value: Settings[K]): void {
+    this.settings = { ...this.settings, [key]: value };
+    this.refresh();
+    this.onChange({ ...this.settings });
   }
 
   private refresh(): void {
