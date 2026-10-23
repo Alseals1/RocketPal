@@ -463,6 +463,7 @@ button:focus-visible {
 /* ---- Settings ---- */
 
 .settings-button {
+  z-index: 8; /* above the window frame and the Back button */
   position: absolute;
   top: calc(var(--gap) + 70px);
   right: var(--gap);
@@ -763,8 +764,31 @@ button:focus-visible {
   .surface-title {
     max-width: calc(100% - 9em - 12px);
   }
+  /* A long credit makes a tall narrow card, so on a window view it spans the full width under the buttons instead. */
+  .surface-hud.is-window .surface-title {
+    top: calc(var(--gap) * 2 + 4.2em + 56px);
+    max-width: calc(100% - 2 * var(--gap));
+  }
   /* The two-line Back button is taller, so the settings gear sits lower to stay clear of it. */
   .stage.is-surface .settings-button {
     top: calc(var(--gap) + 4.2em);
   }
+}
+
+/* ---- Looking out of a space station window ---- */
+
+.surface-hud.is-window {
+  overflow: hidden; /* the frame's huge shadow must not spill outside the screen */
+}
+
+/* A drawn window frame: a dark wall with a rounded window cut out of it. It never blocks a tap. */
+.window-frame {
+  position: absolute;
+  inset: 3% 3.5%;
+  border-radius: 5% / 8%;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 100vmax #080a16,
+    inset 0 0 0 5px #4b5170,
+    inset 0 0 40px 12px rgba(0, 0, 0, 0.75);
 }

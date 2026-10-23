@@ -35,6 +35,7 @@ export class SurfaceHud {
   private focusReturns = false;
   private current: Hotspot | null = null;
   private listenButton!: HTMLButtonElement;
+  private readonly onKeyDown: (e: KeyboardEvent) => void;
 
   constructor(
     parent: HTMLElement,
@@ -45,7 +46,9 @@ export class SurfaceHud {
     this.root = document.createElement('div');
     this.root.className = 'surface-hud';
     this.root.hidden = true;
+    this.root.classList.toggle('is-window', surface.kind === 'window');
     this.root.innerHTML = `
+      ${surface.kind === 'window' ? '<div class="window-frame" aria-hidden="true"></div>' : ''}
       <div class="surface-loading" data-el="loading" role="status">Landing on ${this.escape(surface.title.split(',')[0])}...</div>
       <section class="card surface-title">
         <p class="stats-title" data-el="title"></p>
@@ -83,11 +86,12 @@ export class SurfaceHud {
     this.els.overlay.addEventListener('click', (e) => {
       if (e.target === this.els.overlay) this.closeCard();
     });
-    window.addEventListener('keydown', (e) => {
+    this.onKeyDown = (e) => {
       if (this.els.overlay.hidden) return;
       if (e.code === 'Escape') this.closeCard();
       else if (e.code === 'Tab') keepTabInside(this.els.overlay, e);
-    });
+    };
+    window.addEventListener('keydown', this.onKeyDown);
 
     for (const spot of surface.hotspots) {
       const button = document.createElement('button');
@@ -135,6 +139,13 @@ export class SurfaceHud {
   hide(): void {
     this.closeCard(false);
     this.root.hidden = true;
+  }
+
+  /** Removes this view from the page for good (used when another world's view takes over). */
+  destroy(): void {
+    this.hide();
+    window.removeEventListener('keydown', this.onKeyDown);
+    this.root.remove();
   }
 
   setLoading(loading: boolean): void {

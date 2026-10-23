@@ -128,13 +128,14 @@ test('tap-only: pick Earth, tap Autopilot, and land', async ({ page }) => {
   await page.waitForTimeout(2500);
   expect(await distanceShown(page)).toBeLessThan(later);
 
-  await expect(page.getByTestId('landed')).toBeVisible({ timeout: 150_000 });
-  await expect(page.locator('#landed-title')).toHaveText('You landed on Earth!');
+  // Earth has a real photo from the space station, so landing there shows it (the plain card is for worlds without one).
+  await expect(page.locator('.surface-title')).toBeVisible({ timeout: 150_000 });
+  await expect(page.locator('.surface-title')).toContainText('Earth from the Space Station');
   expect((await ship(page)).docked).toBe(true);
 
-  // Fly again: the rocket lifts off and Earth is now "you're here".
-  await page.getByTestId('fly-again').click();
-  await expect(page.getByTestId('landed')).toBeHidden();
+  // Back to space: the rocket lifts off and Earth is now "you're here".
+  await page.getByTestId('back-to-space').click();
+  await expect(page.locator('.surface-title')).toBeHidden();
   expect((await ship(page)).docked).toBe(false);
   await page.getByTestId('where-button').click();
   await expect(page.getByRole('button', { name: /Earth/ })).toBeDisabled();
@@ -255,11 +256,14 @@ test('really draws the 3D picture, in both quality levels', async ({ page }) => 
 });
 
 test('changing your mind mid-flight gives a sensible, shrinking distance', async ({ page }) => {
+  test.setTimeout(120_000);
   await start(page);
+  const start0 = await ship(page);
   await page.getByTestId('where-button').click();
   await page.getByRole('button', { name: 'Neptune' }).click();
   await page.getByTestId('autopilot-button').click();
-  await page.waitForTimeout(5000);
+  // Fly until the rocket is well away from where it started (how long that takes depends on how busy the computer is).
+  await until(page, (s) => Math.hypot(s.position.x - start0.position.x, s.position.z - start0.position.z)).toBeGreaterThan(500);
 
   // Now pick Earth from the middle of space.
   await page.getByTestId('where-button').click();
@@ -267,13 +271,14 @@ test('changing your mind mid-flight gives a sensible, shrinking distance', async
   const first = await distanceShown(page);
   expect(first).toBeGreaterThan(0);
   await page.getByTestId('autopilot-button').click();
-  await page.waitForTimeout(6000); // the rocket first has to turn around
+  // The rocket first has to turn round, so the distance may grow for a moment. Then it is closer than when we picked, and keeps shrinking.
+  await expect.poll(() => distanceShown(page), { timeout: 60_000 }).toBeLessThan(first);
   const second = await distanceShown(page);
-  await page.waitForTimeout(2000);
-  expect(await distanceShown(page)).toBeLessThan(second);
+  await expect.poll(() => distanceShown(page), { timeout: 15_000 }).toBeLessThan(second);
 });
 
 test('Escape closes the picker, and Space goes back to boosting after a click', async ({ page }) => {
+  test.setTimeout(120_000); // slowing back down to cruising can take a while on a busy computer
   await start(page);
   await page.getByTestId('where-button').click();
   await expect(page.locator('.picker')).toBeVisible();
@@ -316,6 +321,7 @@ test('browser shortcuts are not mistaken for steering, and losing focus lets go 
 });
 
 test('boost stays on until the finger that pressed it lets go', async ({ page }) => {
+  test.setTimeout(120_000); // slowing back down to cruising can take a while on a busy computer
   await start(page, '&touch=1');
   const press = (type: string, pointerId: number) =>
     page.evaluate(

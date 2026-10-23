@@ -10,7 +10,7 @@
       "distanceFromSunKm": 0,
       "orbitDays": null,
       "moons": { "count": 0, "verify": false },
-      "hook": "The Sun is a giant ball of glowing gas. It holds 99.8% of everything in the solar system!",
+      "hook": "The Sun is a giant ball of glowing gas. It holds 99.8% of the solar system's mass. That is almost all of it!",
       "color": "#ffb703"
     },
     {

@@ -107,7 +107,9 @@ test('landing at Mars puts you inside the real NASA photo', async ({ page }) => 
   const ring = await page.getByTestId('spot-sky').locator('.spot-ring').evaluate((el) => getComputedStyle(el).boxShadow);
   expect(ring).toMatch(/rgb\(18, 22, 61\) 0px 0px 0px 3px/); // a navy outline 3 px wide, not just the colour
   // The picture says what it is for people who cannot see it.
-  await expect(page.locator('#game-canvas canvas')).toHaveAttribute('aria-label', /Mars/);
+  const label = (await page.locator('#game-canvas canvas').getAttribute('aria-label'))!;
+  expect(label).toMatch(/360 degree/);
+  expect(label).toMatch(/Perseverance/);
 
   // The picture really is a photo of Mars: a lot of it is red-orange.
   expect((await marsColours(page)).orangeShare).toBeGreaterThan(0.35);
@@ -314,9 +316,9 @@ test('Back to space lifts off again, and you can land again with a fresh count',
 
 test('other worlds without a photo yet still get the plain landing card', async ({ page }) => {
   await start(page);
-  await debug(page, (h) => h.dockAt('earth'));
+  await debug(page, (h) => h.dockAt('moon'));
   await expect(page.getByTestId('landed')).toBeVisible();
-  await expect(page.locator('#landed-title')).toHaveText('You landed on Earth!');
+  await expect(page.locator('#landed-title')).toHaveText('You landed on The Moon!');
   expect(await debug(page, (h) => h.getMode())).toBe('space');
 });
 

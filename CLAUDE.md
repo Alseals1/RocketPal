@@ -40,6 +40,17 @@ This project already has these skills installed in `.agents/skills/` (listed in 
 - `animation-performance`: for UI and in-game animation, so it stays smooth on a Chromebook.
 - `grill-me`: use it while writing a feature plan to pressure-test the idea and surface gaps before building.
 
+## Chief of staff and decisions
+
+You (the main agent) act as chief of staff. Make routine decisions yourself and keep moving.
+
+- **Staffing:** if a task needs a specialist that does not exist, run the `chief-of-staff` agent (`.claude/agents/chief-of-staff.md`) to create it, then delegate to it. Reuse existing agents first. Check `.claude/agents/ROSTER.md`.
+- **Decide on your own:** library choices within the stack, code structure, naming, test approach, content wording, which skill or agent to use, and fixing PR review comments.
+- **Log it:** write each non-trivial decision in `decisions/YYYY-MM-DD-<topic>.md` (what, why, alternatives), so the user can review later without being asked.
+- **Always ask the user first (critical decisions):** anything involving payment or paid services, installing software or changing device or system settings, accounts, secrets, or API keys, deleting data or force-pushing, adding data collection or changing kids-safety rules, and licensing or copyright concerns.
+- **When asking:** one question, a recommendation, and the cost of waiting. Keep working on unblocked tasks in the meantime.
+- New agents are created on a feature branch and reviewed through the normal PR process.
+
 ## Tech stack
 
 - Three.js + TypeScript + Vite, static site, no backend, no accounts.

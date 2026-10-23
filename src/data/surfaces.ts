@@ -11,9 +11,28 @@ export interface Hotspot {
   lastChecked: string;
 }
 
+/**
+ * "panorama": a 360 degree picture you stand inside (Mars).
+ * "window": one ordinary wide photo seen through a window, with a little looking round (Earth from the space station).
+ */
+export type SurfaceKind = 'panorama' | 'window';
+
+/** For a window view: the lens the photo was taken with. */
+export interface WindowPhoto {
+  horizontalFov: number;
+  verticalFov: number;
+  /** The photo's width divided by its height. */
+  aspect: number;
+}
+
 export interface Surface {
   worldId: string;
+  kind: SurfaceKind;
+  /** Only for window views. */
+  photo?: WindowPhoto;
   title: string;
+  /** What the picture is, for people who cannot see it (read out for the picture). Must be true for this picture. */
+  description: string;
   images: { high: string; low: string };
   credit: string;
   creditNote: string;
@@ -57,7 +76,18 @@ export function validateSurfaces(raw: unknown, worldIds: string[]): string[] {
     if (seenWorlds.has(id)) problems.push(`${id}: listed twice`);
     seenWorlds.add(id);
 
+    if (surface?.kind !== 'panorama' && surface?.kind !== 'window') problems.push(`${id}: kind must be "panorama" or "window"`);
+    if (surface?.kind === 'window') {
+      const p = surface.photo;
+      const sensible = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && n > 10 && n < 170;
+      if (!p || !sensible(p.horizontalFov) || !sensible(p.verticalFov) || !isNumberIn(p.aspect, 0.2, 5)) {
+        problems.push(`${id}: photo needs horizontalFov and verticalFov (between 10 and 170 degrees) and an aspect`);
+      }
+    }
     if (!isText(surface?.title)) problems.push(`${id}: title is required`);
+    if (!isText(surface?.description) || words(surface.description) > 45) {
+      problems.push(`${id}: description is required (what the picture is, for people who cannot see it) and at most 45 words`);
+    }
     if (!isText(surface?.images?.high) || !isText(surface?.images?.low)) problems.push(`${id}: images needs a high and a low file`);
     if (!isText(surface?.credit)) problems.push(`${id}: credit is required (say who took the picture)`);
     if (!isText(surface?.creditNote)) problems.push(`${id}: creditNote is required`);
@@ -83,6 +113,13 @@ export function validateSurfaces(raw: unknown, worldIds: string[]): string[] {
       if (!isText(spot?.label)) problems.push(`${label}: label is required`);
       if (!isNumberIn(spot?.azimuth, 0, 360) || spot.azimuth === 360) problems.push(`${label}: azimuth must be from 0 to under 360`);
       if (!isNumberIn(spot?.elevation, -90, 90)) problems.push(`${label}: elevation must be from -90 to 90`);
+      if (surface.kind === 'window' && surface.photo && isNumberIn(spot?.azimuth, 0, 360) && isNumberIn(spot?.elevation, -90, 90)) {
+        // In a window view the photo is the only picture: a dot beside it would float in the black.
+        const fromMiddle = ((spot.azimuth + 540) % 360) - 180;
+        if (Math.abs(fromMiddle) > surface.photo.horizontalFov / 2 || Math.abs(spot.elevation) > surface.photo.verticalFov / 2) {
+          problems.push(`${label}: sits outside the photo`);
+        }
+      }
       if (!isText(spot?.title) || spot.title.length > LIMITS.titleChars) problems.push(`${label}: title is required and at most ${LIMITS.titleChars} characters`);
       if (!isText(spot?.text)) problems.push(`${label}: text is required`);
       else {

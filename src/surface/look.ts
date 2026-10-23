@@ -1,10 +1,12 @@
-import { applyDrag, stepLook, wrapDegrees, type LookInput, type LookState } from './geometry';
+import { applyDrag, clampLook, lookToShow, stepLook, wrapDegrees, type LookInput, type LookLimits, type LookState } from './geometry';
 
 const TURN_SPEED = 240; // degrees per second when a dot pulls the view round to itself
 
 /** Owns where you are looking. Keys and the glowing dots move it; dragging the picture moves it too. */
 export class LookController {
   state: LookState;
+  /** Where you may look. Without it you can look anywhere (a 360 degree picture). */
+  private limits?: LookLimits;
   private target: LookState | null = null;
   private dragging = false;
   /** The finger (or mouse) that started the drag. Any other finger is ignored, so a second finger cannot make the picture jump. */
@@ -17,13 +19,20 @@ export class LookController {
     this.state = { ...start };
   }
 
+  /** Sets (or clears) where you may look, and pulls the view back inside straight away. Call again when the screen changes shape. */
+  setLimits(limits: LookLimits | undefined): void {
+    this.limits = limits;
+    this.state = clampLook(this.state, limits);
+    if (this.target) this.target = clampLook(this.target, limits);
+  }
+
   /** True while the view is still swinging round to a dot. */
   get isTurning(): boolean {
     return this.target !== null;
   }
 
   /** Lets people drag or swipe the picture on `element`. */
-  attach(element: HTMLElement, viewHeight: () => number, verticalFov: number): void {
+  attach(element: HTMLElement, viewHeight: () => number, verticalFov: () => number): void {
     this.detach();
     const down = (e: PointerEvent) => {
       if (this.dragging) return;
@@ -40,10 +49,13 @@ export class LookController {
     };
     const move = (e: PointerEvent) => {
       if (!this.dragging || e.pointerId !== this.activeId) return;
-      this.state = applyDrag(this.state, e.clientX - this.lastX, e.clientY - this.lastY, {
-        verticalFovDegrees: verticalFov,
-        viewportHeight: viewHeight(),
-      });
+      this.state = applyDrag(
+        this.state,
+        e.clientX - this.lastX,
+        e.clientY - this.lastY,
+        { verticalFovDegrees: verticalFov(), viewportHeight: viewHeight() },
+        this.limits,
+      );
       this.lastX = e.clientX;
       this.lastY = e.clientY;
     };
@@ -73,13 +85,23 @@ export class LookController {
     this.activeId = null;
   }
 
+  /**
+   * Swings the view round so that a direction is on the screen: the best look the limits allow (see `lookToShow`).
+   * Without limits (a 360 degree picture) it simply turns to face the direction.
+   */
+  turnToShow(azimuth: number, elevation: number, view: { horizontalFov: number; verticalFov: number }, instant: boolean): void {
+    const look = this.limits ? lookToShow(this.limits, view, azimuth, elevation) : { azimuth, elevation };
+    this.turnTo(look.azimuth, look.elevation, instant);
+  }
+
   /** Swings the view round to a direction (or jumps there, if motion is reduced). */
   turnTo(azimuth: number, elevation: number, instant: boolean): void {
+    const wanted = clampLook({ azimuth: wrapDegrees(azimuth), elevation }, this.limits);
     if (instant) {
-      this.state = { azimuth: wrapDegrees(azimuth), elevation };
+      this.state = wanted;
       this.target = null;
     } else {
-      this.target = { azimuth: wrapDegrees(azimuth), elevation };
+      this.target = wanted;
     }
   }
 
@@ -94,6 +116,6 @@ export class LookController {
       if (Math.abs(diff) < 0.2 && Math.abs(elevationDiff) < 0.2) this.target = null;
       return;
     }
-    this.state = stepLook(this.state, input, dt);
+    this.state = stepLook(this.state, input, dt, this.limits);
   }
 }
