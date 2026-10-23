@@ -19,7 +19,8 @@ export function azElToDirection(azimuthDegrees: number, elevationDegrees: number
 
 export function wrapDegrees(degrees: number): number {
   const wrapped = degrees % 360;
-  return wrapped < 0 ? wrapped + 360 : wrapped === 0 ? 0 : wrapped;
+  const positive = wrapped < 0 ? wrapped + 360 : wrapped;
+  return positive >= 360 ? 0 : positive === 0 ? 0 : positive; // a tiny negative number must not round up to 360
 }
 
 export function directionToAzEl(direction: Vec3): { azimuth: number; elevation: number } {
@@ -81,13 +82,73 @@ export function viewHorizontalFov(verticalFov: number, screenAspect: number): nu
   return (2 * Math.atan(Math.tan((verticalFov * DEG) / 2) * screenAspect)) / DEG;
 }
 
+/** How wide and how tall something is seen, in degrees. */
+interface Fovs {
+  horizontalFov: number;
+  verticalFov: number;
+}
+
 /**
- * How tall the camera should see in a window view. Normally 50 degrees, but on a screen wider than the photo that would leave
- * black bars either side, so it zooms in just enough that the screen sees exactly the photo's full width and no more.
+ * Does every corner of the screen land on the flat photo when looking `yaw` degrees to the side of the middle of the photo
+ * and `pitch` degrees up? The photo hangs flat in front of the camera, so a ray that leaves the camera at an angle meets the
+ * plane further up and out than the straight-ahead ray does (by 1 / cos of the angle). That is why "the photo's angle minus the
+ * screen's angle" is exact only along the middle row, and a corner can poke past the edge when you look to the side.
+ * The photo is measured at distance 1: half as wide as tan(horizontal field of view / 2), and likewise for the height.
  */
-export function windowCameraFov(photo: { horizontalFov: number }, screenAspect: number, maxVerticalFov = 50): number {
-  const fillsWidth = (2 * Math.atan(Math.tan((photo.horizontalFov * DEG) / 2) / Math.max(0.01, screenAspect))) / DEG;
-  return Math.min(maxVerticalFov, fillsWidth);
+export function windowCornersInside(photo: Fovs, view: Fovs, yaw: number, pitch: number): boolean {
+  const psi = yaw * DEG;
+  const theta = pitch * DEG;
+  const forward = { x: Math.cos(psi) * Math.cos(theta), y: Math.sin(theta), z: Math.sin(psi) * Math.cos(theta) };
+  const right = { x: -Math.sin(psi), y: 0, z: Math.cos(psi) };
+  const up = { x: -Math.cos(psi) * Math.sin(theta), y: Math.cos(theta), z: -Math.sin(psi) * Math.sin(theta) };
+  const reachAcross = Math.tan((view.horizontalFov * DEG) / 2);
+  const reachUp = Math.tan((view.verticalFov * DEG) / 2);
+  const halfWidth = Math.tan((photo.horizontalFov * DEG) / 2);
+  const halfHeight = Math.tan((photo.verticalFov * DEG) / 2);
+  const tolerance = 1e-9;
+  for (const sideways of [-1, 1]) {
+    for (const vertical of [-1, 1]) {
+      const ray = {
+        x: forward.x + sideways * reachAcross * right.x + vertical * reachUp * up.x,
+        y: forward.y + sideways * reachAcross * right.y + vertical * reachUp * up.y,
+        z: forward.z + sideways * reachAcross * right.z + vertical * reachUp * up.z,
+      };
+      if (ray.x <= tolerance) return false; // looking away from the photo
+      if (Math.abs(ray.z / ray.x) > halfWidth + tolerance) return false;
+      if (Math.abs(ray.y / ray.x) > halfHeight + tolerance) return false;
+    }
+  }
+  return true;
+}
+
+/** The biggest value up to `max` for which `works` is true, found by halving (assumes smaller values are always safer). */
+function largestThatWorks(max: number, works: (value: number) => boolean): number {
+  if (max <= 0) return 0;
+  if (works(max)) return max;
+  let low = 0;
+  let high = max;
+  for (let i = 0; i < 50; i++) {
+    const middle = (low + high) / 2;
+    if (works(middle)) low = middle;
+    else high = middle;
+  }
+  return low;
+}
+
+/**
+ * How tall the camera should see in a window view. Normally 50 degrees, but it zooms in when needed so that
+ *   (1) a screen wider than the photo does not show black bars (the screen sees exactly the photo's full width and no more), and
+ *   (2) every corner of the screen stays on the photo even when you look as far sideways as the photo allows.
+ */
+export function windowCameraFov(photo: Fovs, screenAspect: number, maxVerticalFov = 50): number {
+  const aspect = Math.max(0.01, screenAspect);
+  const fillsWidth = (2 * Math.atan(Math.tan((photo.horizontalFov * DEG) / 2) / aspect)) / DEG;
+  const reachesWholePhoto = (verticalFov: number): boolean => {
+    const view = { horizontalFov: viewHorizontalFov(verticalFov, aspect), verticalFov };
+    const fullSideways = Math.max(0, (photo.horizontalFov - view.horizontalFov) / 2);
+    return windowCornersInside(photo, view, fullSideways, 0) && windowCornersInside(photo, view, -fullSideways, 0);
+  };
+  return Math.max(10, largestThatWorks(Math.min(maxVerticalFov, fillsWidth), reachesWholePhoto));
 }
 
 export interface LookLimits {
@@ -100,22 +161,20 @@ export interface LookLimits {
 }
 
 /**
- * How far you may look round inside a window picture so the screen never goes past its edge: the picture's field of view
- * minus the screen's, shared between the two sides. A screen that already sees more than the photo has nothing to look round.
+ * How far you may look round inside a window picture so that no corner of the screen ever leaves the photo. Found from the
+ * exact corner geometry (see `windowCornersInside`): first as far sideways as stays safe, then as far up and down as stays safe
+ * at that sideways limit. A screen that cannot fit on the photo even looking straight at it has nothing to look round.
  */
-export function windowLookLimits(
-  photo: { horizontalFov: number; verticalFov: number },
-  view: { horizontalFov: number; verticalFov: number },
-  centerAzimuth: number,
-): LookLimits {
-  const half = (photoFov: number, viewFov: number) => Math.max(0, (photoFov - viewFov) / 2);
-  const up = half(photo.verticalFov, view.verticalFov);
-  return {
-    azimuthCenter: centerAzimuth,
-    azimuthHalfRange: half(photo.horizontalFov, view.horizontalFov),
-    minElevation: -up,
-    maxElevation: up,
-  };
+export function windowLookLimits(photo: Fovs, view: Fovs, centerAzimuth: number): LookLimits {
+  const none: LookLimits = { azimuthCenter: centerAzimuth, azimuthHalfRange: 0, minElevation: 0, maxElevation: 0 };
+  if (!windowCornersInside(photo, view, 0, 0)) return none;
+  const reachSideways = Math.max(0, (photo.horizontalFov - view.horizontalFov) / 2);
+  const reachUp = Math.max(0, (photo.verticalFov - view.verticalFov) / 2);
+  const yaw = largestThatWorks(reachSideways, (y) => windowCornersInside(photo, view, y, 0) && windowCornersInside(photo, view, -y, 0));
+  const pitch = largestThatWorks(reachUp, (p) =>
+    [yaw, -yaw].every((y) => windowCornersInside(photo, view, y, p) && windowCornersInside(photo, view, y, -p)),
+  );
+  return { azimuthCenter: centerAzimuth, azimuthHalfRange: yaw, minElevation: -pitch, maxElevation: pitch };
 }
 
 export interface LookState {

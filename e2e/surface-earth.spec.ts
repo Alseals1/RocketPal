@@ -6,6 +6,7 @@ interface SurfaceFile {
     worldId: string;
     credit: string;
     creditNote: string;
+    description: string;
     photo?: { horizontalFov: number; verticalFov: number };
     hotspots: { id: string; label: string; title: string; text: string; azimuth: number }[];
   }[];
@@ -17,6 +18,8 @@ interface DebugHandle {
   getMode(): string;
   getLook(): { azimuth: number; elevation: number } | undefined;
   isLookTurning(): boolean;
+  getViewFov(): { horizontalFov: number; verticalFov: number } | undefined;
+  setBackdrop(color: number): void;
   getFound(): number;
   hasPanorama(): boolean;
   getShip(): { docked: boolean };
@@ -102,7 +105,12 @@ test('landing at Earth puts you at a space station window, looking at a real NAS
   await expect(page.getByTestId('photo-credit')).toContainText('iss073e0247726');
   await expect(page.getByTestId('photo-credit')).toContainText('The window frame is drawn.');
   await expect(page.getByTestId('orbit')).toContainText("I'm Orbit");
-  await expect(page.locator('#game-canvas canvas')).toHaveAttribute('aria-label', /Earth from the Space Station/);
+  // The picture describes itself truthfully for people who cannot see it: not a 360 degree picture, not taken by a rover.
+  const label = (await page.locator('#game-canvas canvas').getAttribute('aria-label'))!;
+  expect(label).toBe(earth.description);
+  expect(label).toMatch(/astronaut/i);
+  expect(label).toMatch(/window/i);
+  expect(label).not.toMatch(/360|rover/i);
 
   // The picture really is the photo, the right way round: green aurora is plentiful, and the solar panel
   // is in the lower RIGHT of the screen (a mirrored picture would put it lower left).
@@ -153,100 +161,122 @@ test('every dot opens a card with its own NASA-checked words, and Orbit keeps co
 });
 
 test.describe('how far you can look round', () => {
-  /**
-   * Where the view can reach, worked out by hand from the lens. The photo is 73.74 x 53.13 degrees. The camera sees 50 degrees
-   * up and down, but on a screen wider than the photo it zooms in until the photo exactly fills the width: its half-height is
-   * then atan(tan(36.87 degrees) / aspect) = atan(0.75 / aspect).
-   */
-  const expected = (width: number, height: number) => {
-    const aspect = width / height;
-    const fillsWidth = (2 * Math.atan(0.75 / aspect) * 180) / Math.PI;
-    const vertical = Math.min(50, fillsWidth);
-    const viewH = (2 * Math.atan(Math.tan(((vertical / 2) * Math.PI) / 180) * aspect) * 180) / Math.PI;
-    return { azimuth: Math.max(0, (73.74 - viewH) / 2), elevation: (53.13 - vertical) / 2 };
-  };
+  const PHOTO_WIDE = 73.74; // degrees across, from the 24 mm lens
   const offsetFromMiddle = (azimuth: number) => ((azimuth + 540) % 360) - 180;
+  const viewFov = (page: Page) => debug(page, (h) => h.getViewFov()!);
+  /** Drags the picture hard in a direction (a very long drag, so it must stop at the limit). */
+  const dragFar = async (page: Page, dx: number, dy: number) => {
+    const box = (await page.locator('#game-canvas canvas').boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + dx, box.y + box.height / 2 + dy, { steps: 8 });
+    await page.mouse.up();
+    return (await debug(page, (h) => h.getLook()))!;
+  };
+  /** How many pixels of the 3D picture are the bright magenta test backdrop, which means empty space past the edge of the photo. */
+  const gapPixels = (page: Page) =>
+    page.evaluate(() => {
+      const canvas = document.querySelector('#game-canvas canvas') as HTMLCanvasElement;
+      const copy = document.createElement('canvas');
+      copy.width = canvas.width;
+      copy.height = canvas.height;
+      const g = copy.getContext('2d')!;
+      g.drawImage(canvas, 0, 0);
+      const d = g.getImageData(0, 0, copy.width, copy.height).data;
+      let gap = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 2] > 200 && d[i + 1] < 80) gap++;
+      return gap;
+    });
 
-  for (const size of [
-    { width: 1280, height: 720, name: 'a wide screen' },
-    { width: 420, height: 900, name: 'a tall phone screen' },
-  ]) {
-    test(`on ${size.name} you can look exactly as far as the photo reaches, and no further`, async ({ page }) => {
+  test('on a wide screen the photo exactly fills the window, so there is nothing to look round', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await landAtEarth(page);
+    // The camera zoomed in until the screen sees exactly the photo's width: 73.74 degrees across.
+    expect((await viewFov(page)).horizontalFov).toBeCloseTo(PHOTO_WIDE, 1);
+    for (const [dx, dy] of [[-3000, 0], [3000, 0], [0, 3000], [0, -3000]]) {
+      const look = await dragFar(page, dx, dy);
+      expect(Math.abs(offsetFromMiddle(look.azimuth)), `dragging ${dx},${dy}`).toBeLessThan(0.1);
+      expect(Math.abs(look.elevation), `dragging ${dx},${dy}`).toBeLessThan(0.1);
+    }
+  });
+
+  test('on a tall phone the camera zooms in a little, and you can look as far sideways as the photo reaches', async ({ page }) => {
+    await page.setViewportSize({ width: 420, height: 900 });
+    await landAtEarth(page);
+    const fov = await viewFov(page);
+    expect(fov.verticalFov).toBeLessThan(50); // zoomed in a little, so no corner of the screen can leave the photo
+    expect(fov.verticalFov).toBeGreaterThan(40);
+    const reach = (PHOTO_WIDE - fov.horizontalFov) / 2; // the whole width of the photo can be reached
+    for (const dx of [-3000, 3000]) {
+      const look = await dragFar(page, dx, 0);
+      expect(Math.abs(offsetFromMiddle(look.azimuth)), `dragging ${dx}`).toBeGreaterThan(reach - 0.3);
+      expect(Math.abs(offsetFromMiddle(look.azimuth)), `dragging ${dx}`).toBeLessThan(reach + 0.01);
+    }
+  });
+
+  test('looking as far as you can in every direction on a tall phone never shows empty space beyond the photo', async ({ page }) => {
+    // The empty space around the photo is painted bright magenta for this test, so any gap is easy to see.
+    // (An earlier version showed a black wedge in the top corner when you looked fully sideways and then up.)
+    for (const size of [
+      { width: 390, height: 844 },
+      { width: 420, height: 900 },
+      { width: 600, height: 800 },
+    ]) {
       await page.setViewportSize(size);
       await landAtEarth(page);
-      const want = expected(size.width, size.height);
-      const box = (await page.locator('#game-canvas canvas').boundingBox())!;
-      const y = box.y + box.height / 2;
-
-      // Drag the picture hard to the left (the view turns right) and then hard to the right.
-      for (const direction of [-1, 1]) {
-        await page.mouse.move(box.x + box.width / 2, y);
-        await page.mouse.down();
-        await page.mouse.move(box.x + box.width / 2 + direction * box.width * 3, y, { steps: 8 });
-        await page.mouse.up();
-        const look = (await debug(page, (h) => h.getLook()))!;
-        expect(Math.abs(offsetFromMiddle(look.azimuth)), `sideways, dragging ${direction}`).toBeGreaterThan(want.azimuth - 0.3);
-        expect(Math.abs(offsetFromMiddle(look.azimuth)), `sideways, dragging ${direction}`).toBeLessThan(want.azimuth + 0.01);
+      await debug(page, (h) => h.setBackdrop(0xff00ff));
+      for (const [dx, dy] of [[-3000, 3000], [3000, 3000], [-3000, -3000], [3000, -3000], [-3000, 0], [3000, 0], [0, 3000], [0, -3000]]) {
+        await dragFar(page, dx, dy);
+        await page.waitForTimeout(100); // let a frame draw
+        expect(await gapPixels(page), `${size.width}x${size.height} after dragging ${dx},${dy}`).toBeLessThan(3);
       }
-      // Up and down.
-      await page.mouse.move(box.x + box.width / 2, y);
-      await page.mouse.down();
-      await page.mouse.move(box.x + box.width / 2, y + 4000, { steps: 8 });
-      await page.mouse.up();
-      expect((await debug(page, (h) => h.getLook()))!.elevation).toBeCloseTo(want.elevation, 1);
-    });
-  }
+    }
+  });
 
   test('turning the phone while you look out of the window: the view re-zooms and the limits follow the new shape', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 720 }); // wide: the photo fills the width, almost no room to look round sideways
+    await page.setViewportSize({ width: 1280, height: 720 }); // wide: the photo exactly fills the screen
     await landAtEarth(page);
-    const dragFar = async (dx: number, dy: number) => {
-      const box = (await page.locator('#game-canvas canvas').boundingBox())!;
-      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-      await page.mouse.down();
-      await page.mouse.move(box.x + box.width / 2 + dx, box.y + box.height / 2 + dy, { steps: 8 });
-      await page.mouse.up();
-      return (await debug(page, (h) => h.getLook()))!;
-    };
-    const wide = await dragFar(-3000, 0);
-    expect(Math.abs(offsetFromMiddle(wide.azimuth))).toBeLessThan(0.1);
+    expect(Math.abs(offsetFromMiddle((await dragFar(page, -3000, 0)).azimuth))).toBeLessThan(0.1);
 
-    // Now turn it upright: a tall screen can look much further sideways.
+    // Now turn it upright: a tall screen can look sideways.
     await page.setViewportSize({ width: 420, height: 900 });
-    await expect.poll(async () => Math.abs(offsetFromMiddle((await dragFar(-3000, 0)).azimuth)), { timeout: 5000 }).toBeGreaterThan(expected(420, 900).azimuth - 0.3);
-    // ...but exactly as far as the new shape allows, and no further (it would be further if the camera had kept the wide screen's zoom).
-    expect(Math.abs(offsetFromMiddle((await dragFar(-3000, 0)).azimuth))).toBeLessThan(expected(420, 900).azimuth + 0.01);
+    await expect.poll(async () => (await viewFov(page)).horizontalFov, { timeout: 5000 }).toBeLessThan(40); // a tall screen sees much less across
+    const fov = await viewFov(page);
+    const reach = (PHOTO_WIDE - fov.horizontalFov) / 2;
+    await expect.poll(async () => Math.abs(offsetFromMiddle((await dragFar(page, -3000, 0)).azimuth)), { timeout: 5000 }).toBeGreaterThan(reach - 0.3);
+    // ...but exactly as far as the new shape allows, and no further.
+    expect(Math.abs(offsetFromMiddle((await dragFar(page, -3000, 0)).azimuth))).toBeLessThan(reach + 0.01);
 
     // And back to wide: the view is pulled back to the middle at once, not left looking past the photo.
     await page.setViewportSize({ width: 1280, height: 720 });
-    await expect.poll(async () => Math.abs(offsetFromMiddle((await debug(page, (h) => h.getLook()))!.azimuth)), { timeout: 5000 }).toBeLessThan(0.1);
+    await expect.poll(async () => Math.abs(offsetFromMiddle((await debug(page, (h) => h.getLook())!)!.azimuth)), { timeout: 5000 }).toBeLessThan(0.1);
   });
 
   test('arrow keys stop at the same edge', async ({ page }) => {
     await page.setViewportSize({ width: 420, height: 900 });
     await landAtEarth(page);
-    const want = expected(420, 900).azimuth;
+    const reach = (PHOTO_WIDE - (await viewFov(page)).horizontalFov) / 2;
     await page.keyboard.down('ArrowRight');
     await expect
       .poll(async () => offsetFromMiddle((await debug(page, (h) => h.getLook()))!.azimuth), { timeout: 20_000 })
-      .toBeGreaterThan(want - 0.3);
+      .toBeGreaterThan(reach - 0.3);
     await page.waitForTimeout(500); // keep holding: it must not go past the edge
     await page.keyboard.up('ArrowRight');
-    expect(offsetFromMiddle((await debug(page, (h) => h.getLook()))!.azimuth)).toBeLessThan(want + 0.01);
+    expect(offsetFromMiddle((await debug(page, (h) => h.getLook()))!.azimuth)).toBeLessThan(reach + 0.01);
   });
 
   test('a dot just past the screen on a tall phone swings into view, and stops at the edge of the photo', async ({ page }) => {
     await page.setViewportSize({ width: 420, height: 900 });
     await landAtEarth(page);
-    const array = page.getByTestId('spot-array'); // 28 degrees to the right: past the 12 degrees the phone sees at first
+    const array = page.getByTestId('spot-array'); // 28 degrees to the right: past what the phone sees at first
     await expect(array).toHaveCSS('opacity', '0');
     await array.focus();
     await expect(array).toHaveCSS('opacity', '1', { timeout: 5000 });
     await expect.poll(() => debug(page, (h) => h.isLookTurning())).toBe(false);
     const look = (await debug(page, (h) => h.getLook()))!;
-    const want = expected(420, 900).azimuth;
-    expect(offsetFromMiddle(look.azimuth)).toBeGreaterThan(want - 0.3); // as far as it can go
-    expect(offsetFromMiddle(look.azimuth)).toBeLessThan(want + 0.01); // and no further
+    const reach = (PHOTO_WIDE - (await viewFov(page)).horizontalFov) / 2;
+    expect(offsetFromMiddle(look.azimuth)).toBeGreaterThan(reach - 0.3); // as far as it can go
+    expect(offsetFromMiddle(look.azimuth)).toBeLessThan(reach + 0.01); // and no further
   });
 });
 

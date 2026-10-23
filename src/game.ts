@@ -275,7 +275,7 @@ export class Game {
   private async enterSurface(layout: BodyLayout, surface: Surface): Promise<void> {
     const visit = ++this.visit;
     this.mode = 'surface';
-    this.scene.setCanvasLabel(`A real 360 degree photo of ${surface.title}, taken by a NASA rover. Drag to look around.`);
+    this.scene.setCanvasLabel(surface.description);
     this.stage.classList.add('is-surface');
     this.input.suspendTouchControls(true);
 
@@ -429,6 +429,8 @@ export class Game {
       getMode: () => this.mode,
       getLook: () => this.look?.state,
       isLookTurning: () => this.look?.isTurning ?? false,
+      getViewFov: () => this.panorama?.viewFov(),
+      setBackdrop: (color: number) => this.panorama?.setBackdrop(color),
       getFound: () => this.surfaceHud?.foundCount ?? 0,
       hasPanorama: () => this.panorama?.isLoaded ?? false,
       dockAt: (id: string) => this.debugDockAt(id),

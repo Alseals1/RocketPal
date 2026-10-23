@@ -13,8 +13,8 @@ NASA offers no 360 degree still from the station's Cupola. The only 360 degree C
 - A plain card with no picture (loses the point of the feature).
 - Other photos from NASA's astronaut photography archive (one wide aurora photo was the most teachable: ocean, clouds, the air's edge, stars, and the station itself).
 
-## Licensing
-NASA JSC's astronaut-photography terms say reuse is welcome where NASA holds no copyright, and none is noted for this photo. That matches the user's standing decision of 2026-10-23 ("Yes, use the NASA photos"), so the user was not asked again; this note is here so the user can overrule it. Nobody has contacted NASA. Details are in `CREDITS.md`.
+## Licensing: the user has been asked to confirm
+NASA JSC's astronaut-photography terms say reuse is welcome where NASA holds no copyright, and none is noted for this photo. I first treated this as covered by the user's earlier "Yes, use the NASA photos" (2026-10-23). The PR reviewer pointed out that answer was about NASA's media guidelines, while this photo falls under a different written document (the JSC terms), and `CLAUDE.md` says licensing questions go to the user first. So the user was asked explicitly (with a recommendation) and **the merge of this change is on hold until they answer**. JSC also asks (does not require) to be told about uses; nobody has contacted NASA or JSC. Details are in `CREDITS.md`.
 
 ## Disclosed on screen
 The credit line, the photo number, and "The window frame is drawn."

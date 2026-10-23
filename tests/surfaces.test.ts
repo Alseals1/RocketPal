@@ -53,6 +53,17 @@ describe('surfaces.json', () => {
     expect(Math.abs(sky.azimuth - 130)).toBeLessThan(25);
   });
 
+  it('describes each picture for people who cannot see it, truthfully for what it is', () => {
+    const mars = surfacesJson.surfaces.find((s) => s.worldId === 'mars')!;
+    const earth = surfacesJson.surfaces.find((s) => s.worldId === 'earth')!;
+    expect(mars.description).toMatch(/360 degree/);
+    expect(mars.description).toMatch(/Perseverance/);
+    // Earth is NOT a 360 degree picture and was NOT taken by a rover: the description must not say so.
+    expect(earth.description).not.toMatch(/360|rover/i);
+    expect(earth.description).toMatch(/astronaut/i);
+    expect(earth.description).toMatch(/window/i);
+  });
+
   it('tells the player which parts of the picture are filled in, not photographed', () => {
     const mars = surfacesJson.surfaces.find((s) => s.worldId === 'mars')!;
     expect(mars.creditNote).toMatch(/filled in/i);
@@ -185,6 +196,15 @@ describe('validateSurfaces', () => {
     const b = copy();
     delete b.surfaces[0].hotspots[1].lastChecked;
     expect(validateSurfaces(b, WORLDS)).toContainEqual(expect.stringContaining('lastChecked'));
+  });
+
+  it('rejects a surface with no description, or one that is far too long', () => {
+    const a = copy();
+    delete a.surfaces[0].description;
+    expect(validateSurfaces(a, WORLDS)).toContainEqual(expect.stringContaining('description'));
+    const b = copy();
+    b.surfaces[0].description = Array.from({ length: 80 }, () => 'word').join(' ');
+    expect(validateSurfaces(b, WORLDS)).toContainEqual(expect.stringContaining('description'));
   });
 
   it('rejects a surface with no kind, or an unknown one', () => {

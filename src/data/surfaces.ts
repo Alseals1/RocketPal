@@ -31,6 +31,8 @@ export interface Surface {
   /** Only for window views. */
   photo?: WindowPhoto;
   title: string;
+  /** What the picture is, for people who cannot see it (read out for the picture). Must be true for this picture. */
+  description: string;
   images: { high: string; low: string };
   credit: string;
   creditNote: string;
@@ -78,11 +80,14 @@ export function validateSurfaces(raw: unknown, worldIds: string[]): string[] {
     if (surface?.kind === 'window') {
       const p = surface.photo;
       const sensible = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && n > 10 && n < 170;
-      if (!p || !sensible(p.horizontalFov) || !sensible(p.verticalFov) || !isNumberIn(p.aspect, 0.2, 5) || p.aspect === 0) {
+      if (!p || !sensible(p.horizontalFov) || !sensible(p.verticalFov) || !isNumberIn(p.aspect, 0.2, 5)) {
         problems.push(`${id}: photo needs horizontalFov and verticalFov (between 10 and 170 degrees) and an aspect`);
       }
     }
     if (!isText(surface?.title)) problems.push(`${id}: title is required`);
+    if (!isText(surface?.description) || words(surface.description) > 45) {
+      problems.push(`${id}: description is required (what the picture is, for people who cannot see it) and at most 45 words`);
+    }
     if (!isText(surface?.images?.high) || !isText(surface?.images?.low)) problems.push(`${id}: images needs a high and a low file`);
     if (!isText(surface?.credit)) problems.push(`${id}: credit is required (say who took the picture)`);
     if (!isText(surface?.creditNote)) problems.push(`${id}: creditNote is required`);

@@ -107,7 +107,9 @@ test('landing at Mars puts you inside the real NASA photo', async ({ page }) => 
   const ring = await page.getByTestId('spot-sky').locator('.spot-ring').evaluate((el) => getComputedStyle(el).boxShadow);
   expect(ring).toMatch(/rgb\(18, 22, 61\) 0px 0px 0px 3px/); // a navy outline 3 px wide, not just the colour
   // The picture says what it is for people who cannot see it.
-  await expect(page.locator('#game-canvas canvas')).toHaveAttribute('aria-label', /Mars/);
+  const label = (await page.locator('#game-canvas canvas').getAttribute('aria-label'))!;
+  expect(label).toMatch(/360 degree/);
+  expect(label).toMatch(/Perseverance/);
 
   // The picture really is a photo of Mars: a lot of it is red-orange.
   expect((await marsColours(page)).orangeShare).toBeGreaterThan(0.35);

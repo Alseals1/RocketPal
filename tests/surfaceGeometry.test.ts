@@ -10,6 +10,7 @@ import {
   rectilinearPhotoToAzEl,
   viewHorizontalFov,
   windowCameraFov,
+  windowCornersInside,
   windowLookLimits,
   type LookState,
 } from '../src/surface/geometry';
@@ -78,6 +79,11 @@ describe('cylindricalPhotoToAzEl (the NASA photo: 9238 x 2451, horizon 8.8% from
 });
 
 describe('wrapDegrees', () => {
+  it('never returns 360 itself, even for a tiny negative number (rounding)', () => {
+    expect(wrapDegrees(-1e-15)).toBeLessThan(360);
+    expect(wrapDegrees(-1e-15)).toBeGreaterThanOrEqual(0);
+  });
+
   it('keeps angles in 0 to 360', () => {
     expect(wrapDegrees(370)).toBeCloseTo(10, 9);
     expect(wrapDegrees(-10)).toBeCloseTo(350, 9);
@@ -205,15 +211,6 @@ describe('what the screen shows of a window picture', () => {
 
   const photo = { horizontalFov: 73.74, verticalFov: 53.13 };
 
-  it('lets you look round only as far as the picture reaches past the screen', () => {
-    // A tall phone screen (9:16) sees 50 degrees up and down but only 29.4 across (tan 25 degrees = 0.4663, times 0.5625
-    // = 0.2623, atan = 14.70 degrees, twice that), and the photo is 73.74 wide: (73.74 - 29.4) / 2 = 22.17 either side.
-    const phone = windowLookLimits(photo, { horizontalFov: viewHorizontalFov(50, 9 / 16), verticalFov: 50 }, 0);
-    expect(phone.azimuthHalfRange).toBeCloseTo(22.17, 1);
-    expect(phone.maxElevation).toBeCloseTo((53.13 - 50) / 2, 2);
-    expect(phone.minElevation).toBeCloseTo(-(53.13 - 50) / 2, 2);
-  });
-
   it('does not let you look past the edge of the picture on a wide screen: nothing to look round', () => {
     const wide = windowLookLimits(photo, { horizontalFov: viewHorizontalFov(50, 16 / 9), verticalFov: 50 }, 0);
     expect(wide.azimuthHalfRange).toBe(0); // the screen is already wider than the photo
@@ -263,26 +260,109 @@ describe('looking round inside limits', () => {
   });
 });
 
-describe('windowCameraFov: zoom in just enough that the photo fills the screen', () => {
-  const photo = { horizontalFov: 73.7398 }; // tan of half of that is exactly 0.75
+describe('windowCornersInside: do all four corners of the screen land on the flat photo?', () => {
+  // The photo (24 mm lens): 73.74 x 53.13 degrees, so at distance 1 it is 1.5 wide (half 0.75) and 1.0 tall (half 0.5).
+  // A phone screen 9:16 with the camera seeing 50 degrees up and down: half-height tan(25 degrees) = 0.46631,
+  // half-width 0.46631 x 0.5625 = 0.26231 (29.4 degrees across).
+  const photo = { horizontalFov: 73.7398, verticalFov: 53.1301 };
+  const phone = { horizontalFov: viewHorizontalFov(50, 9 / 16), verticalFov: 50 };
 
-  it('keeps the normal 50 degrees on a tall screen, where the photo is wider than the screen', () => {
-    expect(windowCameraFov(photo, 9 / 16)).toBe(50);
-    expect(windowCameraFov(photo, 1)).toBe(50);
+  it('is true looking straight at the middle', () => {
+    expect(windowCornersInside(photo, phone, 0, 0)).toBe(true);
   });
 
-  it('zooms in on a wide screen so the picture is not letterboxed in black', () => {
-    // 16:9: half the photo's width is tan = 0.75, so half the screen's height is atan(0.75 / 1.7778) = atan(0.42188)
-    // = 22.89 degrees, which makes 45.78 degrees tall. (Less than 50, so it zooms in a little.)
-    expect(windowCameraFov(photo, 16 / 9)).toBeCloseTo(45.78, 1);
-    // A very wide phone held sideways, 844 x 390 (2.164:1): atan(0.75 / 2.164) = atan(0.3466) = 19.12, so 38.24 degrees.
-    expect(windowCameraFov(photo, 844 / 390)).toBeCloseTo(38.24, 1);
+  it('is true turned 10 degrees: the top corner reaches 0.46631 / (cos 10 - 0.26231 sin 10) = 0.4965, inside the 0.5 edge', () => {
+    expect(windowCornersInside(photo, phone, 10, 0)).toBe(true);
+    expect(windowCornersInside(photo, phone, -10, 0)).toBe(true);
   });
 
-  it('is exactly the angle at which the screen sees the whole width of the photo and no more', () => {
-    for (const aspect of [1.5, 16 / 9, 2.164, 3]) {
-      const vertical = windowCameraFov(photo, aspect);
-      if (vertical < 50) expect(viewHorizontalFov(vertical, aspect)).toBeCloseTo(73.7398, 2);
+  it('is false at 22.17 degrees, where the old rule said you could look: the corner reaches 0.46631 / 0.8270 = 0.564, past 0.5', () => {
+    expect(windowCornersInside(photo, phone, 22.17, 0)).toBe(false);
+  });
+
+  it('is false when the photo is too small to cover the screen even looking straight at it', () => {
+    expect(windowCornersInside({ horizontalFov: 30, verticalFov: 20 }, phone, 0, 0)).toBe(false);
+  });
+
+  it('is false when looking too far up', () => {
+    expect(windowCornersInside(photo, { horizontalFov: 70, verticalFov: 50 }, 0, 2)).toBe(false);
+  });
+});
+
+describe('windowLookLimits: exactly as far as the screen stays on the photo', () => {
+  const photo = { horizontalFov: 73.7398, verticalFov: 53.1301 };
+
+  it('on a 9:16 phone at 50 degrees, the sideways limit is 10.87 degrees, not the old 22.17', () => {
+    // Worked by hand: the corner stays inside while cos(a) - 0.26231 sin(a) >= 0.46631 / 0.5 = 0.93262.
+    // cos(a) - 0.26231 sin(a) = 1.0338 cos(a + 14.70), so a + 14.70 <= acos(0.93262 / 1.0338) = 25.57, so a <= 10.87.
+    const limits = windowLookLimits(photo, { horizontalFov: viewHorizontalFov(50, 9 / 16), verticalFov: 50 }, 0);
+    expect(limits.azimuthHalfRange).toBeCloseTo(10.87, 1);
+    expect(limits.maxElevation).toBeCloseTo(0, 1); // no room up or down once the corners touch the top and bottom edges
+  });
+
+  it('on a wide screen where the photo exactly fills the width there is nothing to look round at all', () => {
+    // Tilt by an angle t and the top corners reach out to 0.75 / (cos t - 0.42187 sin t): wider than the photo's 0.75 half-width.
+    // (0.42187 is the half-height of that screen.) So a photo that exactly fills the screen cannot be moved even a little.
+    const fov = windowCameraFov(photo, 16 / 9);
+    const limits = windowLookLimits(photo, { horizontalFov: viewHorizontalFov(fov, 16 / 9), verticalFov: fov }, 0);
+    expect(limits.azimuthHalfRange).toBeLessThan(0.01);
+    expect(limits.maxElevation).toBeLessThan(0.01);
+  });
+
+  it('never lets any corner of the screen leave the photo, anywhere inside the limits', () => {
+    const cases: [number, number][] = [
+      [50, 9 / 16],
+      [50, 1],
+      [45, 3 / 4],
+      [40, 0.46],
+      [windowCameraFov(photo, 9 / 16), 9 / 16], // the zoom the game really uses on a tall phone
+      [windowCameraFov(photo, 16 / 9), 16 / 9], // ...and on a wide screen
+      [windowCameraFov(photo, 844 / 390), 844 / 390], // ...and on a phone held sideways
+    ];
+    for (const [verticalFov, aspect] of cases) {
+      const view = { horizontalFov: viewHorizontalFov(verticalFov, aspect), verticalFov };
+      const limits = windowLookLimits(photo, view, 0);
+      for (const yaw of [-1, -0.5, 0, 0.5, 1]) {
+        for (const pitch of [-1, -0.5, 0, 0.5, 1]) {
+          const ok = windowCornersInside(photo, view, yaw * limits.azimuthHalfRange, pitch * limits.maxElevation);
+          expect(ok, `fov ${verticalFov.toFixed(2)}, aspect ${aspect.toFixed(2)}, yaw ${yaw}, pitch ${pitch}`).toBe(true);
+        }
+      }
     }
+  });
+
+  it('is tight: a little further sideways and a corner really does leave the photo', () => {
+    const view = { horizontalFov: viewHorizontalFov(50, 9 / 16), verticalFov: 50 };
+    const limits = windowLookLimits(photo, view, 0);
+    expect(windowCornersInside(photo, view, limits.azimuthHalfRange + 0.3, 0)).toBe(false);
+  });
+});
+
+describe('windowCameraFov: zoom so the photo covers the screen AND every corner can reach every part of it', () => {
+  const photo = { horizontalFov: 73.7398, verticalFov: 53.1301 };
+
+  it('zooms in on a wide screen so the picture is not letterboxed in black (16:9 needs 45.75 degrees)', () => {
+    // Half the photo's width is tan = 0.75, so half the screen's height is atan(0.75 / 1.77778) = atan(0.421875) = 22.874 degrees,
+    // which is 45.747 degrees tall.
+    expect(windowCameraFov(photo, 16 / 9)).toBeCloseTo(45.747, 2);
+    // A phone held sideways, 844 x 390 (2.16410:1): atan(0.75 / 2.1641) = atan(0.34657) = 19.1145 degrees, so 38.229 degrees tall.
+    expect(windowCameraFov(photo, 844 / 390)).toBeCloseTo(38.229, 2);
+  });
+
+  it('zooms in a little on a tall phone too, so the whole width of the photo can be reached without a corner leaving it', () => {
+    const fov = windowCameraFov(photo, 9 / 16);
+    expect(fov).toBeLessThan(50);
+    expect(fov).toBeGreaterThan(40);
+    const view = { horizontalFov: viewHorizontalFov(fov, 9 / 16), verticalFov: fov };
+    const fullSideways = (photo.horizontalFov - view.horizontalFov) / 2;
+    expect(windowCornersInside(photo, view, fullSideways, 0)).toBe(true); // the whole photo is reachable
+    const slightlyBigger = { horizontalFov: viewHorizontalFov(fov + 0.5, 9 / 16), verticalFov: fov + 0.5 };
+    expect(windowCornersInside(photo, slightlyBigger, (photo.horizontalFov - slightlyBigger.horizontalFov) / 2, 0)).toBe(false); // and not zoomed more than needed
+  });
+
+  it('keeps the normal 50 degrees on a 4:3 screen, where nothing is lost', () => {
+    // 4:3: half-width tan(25 degrees) x 1.3333 = 0.62175 (63.3 degrees across), so the sideways range is (73.74 - 63.3) / 2 = 5.2 degrees,
+    // and the top corner reaches 0.46631 / (cos 5.2 - 0.62175 sin 5.2) = 0.46631 / 0.93951 = 0.4963: inside the 0.5 edge.
+    expect(windowCameraFov(photo, 4 / 3)).toBe(50);
   });
 });

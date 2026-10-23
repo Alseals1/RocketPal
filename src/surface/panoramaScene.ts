@@ -36,6 +36,11 @@ export class PanoramaScene {
     return this.camera.fov;
   }
 
+  /** Paints the empty space around a window photo a given colour. For the browser tests only: a bright colour shows any gap. */
+  setBackdrop(color: number): void {
+    this.scene.background = new THREE.Color(color);
+  }
+
   /** What the screen sees now, in degrees. */
   viewFov(): { horizontalFov: number; verticalFov: number } {
     return { horizontalFov: viewHorizontalFov(this.camera.fov, this.camera.aspect), verticalFov: this.camera.fov };
