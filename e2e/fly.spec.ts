@@ -130,7 +130,7 @@ test('tap-only: pick Earth, tap Autopilot, and land', async ({ page }) => {
   await expect(page.locator('#landed-title')).toHaveText('You landed on Earth!');
   expect((await ship(page)).docked).toBe(true);
 
-  // Fly again: the rocket lifts off and Mars is now "you're here".
+  // Fly again: the rocket lifts off and Earth is now "you're here".
   await page.getByTestId('fly-again').click();
   await expect(page.getByTestId('landed')).toBeHidden();
   expect((await ship(page)).docked).toBe(false);

@@ -11,6 +11,7 @@ interface DebugHandle {
   getMode(): string;
   getLook(): { azimuth: number; elevation: number } | undefined;
   getFound(): number;
+  hasPanorama(): boolean;
   getShip(): { docked: boolean };
   dockAt(id: string): void;
   pickTarget(id: string): void;
@@ -81,6 +82,14 @@ test('landing at Mars puts you inside the real NASA photo', async ({ page }) => 
   // The space screen's own buttons are gone while you stand on Mars.
   await expect(page.getByTestId('where-button')).toBeHidden();
 
+  // The credit says plainly that the sky above and the ground below are filled in.
+  await expect(page.getByTestId('photo-credit')).toContainText('filled in');
+  // Each glowing dot has a dark outline, so it can be seen on the bright sky as well as on dark rock.
+  const ring = await page.getByTestId('spot-sky').locator('.spot-ring').evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(ring).toMatch(/rgb\(18, 22, 61\) 0px 0px 0px 3px/); // a navy outline 3 px wide, not just the colour
+  // The picture says what it is for people who cannot see it.
+  await expect(page.locator('#game-canvas canvas')).toHaveAttribute('aria-label', /Mars/);
+
   // The picture really is a photo of Mars: a lot of it is red-orange.
   expect((await marsColours(page)).orangeShare).toBeGreaterThan(0.35);
   expect(errors).toEqual([]);
@@ -109,7 +118,8 @@ test('every glowing dot opens a card with its own NASA-checked words, and Orbit 
     await expect(card).toBeVisible();
     await expect(card.locator('h2')).toHaveText(spot.title);
     await expect(card.locator('.fact-text')).toHaveText(spot.text);
-    await expect(card.locator('.fact-source')).toContainText('Checked with NASA');
+    // Honest wording: the facts come from NASA's website, and we checked them. NASA did not review anything.
+    await expect(card.locator('.fact-source')).toHaveText("Facts from NASA's website. Checked October 23, 2026.");
     await expect(page.getByTestId('listen')).toBeVisible();
     found++;
     await expect(page.getByTestId('found')).toHaveText(`Found ${found} of 5`);
@@ -189,6 +199,16 @@ test('the fact card is a proper dialog: Tab stays inside, Escape closes it, and 
   await expect(page.getByTestId('listen')).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(page.getByTestId('close-card')).toBeFocused();
+
+  // The view may still be swinging round to the dot as the card opens: let it settle first.
+  await expect
+    .poll(async () => {
+      const a = (await debug(page, (h) => h.getLook()))!;
+      await page.waitForTimeout(200);
+      const b = (await debug(page, (h) => h.getLook()))!;
+      return Math.abs(a.azimuth - b.azimuth) + Math.abs(a.elevation - b.elevation);
+    })
+    .toBeLessThan(0.01);
 
   // While the card is open, the arrow keys do not turn the view behind it.
   const before = await debug(page, (h) => h.getLook());
@@ -429,4 +449,176 @@ test('the dots only move with transform and opacity: nothing else is rewritten e
       }),
   );
   expect(changes.attributes).toBeLessThan(5); // standing still, nothing but styles should change
+});
+
+
+test.describe('leaving while the picture is still loading', () => {
+  test('and then it fails: no "You landed" card pops up while the rocket is flying', async ({ page }) => {
+    await page.route('**/textures/surfaces/*.jpg', async (route) => {
+      await new Promise((r) => setTimeout(r, 1500));
+      await route.abort();
+    });
+    await start(page);
+    await debug(page, (h) => h.dockAt('mars'));
+    await expect(page.locator('.surface-loading')).toBeVisible();
+    await page.getByTestId('back-to-space').click(); // the Back button is above the loading screen
+    await expect.poll(() => debug(page, (h) => h.getMode())).toBe('space');
+    await page.waitForTimeout(2500); // the failed load comes back now
+    await expect(page.getByTestId('landed')).toBeHidden();
+    expect(await debug(page, (h) => h.getMode())).toBe('space');
+    expect((await debug(page, (h) => h.getShip())).docked).toBe(false);
+  });
+
+  test('and then it succeeds: the picture is thrown away, not kept in memory', async ({ page }) => {
+    await page.route('**/textures/surfaces/*.jpg', async (route) => {
+      await new Promise((r) => setTimeout(r, 1200));
+      await route.continue();
+    });
+    await start(page);
+    await debug(page, (h) => h.dockAt('mars'));
+    await expect(page.locator('.surface-loading')).toBeVisible();
+    await page.getByTestId('back-to-space').click();
+    await expect.poll(() => debug(page, (h) => h.getMode())).toBe('space');
+    await page.waitForTimeout(2500);
+    expect(await debug(page, (h) => h.hasPanorama())).toBe(false);
+    await expect(page.getByTestId('landed')).toBeHidden();
+    expect(await debug(page, (h) => h.getMode())).toBe('space');
+  });
+});
+
+test('a second finger on the screen does not make the picture strobe or end the first finger\'s drag', async ({ page }) => {
+  await landOnMars(page);
+  const look = () => debug(page, (h) => h.getLook()!);
+  const turnedBy = (a: { azimuth: number }, b: { azimuth: number }) => Math.abs(((b.azimuth - a.azimuth + 540) % 360) - 180);
+  const fire = (type: string, id: number, x: number, y: number) =>
+    page.evaluate(
+      ([t, i, px, py]) =>
+        document
+          .querySelector('#game-canvas canvas')!
+          .dispatchEvent(new PointerEvent(t as string, { pointerId: i as number, clientX: px as number, clientY: py as number, bubbles: true, isPrimary: i === 1, pointerType: 'touch' })),
+      [type, id, x, y],
+    );
+
+  const before = await look();
+  await fire('pointerdown', 1, 400, 300); // first finger
+  await fire('pointerdown', 2, 700, 500); // second finger, far away
+  for (let i = 0; i < 6; i++) {
+    await fire('pointermove', 1, 400 + (i % 2) * 2, 300); // both fingers wobble by a couple of pixels
+    await fire('pointermove', 2, 700, 500 + (i % 2) * 2);
+  }
+  expect(turnedBy(before, await look())).toBeLessThan(2); // no swing
+
+  await fire('pointerup', 2, 700, 500); // the second finger lifts
+  const mid = await look();
+  await fire('pointermove', 1, 300, 300); // the first finger is still dragging
+  expect(turnedBy(mid, await look())).toBeGreaterThan(5);
+  await fire('pointerup', 1, 300, 300);
+  const done = await look();
+  await fire('pointermove', 1, 100, 300); // nothing is held any more
+  expect(turnedBy(done, await look())).toBeLessThan(0.5);
+});
+
+test('the game still starts, and flying still works, if the surface data cannot be loaded', async ({ page }) => {
+  await page.route('**/data/surfaces.json', (route) => route.abort());
+  await start(page);
+  await debug(page, (h) => h.dockAt('mars'));
+  // No photo data, so Mars gets the plain landing card for now.
+  await expect(page.getByTestId('landed')).toBeVisible();
+  await expect(page.locator('#landed-title')).toHaveText('You landed on Mars!');
+});
+
+test('the dots say whether you have found them, and the picture describes itself', async ({ page }) => {
+  await landOnMars(page);
+  const rim = page.getByTestId('spot-rim');
+  await expect(rim).toHaveAttribute('aria-label', 'Far away hills: tap to learn more');
+  await (await reachSpot(page, 'rim')).press('Enter');
+  await page.getByTestId('close-card').click();
+  await expect(rim).toHaveAttribute('aria-label', 'Far away hills: found. Tap to read again');
+
+  await expect(page.locator('#game-canvas canvas')).toHaveAttribute('aria-label', /Mars/);
+  await page.getByTestId('back-to-space').click();
+  await expect(page.locator('#game-canvas canvas')).toHaveAttribute('aria-label', /solar system/);
+});
+
+test.describe('read aloud, the tricky bits', () => {
+  const fakeVoice = (voices: string) => `
+    const utterances = [];
+    window.__utterances = utterances;
+    Object.defineProperty(window, 'speechSynthesis', {
+      value: { getVoices: () => ${voices}, speak(u) { utterances.push(u); }, cancel() {} },
+      configurable: true,
+    });`;
+
+  test('a late "cancelled" message from an old reading does not stop the new one', async ({ page }) => {
+    await page.addInitScript(fakeVoice("[{ lang: 'en-US', localService: true, name: 'Pretend' }]"));
+    await landOnMars(page);
+    await (await reachSpot(page, 'rim')).press('Enter');
+    const listen = page.getByTestId('listen');
+
+    await listen.click(); // reading number 1 starts
+    await expect(listen).toHaveText('Stop');
+    await listen.click(); // stop it
+    await expect(listen).toHaveText('Listen');
+    await listen.click(); // reading number 2 starts
+    await expect(listen).toHaveText('Stop');
+
+    // Number 1's "I was cancelled" message arrives late, as it can in a real browser.
+    await page.evaluate(() => {
+      const first = (window as unknown as { __utterances: SpeechSynthesisUtterance[] }).__utterances[0];
+      first.onerror?.(new Event('error') as SpeechSynthesisErrorEvent);
+      first.onend?.(new Event('end') as SpeechSynthesisEvent);
+    });
+    await expect(listen).toHaveText('Stop'); // number 2 is still going
+  });
+
+  test('says so when the computer has the speech tool but no voices at all', async ({ page }) => {
+    await page.addInitScript(fakeVoice('[]'));
+    await start(page);
+    await page.waitForTimeout(3300); // voices can arrive a moment after the page opens; give them time
+    await debug(page, (h) => h.dockAt('mars'));
+    await expect(page.locator('.surface-loading')).toBeHidden({ timeout: 20_000 });
+    await (await reachSpot(page, 'sky')).press('Enter');
+    await expect(page.getByTestId('listen')).toHaveText('No voice on this computer');
+    await expect(page.getByTestId('listen')).toBeDisabled();
+  });
+});
+
+test('leaving and landing again quickly: an old picture finishing late does not wreck the new visit', async ({ page }) => {
+  let calls = 0;
+  await page.route('**/textures/surfaces/*.jpg', async (route) => {
+    const mine = ++calls;
+    await new Promise((r) => setTimeout(r, mine === 1 ? 2500 : 200)); // the first load is slow, the second is quick
+    await route.continue();
+  });
+  await start(page);
+  await debug(page, (h) => h.dockAt('mars')); // load 1 (slow)
+  await expect(page.locator('.surface-loading')).toBeVisible();
+  await page.getByTestId('back-to-space').click();
+  await expect.poll(() => debug(page, (h) => h.getMode())).toBe('space');
+  await debug(page, (h) => h.dockAt('mars')); // load 2 (quick)
+  await expect(page.locator('.surface-loading')).toBeHidden({ timeout: 10_000 });
+  await page.waitForTimeout(3000); // load 1 finishes now
+  expect(await debug(page, (h) => h.getMode())).toBe('surface');
+  expect(await debug(page, (h) => h.hasPanorama())).toBe(true); // the new visit still has its picture
+  expect((await marsColours(page)).orangeShare).toBeGreaterThan(0.35); // and it is drawn
+});
+
+test('if the browser will not start reading, the Listen button does not get stuck on Stop', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'speechSynthesis', {
+      value: {
+        getVoices: () => [{ lang: 'en-US', localService: true, name: 'Pretend' }],
+        speak() {
+          throw new Error('speech service not available');
+        },
+        cancel() {},
+      },
+      configurable: true,
+    });
+  });
+  await landOnMars(page);
+  await (await reachSpot(page, 'rim')).press('Enter');
+  const listen = page.getByTestId('listen');
+  await listen.click();
+  await expect(listen).toHaveText('Listen'); // back to normal, so it can be tried again
 });

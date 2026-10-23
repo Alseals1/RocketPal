@@ -6,8 +6,8 @@ export interface Hotspot {
   elevation: number;
   title: string;
   text: string;
-  /** The NASA page the fact was checked against. */
-  source: string;
+  /** The NASA pages the fact was checked against (at least one). */
+  sources: string[];
   lastChecked: string;
 }
 
@@ -89,7 +89,9 @@ export function validateSurfaces(raw: unknown, worldIds: string[]): string[] {
         if (words(spot.text) > LIMITS.textWords) problems.push(`${label}: text has too many words (at most ${LIMITS.textWords})`);
         if (sentences(spot.text) > LIMITS.textSentences) problems.push(`${label}: text has too many sentences (at most ${LIMITS.textSentences})`);
       }
-      if (!/^https:\/\//.test(spot?.source ?? '')) problems.push(`${label}: source must be an https link to the page the fact was checked against`);
+      if (!Array.isArray(spot?.sources) || spot.sources.length < 1 || !spot.sources.every((u: unknown) => typeof u === 'string' && /^https:\/\//.test(u))) {
+        problems.push(`${label}: sources must be a list of one or more https links to the pages the fact was checked against`);
+      }
       if (!isRealDate(spot?.lastChecked)) problems.push(`${label}: lastChecked must be a real date`);
     }
   }

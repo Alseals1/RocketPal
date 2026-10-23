@@ -45,6 +45,7 @@ interface Options {
   debug: boolean;
 }
 
+const SPACE_LABEL = 'A 3D view of the solar system from your rocket';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 export class Game {
@@ -69,6 +70,8 @@ export class Game {
   private look?: LookController;
   private surfaceHud?: SurfaceHud;
   private surfaceHudFor?: string;
+  /** Counts visits to a surface. A picture that finishes loading after the player has left belongs to an old visit and is dropped. */
+  private visit = 0;
   private settings: Settings;
   private reducedMotion: boolean;
   private readonly systemMotion = matchMedia(REDUCED_MOTION_QUERY);
@@ -268,7 +271,9 @@ export class Game {
 
   /** The rocket has docked at a world with a real photograph: go and stand in it. */
   private async enterSurface(layout: BodyLayout, surface: Surface): Promise<void> {
+    const visit = ++this.visit;
     this.mode = 'surface';
+    this.scene.setCanvasLabel(`A real 360 degree photo of ${surface.title}, taken by a NASA rover. Drag to look around.`);
     this.stage.classList.add('is-surface');
     this.input.suspendTouchControls(true);
 
@@ -294,12 +299,18 @@ export class Game {
     try {
       await panorama.load(small ? surface.images.low : surface.images.high);
     } catch (error) {
+      if (visit !== this.visit) return; // the player has already left: nothing to fall back from
       console.error(error);
       this.leaveSurfaceScreen();
       this.hud.showLanded(layout.world.name); // fall back to the plain "You landed" card
       return;
     }
-    if (this.mode !== 'surface') return; // the player left while it loaded
+    if (visit !== this.visit) {
+      // It arrived after the player left. If nobody is standing on a surface now, do not keep it in memory.
+      // (If they have already landed somewhere new, that visit owns the picture: leave it alone.)
+      if (this.mode !== 'surface') panorama.dispose();
+      return;
+    }
 
     this.look = new LookController(surface.start);
     this.look.attach(this.scene.canvas, () => this.stage.clientHeight, panorama.verticalFov);
@@ -313,7 +324,9 @@ export class Game {
   }
 
   private leaveSurfaceScreen(): void {
+    this.visit++; // any picture still loading is now out of date
     this.mode = 'space';
+    this.scene.setCanvasLabel(SPACE_LABEL);
     this.stage.classList.remove('is-surface');
     this.speaker.stop();
     this.look?.detach();
@@ -391,6 +404,7 @@ export class Game {
       getMode: () => this.mode,
       getLook: () => this.look?.state,
       getFound: () => this.surfaceHud?.foundCount ?? 0,
+      hasPanorama: () => this.panorama?.isLoaded ?? false,
       dockAt: (id: string) => this.debugDockAt(id),
       pickTarget: (id: string) => this.pickTarget(id),
       setAutopilot: (on: boolean) => this.setAutopilot(on),

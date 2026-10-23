@@ -39,7 +39,11 @@ function start(): void {
   applySettingsToPage(settings, matchMedia('(prefers-reduced-motion: reduce)').matches);
   loadPlanets()
     .then(async (data) => {
-      const surfaces = await loadSurfaces(data.worlds.map((w) => w.id));
+      // If the landing pictures' data cannot be loaded, the game still flies and lands: worlds just show the plain card.
+      const surfaces = await loadSurfaces(data.worlds.map((w) => w.id)).catch((error) => {
+        console.error(error);
+        return { lastChecked: '', surfaces: [] };
+      });
       new Game(root, data, {
         surfaces,
         forcedQuality: forced === 'low' || forced === 'high' ? (forced as Quality) : undefined,

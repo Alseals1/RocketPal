@@ -7,8 +7,10 @@
 //
 // What it does, and nothing else:
 //   1. Re-projects the photo (cylindrical, so it only covers part of the sky-to-ground range) onto a full sphere picture.
-//   2. Where the photo stops, continues the real sky colours upward (fading to a darker sky overhead) and the real
-//      ground colours downward (fading to dark). No new detail is drawn.
+//   2. Where the photo stops, FILLS IN the rest: the photo's own edge colours (blurred sideways by about 9 degrees) are
+//      continued upward and darkened toward the top of the sky (to roughly half brightness), and continued downward and
+//      darkened to near black, with a narrow blend where they meet the photo. This is invented, not photographed: the game
+//      must say so on screen (the `creditNote` in public/data/surfaces.json does). No new detail is drawn.
 //   3. Writes <name>-4096.jpg (4096 x 2048) and <name>-2048.jpg (2048 x 1024, used in low-quality mode).
 //
 // The numbers below describe the PIA24264 photo. Change them for a different panorama.

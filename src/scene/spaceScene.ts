@@ -86,6 +86,11 @@ export class SpaceScene {
     this.reducedMotion = on;
   }
 
+  /** What the picture is, for people who cannot see it. */
+  setCanvasLabel(text: string): void {
+    this.canvas.setAttribute('aria-label', text);
+  }
+
   /** The game's one WebGL renderer, shared with the surface scenes. */
   get webglRenderer(): THREE.WebGLRenderer {
     return this.renderer;

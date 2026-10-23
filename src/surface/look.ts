@@ -7,6 +7,8 @@ export class LookController {
   state: LookState;
   private target: LookState | null = null;
   private dragging = false;
+  /** The finger (or mouse) that started the drag. Any other finger is ignored, so a second finger cannot make the picture jump. */
+  private activeId: number | null = null;
   private lastX = 0;
   private lastY = 0;
   private cleanup: (() => void) | undefined;
@@ -19,7 +21,9 @@ export class LookController {
   attach(element: HTMLElement, viewHeight: () => number, verticalFov: number): void {
     this.detach();
     const down = (e: PointerEvent) => {
+      if (this.dragging) return;
       this.dragging = true;
+      this.activeId = e.pointerId;
       this.target = null;
       this.lastX = e.clientX;
       this.lastY = e.clientY;
@@ -30,7 +34,7 @@ export class LookController {
       }
     };
     const move = (e: PointerEvent) => {
-      if (!this.dragging) return;
+      if (!this.dragging || e.pointerId !== this.activeId) return;
       this.state = applyDrag(this.state, e.clientX - this.lastX, e.clientY - this.lastY, {
         verticalFovDegrees: verticalFov,
         viewportHeight: viewHeight(),
@@ -38,8 +42,10 @@ export class LookController {
       this.lastX = e.clientX;
       this.lastY = e.clientY;
     };
-    const up = () => {
+    const up = (e: PointerEvent) => {
+      if (e.pointerId !== this.activeId) return;
       this.dragging = false;
+      this.activeId = null;
     };
     element.addEventListener('pointerdown', down);
     element.addEventListener('pointermove', move);
@@ -59,6 +65,7 @@ export class LookController {
     this.cleanup?.();
     this.cleanup = undefined;
     this.dragging = false;
+    this.activeId = null;
   }
 
   /** Swings the view round to a direction (or jumps there, if motion is reduced). */

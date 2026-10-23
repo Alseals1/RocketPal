@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import surfacesJson from '../public/data/surfaces.json';
 import { validateSurfaces } from '../src/data/surfaces';
+import { cylindricalPhotoToAzEl } from '../src/surface/geometry';
 
 const WORLDS = ['sun', 'mercury', 'venus', 'earth', 'moon', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'];
 const copy = () => structuredClone(surfacesJson) as any;
@@ -20,10 +21,41 @@ describe('surfaces.json', () => {
     }
   });
 
-  it('gives Mars five hotspots, each with a NASA source', () => {
+  it('gives Mars five hotspots, each with at least one NASA page it was checked against', () => {
     const mars = surfacesJson.surfaces.find((s) => s.worldId === 'mars')!;
     expect(mars.hotspots).toHaveLength(5);
-    for (const spot of mars.hotspots) expect(spot.source).toMatch(/^https:\/\/(science\.)?nasa\.gov\//);
+    for (const spot of mars.hotspots) {
+      expect(spot.sources.length).toBeGreaterThanOrEqual(1);
+      for (const url of spot.sources) expect(url).toMatch(/^https:\/\/(science\.)?nasa\.gov\//);
+    }
+  });
+
+  it('puts every dot on the thing its words are about', () => {
+    // Where each feature is in the ORIGINAL NASA photo (9238 x 2451 px), read off the picture by eye as fractions of its
+    // width and height. The angles in surfaces.json must agree with the photo's own geometry, to within 2 degrees.
+    const photo = { aspect: 9238 / 2451, horizon: 0.088 };
+    const inPhoto: Record<string, [number, number]> = {
+      rim: [0.32, 0.072], // the far hills on the horizon
+      ground: [0.21, 0.452], // red dirt, left of the rover
+      rover: [0.625, 0.621], // the white rover deck
+      photo: [0.9, 0.358], // open ground on the right
+    };
+    const mars = surfacesJson.surfaces.find((s) => s.worldId === 'mars')!;
+    for (const [id, [x, y]] of Object.entries(inPhoto)) {
+      const want = cylindricalPhotoToAzEl(x, y, photo);
+      const spot = mars.hotspots.find((h) => h.id === id)!;
+      expect(Math.abs(((spot.azimuth - want.azimuth + 540) % 360) - 180), `${id} azimuth`).toBeLessThan(2);
+      expect(Math.abs(spot.elevation - want.elevation), `${id} elevation`).toBeLessThan(2);
+    }
+    // The sky dot sits above the photo's top edge, in the sky, near the bright glow (azimuth about 130).
+    const sky = mars.hotspots.find((h) => h.id === 'sky')!;
+    expect(sky.elevation).toBeGreaterThan(cylindricalPhotoToAzEl(0.5, 0, photo).elevation + 5);
+    expect(Math.abs(sky.azimuth - 130)).toBeLessThan(25);
+  });
+
+  it('tells the player which parts of the picture are filled in, not photographed', () => {
+    const mars = surfacesJson.surfaces.find((s) => s.worldId === 'mars')!;
+    expect(mars.creditNote).toMatch(/filled in/i);
   });
 
   it('credits NASA for the photo', () => {
@@ -90,8 +122,11 @@ describe('validateSurfaces', () => {
 
   it('rejects hotspots with no source, a non-https source, or no check date', () => {
     const a = copy();
-    a.surfaces[0].hotspots[1].source = 'nasa.gov';
-    expect(validateSurfaces(a, WORLDS)).toContainEqual(expect.stringContaining('source'));
+    a.surfaces[0].hotspots[1].sources = ['nasa.gov'];
+    expect(validateSurfaces(a, WORLDS)).toContainEqual(expect.stringContaining('sources'));
+    const none = copy();
+    none.surfaces[0].hotspots[1].sources = [];
+    expect(validateSurfaces(none, WORLDS)).toContainEqual(expect.stringContaining('sources'));
     const b = copy();
     delete b.surfaces[0].hotspots[1].lastChecked;
     expect(validateSurfaces(b, WORLDS)).toContainEqual(expect.stringContaining('lastChecked'));

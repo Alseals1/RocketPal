@@ -15,6 +15,8 @@ export class PanoramaScene {
   private readonly tmp = new THREE.Vector3();
   private mesh?: THREE.Mesh;
   private texture?: THREE.Texture;
+  /** Counts loads. If a newer load has started, an older one that finishes late throws its picture away. */
+  private loadTicket = 0;
   private width = 1;
   private height = 1;
 
@@ -31,7 +33,13 @@ export class PanoramaScene {
 
   async load(url: string): Promise<void> {
     this.dispose();
+    const ticket = ++this.loadTicket;
     const texture = await new THREE.TextureLoader().loadAsync(url);
+    if (ticket !== this.loadTicket) {
+      texture.dispose(); // a newer load has begun since: this picture is out of date
+      return;
+    }
+    this.dispose(); // never leave an older picture behind
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
     this.texture = texture;

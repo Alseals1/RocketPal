@@ -119,7 +119,11 @@ export class SurfaceHud {
   /** Starts a visit from scratch (nothing found yet). */
   reset(): void {
     this.found.clear();
-    for (const button of this.spotButtons.values()) button.classList.remove('is-found');
+    for (const [id, button] of this.spotButtons) {
+      button.classList.remove('is-found');
+      const spot = this.surface.hotspots.find((h) => h.id === id)!;
+      button.setAttribute('aria-label', `${spot.label}: tap to learn more`);
+    }
     this.updateProgress();
     this.say(this.surface.orbitHint);
   }
@@ -158,11 +162,13 @@ export class SurfaceHud {
     this.focusReturns = byKeyboard;
     this.els['fact-title'].textContent = spot.title;
     this.els['fact-text'].textContent = spot.text;
-    this.els['fact-source'].textContent = `Checked with NASA on ${spot.lastChecked}`;
+    // The facts come from NASA's website and we checked them; NASA did not review anything here.
+    this.els['fact-source'].textContent = `Facts from NASA's website. Checked ${friendlyDate(spot.lastChecked)}.`;
     this.els.overlay.hidden = false;
     this.setListenLabel(false);
     this.found.add(spot.id);
     button.classList.add('is-found');
+    button.setAttribute('aria-label', `${spot.label}: found. Tap to read again`);
     this.updateProgress();
     this.listenButton.focus();
   }
@@ -218,4 +224,9 @@ export class SurfaceHud {
     d.textContent = text;
     return d.innerHTML;
   }
+}
+
+/** "2026-10-23" becomes "October 23, 2026", which is easier to read than a computer date. */
+function friendlyDate(isoDate: string): string {
+  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }

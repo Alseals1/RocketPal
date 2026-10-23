@@ -594,6 +594,7 @@ button:focus-visible {
 
 .back-button {
   position: absolute;
+  z-index: 7; /* above the loading screen, so you can always go back */
   top: var(--gap);
   right: var(--gap);
 }
@@ -651,8 +652,11 @@ button:focus-visible {
   inset: 10px;
   border-radius: 50%;
   border: 4px solid var(--sun);
-  background: rgba(255, 209, 102, 0.35);
-  box-shadow: 0 0 14px 4px rgba(255, 209, 102, 0.8);
+  /* A dark centre and a dark outline, so the dot can be seen on the bright sky as well as on dark rock. */
+  background: rgba(18, 22, 61, 0.55);
+  box-shadow:
+    0 0 0 3px var(--navy),
+    0 0 14px 6px rgba(255, 209, 102, 0.85);
   animation: spot-pulse 1.6s ease-in-out infinite;
 }
 
@@ -671,8 +675,10 @@ button:focus-visible {
 .spot.is-found .spot-ring {
   animation: none;
   border-color: var(--sky);
-  background: rgba(123, 223, 242, 0.25);
-  box-shadow: 0 0 10px 2px rgba(123, 223, 242, 0.6);
+  background: rgba(18, 22, 61, 0.55);
+  box-shadow:
+    0 0 0 3px var(--navy),
+    0 0 10px 3px rgba(123, 223, 242, 0.7);
 }
 
 .spot-tick {
