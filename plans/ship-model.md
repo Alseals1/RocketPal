@@ -49,3 +49,12 @@ Blender MCP (build, look at renders, export), `tdd` (the file-contract test), `a
 * Result: 1,782 triangles, 37 KB, 5 materials. The file-contract test pins the nose direction (-Z), the flame's pivot and direction, the part names and the budget. Two browser tests: the model replaces the placeholder with no console errors, and with the file blocked the game still flies with no console errors. Mutation checks: removing the failure handler fails the second test; never swapping the model fails the first.
 * The `grill-me` skill is not available in this session; gaps were listed by hand (above).
 * Not done in this feature: the "3 swappable colour trims" upgrade idea (one `Trim` material is ready for it).
+
+## What the PR review changed (added after review)
+Round 1 approved with seven suggestions; all were done:
+* The load starts on the frame after the first one, and the loader code is its own small file (`shipModel` chunk, 45 KB), so the main game code got smaller (672 kB to 629 kB). A failure now logs a console *warning* (not an error) saying the simple rocket is kept.
+* `loadShipModel` insists `Flame` is a mesh (it throws a clear message otherwise) and disposes the original flame material.
+* `useShipModel` ignores a second call; `hasShipModel` is a plain flag.
+* Four more browser tests: a file cut off half way, garbage, a web page served in place of the file, and a real model whose flame part is renamed. Each leaves the simple rocket in place, the game flies, no console errors.
+* The file test now also pins "no image textures" (the credit says flat colours only) and "no double-sided materials". The materials had been double-sided (Blender's default); back-face culling is on and the file re-exported.
+* `ASSETS.md` says small models may stay plain glb.

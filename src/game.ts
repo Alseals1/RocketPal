@@ -24,7 +24,6 @@ import {
 } from './scale/readout';
 import { planLeg } from './scale/leg';
 import { layoutWorlds, type BodyLayout } from './scene/layout';
-import { loadShipModel } from './scene/shipModel';
 import { SPACE_VIEW_LABEL, SpaceScene } from './scene/spaceScene';
 import { windowLookLimits, viewHorizontalFov } from './surface/geometry';
 import { PanoramaScene } from './surface/panoramaScene';
@@ -127,10 +126,14 @@ export class Game {
     if (options.debug) this.exposeDebugHandle();
     requestAnimationFrame((t) => this.frame(t));
 
-    // The Blender rocket loads after the first frame. If it cannot load, the simple rocket stays and the game carries on.
-    loadShipModel()
-      .then((ship) => this.scene.useShipModel(ship))
-      .catch(() => {});
+    // The Blender rocket (and the code that reads it) loads after the first frame.
+    // If it cannot load, the simple rocket stays and the game carries on.
+    requestAnimationFrame(() => {
+      import('./scene/shipModel')
+        .then(({ loadShipModel }) => loadShipModel())
+        .then((ship) => this.scene.useShipModel(ship))
+        .catch((error) => console.warn('Rocket model not loaded, keeping the simple rocket.', error));
+    });
   }
 
   pickTarget(id: string): void {

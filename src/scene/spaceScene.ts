@@ -44,6 +44,7 @@ export class SpaceScene {
   /** Simple shapes shown until the Blender model has loaded (and kept if it never does). */
   private readonly placeholder = new THREE.Group();
   private flame: THREE.Object3D;
+  private modelLoaded = false;
   private readonly cameraTarget = new THREE.Vector3();
   private readonly tmp = new THREE.Vector3();
   private readonly tmpView = new THREE.Vector3();
@@ -95,6 +96,8 @@ export class SpaceScene {
 
   /** Swaps the placeholder rocket for the real model once it has loaded. */
   useShipModel({ model, flame }: ShipModel): void {
+    if (this.modelLoaded) return;
+    this.modelLoaded = true;
     this.ship.remove(this.placeholder);
     this.placeholder.traverse((node) => {
       if (!(node instanceof THREE.Mesh)) return;
@@ -107,7 +110,7 @@ export class SpaceScene {
 
   /** Whether the Blender model has replaced the placeholder. */
   get hasShipModel(): boolean {
-    return this.placeholder.parent === null;
+    return this.modelLoaded;
   }
 
   /** What the picture is, for people who cannot see it. */

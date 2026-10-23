@@ -2,7 +2,7 @@
 
 The Blender MCP is now connected (2026-10-23) and models are built one family at a time. The game still uses simple placeholder shapes (spheres, cones) for anything below that is not built yet.
 
-**How to get them built:** connect the Blender MCP to Claude Code (see `README.md`), or take this list to your Claude desktop chat where Blender is connected. Export each as compressed glTF (`.glb`, Draco or meshopt) to the target path. Style for all models: bright, rounded, friendly, chunky shapes, no sharp edges, flat-ish colors with a colorblind-safe palette, no scary details.
+**How to get them built:** connect the Blender MCP to Claude Code (see `README.md`), or take this list to your Claude desktop chat where Blender is connected. Export each as a `.glb` to the target path, compressed (Draco or meshopt) when the file is big enough for that to save bytes; small models such as the 37 KB ship stay plain (see `decisions/2026-10-23-ship-model-plain-glb-and-blender-scene.md`). Style for all models: bright, rounded, friendly, chunky shapes, no sharp edges, flat-ish colors with a colorblind-safe palette, no scary details.
 
 ## Models
 

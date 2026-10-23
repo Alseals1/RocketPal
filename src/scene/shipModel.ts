@@ -15,14 +15,15 @@ export async function loadShipModel(url = SHIP_MODEL_URL): Promise<ShipModel> {
   const gltf = await new GLTFLoader().loadAsync(url);
   const model = gltf.scene;
 
-  let flame: THREE.Object3D | undefined;
+  let flame: THREE.Mesh | undefined;
   model.traverse((node) => {
-    if (node.name === 'Flame') flame = node;
+    if (node.name === 'Flame' && node instanceof THREE.Mesh) flame = node;
   });
-  if (!flame) throw new Error(`${url} has no part called Flame`);
+  if (!flame) throw new Error(`${url} has no single-material mesh called Flame`);
 
   // The flame glows by itself instead of being lit by the Sun, like the placeholder's.
-  (flame as THREE.Mesh).material = new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.9 });
+  (flame.material as THREE.Material).dispose();
+  flame.material = new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.9 });
 
   return { model, flame };
 }

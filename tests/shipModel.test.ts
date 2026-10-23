@@ -57,6 +57,15 @@ describe('ship.glb', () => {
     expect(size).toBeLessThan(150 * 1024);
   });
 
+  it('has no image textures, so the credit "original work, flat colours only" stays true', () => {
+    expect(json.images).toBeUndefined();
+    expect(json.textures).toBeUndefined();
+  });
+
+  it('draws only the outside of its closed shapes (no double-sided materials)', () => {
+    for (const m of json.materials) expect(m.doubleSided).not.toBe(true);
+  });
+
   it('has no cameras, lights or animations', () => {
     expect(json.cameras).toBeUndefined();
     expect(json.animations).toBeUndefined();
