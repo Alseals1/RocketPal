@@ -56,12 +56,14 @@ export interface FlightConfig {
   assistMaxRate: number;
   /** Docking hover distance, as a multiple of the body's radius, measured from its centre. */
   dockFactor: number;
-  /** Beyond the dock distance, how many radii away the pull takes over completely. */
+  /** The pull starts taking over this many radii beyond the dock distance... */
   captureRangeFactor: number;
+  /** ...or this many seconds of flying at the ship's current speed, whichever is farther. A fast ship needs room to turn. */
+  captureSeconds: number;
   /** Speed limit near the destination = distance left to the dock point times this. */
   approachGain: number;
-  /** Slowest the ship creeps in, so it always arrives. */
-  minApproachSpeed: number;
+  /** Slowest the ship creeps in, in body radii per second, so it always arrives. */
+  creepFactor: number;
   /** Ships stay this many radii (from the centre) away from obstacles. */
   obstacleFactor: number;
 }
@@ -79,8 +81,9 @@ export const DEFAULT_FLIGHT: FlightConfig = {
   assistMaxRate: 2,
   dockFactor: 1.8,
   captureRangeFactor: 10,
+  captureSeconds: 2.5,
   approachGain: 1.2,
-  minApproachSpeed: 4,
+  creepFactor: 0.2,
   obstacleFactor: 1.1,
 };
 
@@ -113,6 +116,34 @@ export function dockDistance(target: Body, config: FlightConfig = DEFAULT_FLIGHT
   return target.radius * config.dockFactor;
 }
 
+/** Moves by `delta`, never ending up inside an obstacle (the ship slides along its surface instead). */
+function moveAround(from: Vec3, delta: Vec3, obstacles: Body[], config: FlightConfig): Vec3 {
+  if (obstacles.length === 0) {
+    return { x: from.x + delta.x, y: from.y + delta.y, z: from.z + delta.z };
+  }
+  const smallest = Math.min(...obstacles.map((b) => b.radius * config.obstacleFactor));
+  const steps = clamp(Math.ceil(Math.hypot(delta.x, delta.y, delta.z) / (0.5 * smallest)), 1, 64);
+  const position = { ...from };
+  for (let i = 0; i < steps; i++) {
+    position.x += delta.x / steps;
+    position.y += delta.y / steps;
+    position.z += delta.z / steps;
+    for (const body of obstacles) {
+      const minimum = body.radius * config.obstacleFactor;
+      const gap = distance(position, body.position);
+      if (gap >= minimum) continue;
+      const away =
+        gap > 1e-9
+          ? { x: (position.x - body.position.x) / gap, y: (position.y - body.position.y) / gap, z: (position.z - body.position.z) / gap }
+          : { x: 0, y: 1, z: 0 };
+      position.x = body.position.x + away.x * minimum;
+      position.y = body.position.y + away.y * minimum;
+      position.z = body.position.z + away.z * minimum;
+    }
+  }
+  return position;
+}
+
 export function stepFlight(
   state: ShipState,
   input: FlightInput,
@@ -142,8 +173,11 @@ export function stepFlight(
     };
     const dist = Math.hypot(toTarget.x, toTarget.y, toTarget.z);
     const dock = dockDistance(target, config);
-    const capture = target.radius * config.captureRangeFactor;
-    const near = 1 - clamp((dist - dock) / capture, 0, 1); // 0 far away .. 1 at the dock point
+    // How close counts as "near enough for the pull to take over". Scales with the planet AND with
+    // speed, so the ship always has room to turn (its turning circle grows with speed).
+    const capture = Math.max(target.radius * config.captureRangeFactor, state.speed * config.captureSeconds);
+    // 0 far away, rising to 1 (total takeover) once the ship is in the inner half of the capture range.
+    const near = clamp(2 * (1 - (dist - dock) / capture), 0, 1);
 
     const horizontal = Math.hypot(toTarget.x, toTarget.z);
     const aimYaw = horizontal > 1e-6 ? Math.atan2(-toTarget.x, -toTarget.z) : state.yaw;
@@ -155,7 +189,7 @@ export function stepFlight(
     yawGoal = lerp(yawGoal, yawPull, Math.max(config.assistBase * (1 - Math.abs(turn)), near));
     pitchGoal = lerp(pitchGoal, pitchPull, Math.max(config.assistBase * (1 - Math.abs(pitchInput)), near));
 
-    speedCap = Math.max(config.minApproachSpeed, (dist - dock) * config.approachGain);
+    speedCap = (dist - dock) * config.approachGain + target.radius * config.creepFactor;
   }
 
   // Ease turn rates and speed toward their goals.
@@ -166,28 +200,14 @@ export function stepFlight(
   const pitch = clamp(state.pitch + pitchRate * dt, -config.pitchLimit, config.pitchLimit);
   const speed = Math.min(lerp(state.speed, speedGoal, 1 - Math.exp(-config.speedResponse * dt)), speedCap);
 
-  // Move.
+  // Move, in small steps if there are obstacles, so a fast ship cannot skip across a small body.
   const forward = forwardVector(yaw, pitch);
-  const position = {
-    x: state.position.x + forward.x * speed * dt,
-    y: state.position.y + forward.y * speed * dt,
-    z: state.position.z + forward.z * speed * dt,
-  };
-
-  // Stay out of other bodies.
-  for (const body of context.obstacles ?? []) {
-    const minimum = body.radius * config.obstacleFactor;
-    const gap = distance(position, body.position);
-    if (gap < minimum) {
-      const away =
-        gap > 1e-9
-          ? { x: (position.x - body.position.x) / gap, y: (position.y - body.position.y) / gap, z: (position.z - body.position.z) / gap }
-          : { x: 0, y: 1, z: 0 };
-      position.x = body.position.x + away.x * minimum;
-      position.y = body.position.y + away.y * minimum;
-      position.z = body.position.z + away.z * minimum;
-    }
-  }
+  const position = moveAround(
+    state.position,
+    { x: forward.x * speed * dt, y: forward.y * speed * dt, z: forward.z * speed * dt },
+    context.obstacles ?? [],
+    config,
+  );
 
   // Docking cannot fail: reaching the hover distance stops the ship.
   if (target && distance(position, target.position) <= dockDistance(target, config)) {

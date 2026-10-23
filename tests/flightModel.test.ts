@@ -184,3 +184,106 @@ describe('destination assist and docking', () => {
     expect(s.position.x).toBeGreaterThan(5); // the pull did not cancel the player's turn
   });
 });
+
+// A small seeded random number generator, so "random" starts are the same on every run.
+function seeded(seed: number) {
+  let a = seed;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function randomStart(rand: () => number, radius: number): ShipState {
+  const dir = { x: rand() * 2 - 1, y: rand() * 2 - 1, z: rand() * 2 - 1 };
+  const len = Math.hypot(dir.x, dir.y, dir.z) || 1;
+  const far = 30 * radius + rand() * 2500; // from fairly close to a long way off
+  return createShip(
+    { x: (dir.x / len) * far, y: (dir.y / len) * far, z: (dir.z / len) * far },
+    (rand() * 2 - 1) * Math.PI,
+    (rand() * 2 - 1) * 1.4,
+    rand() < 0.5 ? DEFAULT_FLIGHT.cruiseSpeed : DEFAULT_FLIGHT.boostSpeed,
+  );
+}
+
+describe('docking works for any planet size, speed and frame rate', () => {
+  const radii = [0.5, 3, 10, 30, 100];
+  const frameTimes = [1 / 60, 1 / 30, 1 / 15, 0.1];
+
+  for (const radius of radii) {
+    for (const dt of frameTimes) {
+      for (const boost of [false, true]) {
+        it(`docks from 40 random starts: radius ${radius}, ${Math.round(1 / dt)} fps, boost ${boost}`, () => {
+          const rand = seeded(1000 + radius * 7 + Math.round(1 / dt));
+          const body: Body = { position: origin, radius };
+          for (let i = 0; i < 40; i++) {
+            let s = randomStart(rand, radius);
+            let closest = Infinity;
+            for (let t = 0; t < 600 && !s.docked; t += dt) {
+              s = stepFlight(s, { ...NONE, boost }, dt, { target: body });
+              closest = Math.min(closest, dist(s.position, origin));
+            }
+            expect(s.docked, `start ${i} did not dock`).toBe(true);
+            expect(closest).toBeGreaterThan(radius);
+          }
+        });
+      }
+    }
+  }
+});
+
+describe('the last stretch of the approach', () => {
+  const earth: Body = { position: origin, radius: 10 };
+
+  it('takes over completely near the planet, even if the player holds the stick the wrong way', () => {
+    // Close in, facing away, stick held hard the whole time and never released.
+    const start = createShip({ x: 0, y: 0, z: 60 }, Math.PI, 0);
+    const s = fly(start, 60, { turn: 1, pitch: -1, boost: true }, { target: earth });
+    expect(s.docked).toBe(true);
+  });
+
+  it('creeps in quickly enough to arrive in good time', () => {
+    const start = createShip({ x: 0, y: 0, z: 400 }, 0, 0);
+    let s = start;
+    let seconds = 0;
+    for (; seconds < 120 && !s.docked; seconds += DT) s = stepFlight(s, NONE, DT, { target: earth });
+    expect(s.docked).toBe(true);
+    // Cruising in from 400 units takes about 11 s. Without the final creep it drags on past 17 s.
+    expect(seconds).toBeLessThan(14);
+  });
+
+  it('never touches the surface, whichever way the stick is held', () => {
+    const sticks = [-1, 0, 1];
+    const rand = seeded(42);
+    for (const turn of sticks) {
+      for (const pitch of sticks) {
+        for (const boost of [false, true]) {
+          let s = randomStart(rand, earth.radius);
+          // Start inside the area where the planet's pull matters.
+          const d = dist(s.position, origin);
+          const k = (dockDistance(earth) + 150) / d;
+          s = { ...s, position: { x: s.position.x * k, y: s.position.y * k, z: s.position.z * k } };
+          let closest = Infinity;
+          for (let t = 0; t < 120 && !s.docked; t += DT) {
+            s = stepFlight(s, { turn, pitch, boost }, DT, { target: earth });
+            closest = Math.min(closest, dist(s.position, origin));
+          }
+          expect(closest).toBeGreaterThan(earth.radius);
+        }
+      }
+    }
+  });
+});
+
+describe('obstacles at big frame steps', () => {
+  it('does not let a fast ship skip across a small body in one step', () => {
+    const pebble: Body = { position: { x: 0, y: 0, z: -50 }, radius: 0.5 };
+    let s = createShip(origin, 0, 0, DEFAULT_FLIGHT.boostSpeed);
+    for (let t = 0; t < 5; t += 0.1) {
+      s = stepFlight(s, { ...NONE, boost: true }, 0.1, { obstacles: [pebble] });
+    }
+    expect(s.position.z).toBeGreaterThan(pebble.position.z); // never got to the far side
+  });
+});

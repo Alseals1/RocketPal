@@ -12,8 +12,8 @@ The rules of how the rocket moves, with no graphics, so they can be tested exact
   * Smooth turning and acceleration (eased), pitch limited just short of straight up/down.
   * **Destination assist:** with a target set, a gentle pull turns the nose toward it, weaker while the player steers that axis. Inside the capture range the pull takes over fully.
   * **Slow-down:** speed is capped by distance to the target, so the ship eases in and cannot overshoot.
-  * **Docking cannot fail:** reaching the dock distance (a hover height above the surface) stops the ship and sets `docked`.
-  * **Obstacles:** other bodies push the ship back to just above their surface so it can never fly through a planet.
+  * **Docking cannot fail:** reaching the dock distance (a hover height above the surface) stops the ship and sets `docked`. The pull takes over completely inside the inner half of a capture range that scales with both the planet's size and the ship's speed (a fast ship has a wide turning circle and needs room), and the final creep speed scales with the planet's size, so tiny and huge bodies behave alike. (Added after review: the first version used a size-only range and could orbit a small planet forever at boost.)
+  * **Obstacles:** other bodies push the ship back to just above their surface so it can never fly through a planet. Movement is sub-stepped so a fast ship cannot skip across a small body in one frame.
   * Big frame hiccups are capped (`dt` max 0.1 s) so the ship never teleports.
 * `src/quality/quality.ts`: `initialQuality(hints)`, `chooseQuality(frameMs, current)` (median frame time; low stays low so quality never flaps), `qualitySettings(q)` (low = no glow, no shadows, fewer stars, pixel ratio 1).
 * Review follow-ups from PR #2: Mars hook now says tallest volcano "in the whole solar system"; drop the brittle test that hard-coded which moon counts are flagged; fix `formatDistanceKm` rounding edges ("1000.0 million km").
@@ -30,4 +30,6 @@ The rules of how the rocket moves, with no graphics, so they can be tested exact
 * The pull cannot save a player who holds the stick away forever outside the capture range; releasing it always lands. That is intended (free flight stays free).
 
 ## Testing
-Vitest only (no UI in this PR); `npm run build` and the existing Playwright smoke test must still pass.
+Vitest only (no UI in this PR). Docking is tested over planet radii 0.5 to 100, frame rates 60/30/15/10 fps, boost on and off, with 40 seeded random starts each (plus a one-off 13,500-start fuzz over radii 0.2 to 200 and fresh seeds while fixing review comments). The tests were mutation-checked: removing the slow-down, obstacle push-out, destination pull, speed-aware capture, full takeover, creep speed, or obstacle sub-stepping each makes a test fail.
+
+Build and the existing Playwright smoke test must also pass. `npm run build` and the existing Playwright smoke test must still pass.
