@@ -1,6 +1,6 @@
 {
   "lastChecked": "2026-10-23",
-  "source": "NASA Planetary Fact Sheet (metric), updated 2025-03-18: https://nssdc.gsfc.nasa.gov/planetary/factsheet/ ; moon counts and hook facts from the NASA Science planet pages at https://science.nasa.gov/solar-system/ (read 2026-10-23)",
+  "source": "Sizes, distances and orbit lengths: NASA Planetary Fact Sheet (metric), updated 2025-03-18, https://nssdc.gsfc.nasa.gov/planetary/factsheet/ . Moon counts (read 2026-10-23): https://science.nasa.gov/jupiter/moons/ , https://science.nasa.gov/saturn/moons/ , https://science.nasa.gov/uranus/moons/ , https://science.nasa.gov/neptune/moons/ , and Mars and Neptune on https://science.nasa.gov/solar-system/moons/ . Hook facts (read 2026-10-23): https://science.nasa.gov/sun/facts/ , https://science.nasa.gov/mercury/facts/ , https://science.nasa.gov/venus/facts/ , https://science.nasa.gov/earth/facts/ , https://science.nasa.gov/moon/facts/ , https://science.nasa.gov/mars/facts/ , https://science.nasa.gov/jupiter/facts/ , https://science.nasa.gov/saturn/facts/ , https://science.nasa.gov/uranus/facts/ , https://science.nasa.gov/neptune/facts/ .",
   "worlds": [
     {
       "id": "sun",
@@ -111,7 +111,7 @@
       "distanceFromSunKm": 4515000000,
       "orbitDays": 59800,
       "moons": { "count": 16, "verify": true },
-      "hook": "Neptune is the windiest planet. Its winds blow at 2,000 km/h!",
+      "hook": "Neptune is the windiest planet. Its winds blow at over 2,000 km/h!",
       "color": "#3a5fcd"
     }
   ]

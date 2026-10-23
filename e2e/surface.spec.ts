@@ -586,6 +586,34 @@ test.describe('read aloud, the tricky bits', () => {
     await expect(page.getByTestId('fact-card')).toContainText('dust'); // the words are still there to read
   });
 
+  test('after one false alarm the next card gets a fresh try', async ({ page }) => {
+    // The first reading never starts (so Listen gives up), but later ones do.
+    await page.addInitScript(`
+      let calls = 0;
+      Object.defineProperty(window, 'speechSynthesis', {
+        value: {
+          getVoices: () => [{ lang: 'en-US', localService: true, name: 'Moody' }],
+          speak(u) { calls++; if (calls > 1) setTimeout(() => u.onstart && u.onstart(new Event('start')), 0); },
+          cancel() {},
+        },
+        configurable: true,
+      });`);
+    await landOnMars(page);
+    await (await reachSpot(page, 'sky')).press('Enter');
+    const listen = page.getByTestId('listen');
+    await listen.click();
+    await expect(listen).toHaveText('No voice on this computer', { timeout: 6000 });
+    await page.getByTestId('close-card').click();
+
+    // Open another card: Listen is offered again and this time it works.
+    await (await reachSpot(page, 'ground')).press('Enter');
+    await expect(listen).toHaveText('Listen');
+    await expect(listen).toBeEnabled();
+    await listen.click();
+    await page.waitForTimeout(3000); // well past the 2.5 second check
+    await expect(listen).toHaveText('Stop');
+  });
+
   test('a voice that starts a little late is fine', async ({ page }) => {
     await page.addInitScript(`
       Object.defineProperty(window, 'speechSynthesis', {

@@ -8,6 +8,10 @@ interface DebugHandle {
   isGlowVisible(): boolean;
   isReducedMotion(): boolean;
 }
+/** Waits (up to `ms`) until something about the ship becomes true. How long the ship takes depends on how busy the computer is. */
+const until = <T>(page: Page, read: (s: Awaited<ReturnType<typeof ship>>) => T, ms = 20_000) =>
+  expect.poll(async () => read(await ship(page)), { timeout: ms });
+
 const ship = (page: Page) => page.evaluate(() => (window as unknown as { rocketPals: DebugHandle }).rocketPals.getShip());
 const handle = <T>(page: Page, fn: (h: DebugHandle) => T) =>
   page.evaluate(`(${fn.toString()})(window.rocketPals)`) as Promise<T>;
@@ -82,19 +86,17 @@ test('keyboard steers, pitches, and boosts', async ({ page }) => {
   await start(page);
   const start0 = await ship(page);
 
+  // Each key is held until the ship has really responded: how long that takes depends on how busy the computer is.
   await page.keyboard.down('ArrowRight');
-  await page.waitForTimeout(600);
+  await until(page, (s) => s.yaw).toBeLessThan(start0.yaw - 0.3); // turning right lowers the yaw angle
   await page.keyboard.up('ArrowRight');
-  expect((await ship(page)).yaw).toBeLessThan(start0.yaw - 0.3); // turning right lowers the yaw angle
 
   await page.keyboard.down('KeyW');
-  await page.waitForTimeout(500);
-  expect((await ship(page)).pitch).toBeGreaterThan(start0.pitch + 0.3);
+  await until(page, (s) => s.pitch).toBeGreaterThan(start0.pitch + 0.3);
   await page.keyboard.up('KeyW');
 
   await page.keyboard.down('Space');
-  await page.waitForTimeout(2000);
-  expect((await ship(page)).speed).toBeGreaterThan(100);
+  await until(page, (s) => s.speed).toBeGreaterThan(100);
   await page.keyboard.up('Space');
 });
 
@@ -146,10 +148,10 @@ test('steering by hand takes over from autopilot', async ({ page }) => {
   await page.getByTestId('autopilot-button').click();
   await expect(page.getByTestId('autopilot-button')).toHaveAttribute('aria-pressed', 'true');
 
+  // Hold the key until the game has noticed: a very short tap can fall between two frames when the computer is busy.
   await page.keyboard.down('ArrowLeft');
-  await page.waitForTimeout(150);
+  await expect(page.getByTestId('autopilot-button')).toHaveAttribute('aria-pressed', 'false', { timeout: 15_000 });
   await page.keyboard.up('ArrowLeft');
-  await expect(page.getByTestId('autopilot-button')).toHaveAttribute('aria-pressed', 'false');
 });
 
 test.describe('on a touch screen', () => {
@@ -167,17 +169,14 @@ test.describe('on a touch screen', () => {
     await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2);
     await page.mouse.down();
     await page.mouse.move(s.x + s.width / 2 + 60, s.y + s.height / 2 - 30, { steps: 4 }); // right and up
-    await page.waitForTimeout(600);
-    const steered = await ship(page);
+    await until(page, (s) => s.yaw).toBeLessThan(before.yaw - 0.2);
+    await until(page, (s) => s.pitch).toBeGreaterThan(before.pitch + 0.1);
     await page.mouse.up();
-    expect(steered.yaw).toBeLessThan(before.yaw - 0.2);
-    expect(steered.pitch).toBeGreaterThan(before.pitch + 0.1);
 
     const b = (await boost.boundingBox())!;
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
     await page.mouse.down();
-    await page.waitForTimeout(2000);
-    expect((await ship(page)).speed).toBeGreaterThan(100);
+    await until(page, (s) => s.speed).toBeGreaterThan(100);
     await page.mouse.up();
   });
 
@@ -281,18 +280,16 @@ test('Escape closes the picker, and Space goes back to boosting after a click', 
   await page.keyboard.press('Escape');
   await expect(page.locator('.picker')).toBeHidden();
   await page.keyboard.down('Space'); // Escape must not leave the button holding on to the Space bar either
-  await page.waitForTimeout(1500);
-  expect((await ship(page)).speed).toBeGreaterThan(80);
+  await until(page, (s) => s.speed).toBeGreaterThan(80);
   await expect(page.locator('.picker')).toBeHidden();
   await page.keyboard.up('Space');
-  await page.waitForTimeout(2500);
+  await until(page, (s) => s.speed, 60_000).toBeLessThan(60); // back to cruising, so the next part starts from a fair place
 
   // A mouse click must not leave the button holding on to the Space bar.
   await page.getByTestId('where-button').click();
   await page.getByRole('button', { name: 'Mars' }).click();
   await page.keyboard.down('Space');
-  await page.waitForTimeout(1800);
-  expect((await ship(page)).speed).toBeGreaterThan(100);
+  await until(page, (s) => s.speed).toBeGreaterThan(100);
   await expect(page.locator('.picker')).toBeHidden();
   await page.keyboard.up('Space');
 });
@@ -332,12 +329,10 @@ test('boost stays on until the finger that pressed it lets go', async ({ page })
   await press('pointerdown', 1); // first finger down
   await press('pointerdown', 2); // second finger down...
   await press('pointerup', 2); // ...and up again: boost must keep going
-  await page.waitForTimeout(2000);
-  expect((await ship(page)).speed).toBeGreaterThan(100);
+  await until(page, (s) => s.speed).toBeGreaterThan(100);
 
   await press('pointerup', 1);
-  await page.waitForTimeout(4000);
-  expect((await ship(page)).speed).toBeLessThan(60);
+  await until(page, (s) => s.speed, 60_000).toBeLessThan(60);
 });
 
 test('switches itself to low quality on a slow computer', async ({ browser }) => {

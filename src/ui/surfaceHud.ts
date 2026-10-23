@@ -165,6 +165,7 @@ export class SurfaceHud {
     // The facts come from NASA's website and we checked them; NASA did not review anything here.
     this.els['fact-source'].textContent = `Facts from NASA's website. Checked ${friendlyDate(spot.lastChecked)}.`;
     this.els.overlay.hidden = false;
+    this.speaker.reset(); // one false alarm earlier must not hide Listen on every later card
     this.setListenLabel(false);
     this.found.add(spot.id);
     button.classList.add('is-found');
