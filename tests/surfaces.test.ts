@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import surfacesJson from '../public/data/surfaces.json';
 import { validateSurfaces } from '../src/data/surfaces';
-import { cylindricalPhotoToAzEl } from '../src/surface/geometry';
+import { cylindricalPhotoToAzEl, rectilinearPhotoToAzEl } from '../src/surface/geometry';
 
 const WORLDS = ['sun', 'mercury', 'venus', 'earth', 'moon', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'];
 const copy = () => structuredClone(surfacesJson) as any;
@@ -26,7 +26,7 @@ describe('surfaces.json', () => {
     expect(mars.hotspots).toHaveLength(5);
     for (const spot of mars.hotspots) {
       expect(spot.sources.length).toBeGreaterThanOrEqual(1);
-      for (const url of spot.sources) expect(url).toMatch(/^https:\/\/(science\.)?nasa\.gov\//);
+      for (const url of spot.sources) expect(url).toMatch(/^https:\/\/(www\.|science\.|images\.)?nasa\.gov\//);
     }
   });
 
@@ -61,6 +61,61 @@ describe('surfaces.json', () => {
   it('credits NASA for the photo', () => {
     const mars = surfacesJson.surfaces.find((s) => s.worldId === 'mars')!;
     expect(mars.credit).toContain('NASA');
+  });
+});
+
+describe('the Earth window view from the International Space Station', () => {
+  const earth = () => surfacesJson.surfaces.find((s) => s.worldId === 'earth')!;
+
+  it('is a window view of a real NASA astronaut photo, with the lens it was taken with', () => {
+    expect(earth().kind).toBe('window');
+    // A 24 mm lens on a full-frame camera: 2 x atan(18 / 24) = 73.74 degrees across, 2 x atan(12 / 24) = 53.13 up and down.
+    expect(earth().photo!.horizontalFov).toBeCloseTo(73.74, 1);
+    expect(earth().photo!.verticalFov).toBeCloseTo(53.13, 1);
+    expect(earth().photo!.aspect).toBeCloseTo(1.5, 2);
+  });
+
+  it('credits NASA in the words NASA asks for, names the photo, and says the window frame is drawn', () => {
+    expect(earth().credit).toBe('Image courtesy of the Earth Science and Remote Sensing Unit, NASA Johnson Space Center');
+    expect(earth().creditNote).toContain('iss073e0247726');
+    expect(earth().creditNote).toMatch(/frame is drawn/i);
+  });
+
+  it('has six dots, each with NASA pages it was checked against', () => {
+    expect(earth().hotspots).toHaveLength(6);
+    for (const spot of earth().hotspots) {
+      expect(spot.sources.length).toBeGreaterThanOrEqual(1);
+      for (const url of spot.sources) expect(url).toMatch(/^https:\/\/(www\.|science\.|images\.)?nasa\.gov\//);
+    }
+  });
+
+  it('puts every dot on the thing its words are about', () => {
+    // Where each feature is in the ORIGINAL photo (8256 x 5504, 3:2), read off the picture by eye as fractions of its
+    // width and height. The angles in surfaces.json must agree with the photo's own geometry, to within 2 degrees.
+    const inPhoto: Record<string, [number, number]> = {
+      aurora: [0.365, 0.422], // the green arc
+      air: [0.52, 0.61], // the glowing orange-brown edge of the air
+      clouds: [0.651, 0.18], // clouds over the ocean
+      array: [0.86, 0.83], // the orange grid in the corner
+      speed: [0.4, 0.72], // empty dark sky
+      about: [0.12, 0.7], // dark sky, left (kept clear of Orbit at the bottom)
+    };
+    const photo = { horizontalFov: earth().photo!.horizontalFov, aspect: earth().photo!.aspect };
+    for (const [id, [x, y]] of Object.entries(inPhoto)) {
+      const want = rectilinearPhotoToAzEl(x, y, photo);
+      const spot = earth().hotspots.find((h) => h.id === id)!;
+      expect(Math.abs(((spot.azimuth - want.azimuth + 540) % 360) - 180), `${id} azimuth`).toBeLessThan(2);
+      expect(Math.abs(spot.elevation - want.elevation), `${id} elevation`).toBeLessThan(2);
+    }
+  });
+
+  it('keeps every dot inside the photo, so none sits in the black beside it', () => {
+    const photo = earth().photo!;
+    for (const spot of earth().hotspots) {
+      const fromMiddle = ((spot.azimuth + 540) % 360) - 180;
+      expect(Math.abs(fromMiddle), spot.id).toBeLessThanOrEqual(photo.horizontalFov / 2);
+      expect(Math.abs(spot.elevation), spot.id).toBeLessThanOrEqual(photo.verticalFov / 2);
+    }
   });
 });
 
@@ -130,6 +185,38 @@ describe('validateSurfaces', () => {
     const b = copy();
     delete b.surfaces[0].hotspots[1].lastChecked;
     expect(validateSurfaces(b, WORLDS)).toContainEqual(expect.stringContaining('lastChecked'));
+  });
+
+  it('rejects a surface with no kind, or an unknown one', () => {
+    const a = copy();
+    delete a.surfaces[0].kind;
+    expect(validateSurfaces(a, WORLDS)).toContainEqual(expect.stringContaining('kind'));
+    const b = copy();
+    b.surfaces[0].kind = 'hologram';
+    expect(validateSurfaces(b, WORLDS)).toContainEqual(expect.stringContaining('kind'));
+  });
+
+  it('rejects a window view with no lens details, or silly ones', () => {
+    const earthIndex = copy().surfaces.findIndex((s: any) => s.worldId === 'earth');
+    const a = copy();
+    delete a.surfaces[earthIndex].photo;
+    expect(validateSurfaces(a, WORLDS)).toContainEqual(expect.stringContaining('photo'));
+    const b = copy();
+    b.surfaces[earthIndex].photo.horizontalFov = 400;
+    expect(validateSurfaces(b, WORLDS)).toContainEqual(expect.stringContaining('photo'));
+    const c = copy();
+    c.surfaces[earthIndex].photo.aspect = 0;
+    expect(validateSurfaces(c, WORLDS)).toContainEqual(expect.stringContaining('photo'));
+  });
+
+  it('rejects a dot that sits outside the photo in a window view', () => {
+    const earthIndex = copy().surfaces.findIndex((s: any) => s.worldId === 'earth');
+    const a = copy();
+    a.surfaces[earthIndex].hotspots[0].azimuth = 120; // far off to the side
+    expect(validateSurfaces(a, WORLDS)).toContainEqual(expect.stringContaining('outside the photo'));
+    const b = copy();
+    b.surfaces[earthIndex].hotspots[0].elevation = 60;
+    expect(validateSurfaces(b, WORLDS)).toContainEqual(expect.stringContaining('outside the photo'));
   });
 
   it('rejects duplicate hotspot ids and an empty hotspot list', () => {

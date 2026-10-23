@@ -25,6 +25,7 @@ import {
 import { planLeg } from './scale/leg';
 import { layoutWorlds, type BodyLayout } from './scene/layout';
 import { SPACE_VIEW_LABEL, SpaceScene } from './scene/spaceScene';
+import { windowLookLimits, viewHorizontalFov } from './surface/geometry';
 import { PanoramaScene } from './surface/panoramaScene';
 import { LookController } from './surface/look';
 import { Hud } from './ui/hud';
@@ -69,6 +70,7 @@ export class Game {
   private look?: LookController;
   private surfaceHud?: SurfaceHud;
   private surfaceHudFor?: string;
+  private activeSurface?: Surface;
   /** Counts visits to a surface. A picture that finishes loading after the player has left belongs to an old visit and is dropped. */
   private visit = 0;
   private settings: Settings;
@@ -116,6 +118,7 @@ export class Game {
       this.scene.setSize(stage.clientWidth, stage.clientHeight);
       this.hud.setViewport(stage.clientWidth, stage.clientHeight);
       this.panorama?.setSize(stage.clientWidth, stage.clientHeight);
+      this.updateLookLimits(); // a taller or wider screen can look further round a window view
     };
     new ResizeObserver(resize).observe(stage);
     resize();
@@ -276,8 +279,9 @@ export class Game {
     this.stage.classList.add('is-surface');
     this.input.suspendTouchControls(true);
 
+    this.activeSurface = surface;
     if (!this.surfaceHud || this.surfaceHudFor !== surface.worldId) {
-      this.surfaceHud?.hide();
+      this.surfaceHud?.destroy();
       this.surfaceHud = new SurfaceHud(
         this.stage,
         surface,
@@ -296,7 +300,9 @@ export class Game {
     // Low quality, or a graphics card that cannot hold a 4096 picture, gets the small one.
     const small = this.quality === 'low' || panorama.maxTextureSize < 4096;
     try {
-      await panorama.load(small ? surface.images.low : surface.images.high);
+      const url = small ? surface.images.low : surface.images.high;
+      if (surface.kind === 'window') await panorama.loadWindow(url, surface.photo!);
+      else await panorama.load(url);
     } catch (error) {
       if (visit !== this.visit) return; // the player has already left: nothing to fall back from
       console.error(error);
@@ -312,8 +318,28 @@ export class Game {
     }
 
     this.look = new LookController(surface.start);
-    this.look.attach(this.scene.canvas, () => this.stage.clientHeight, panorama.verticalFov);
+    this.updateLookLimits();
+    this.look.attach(this.scene.canvas, () => this.stage.clientHeight, () => panorama.verticalFov);
     hud.setLoading(false);
+  }
+
+  /** In a window view you can only look as far as the photo reaches past the screen; a 360 degree picture has no limit. */
+  private updateLookLimits(): void {
+    const surface = this.activeSurface;
+    if (!this.look || !this.panorama) return;
+    if (surface?.kind !== 'window' || !surface.photo) {
+      this.look.setLimits(undefined);
+      return;
+    }
+    // The photo faces azimuth 0. The screen sees the camera's field of view, which depends on the screen's shape.
+    const view = this.panorama.viewFov();
+    this.look.setLimits(
+      windowLookLimits(
+        { horizontalFov: surface.photo.horizontalFov, verticalFov: surface.photo.verticalFov },
+        { horizontalFov: viewHorizontalFov(view.verticalFov, this.stage.clientWidth / Math.max(1, this.stage.clientHeight)), verticalFov: view.verticalFov },
+        0,
+      ),
+    );
   }
 
   /** "Back to space" on a surface: put the screen back and lift off. */

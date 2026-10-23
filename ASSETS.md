@@ -33,7 +33,7 @@ Landing on a world shows a real NASA photograph (see `plans/mars-panorama.md`). 
 
 | World | What to show | Notes |
 | --- | --- | --- |
-| Earth | **A real hover view from the International Space Station** (chosen by the user), for example the Earth below from the Cupola or an astronaut photograph | Look for a real 360 degree or very wide ISS panorama; if none is openly usable, build the view from a real NASA ISS photograph of Earth. Credit and licence to verify. |
+| Earth | **Done** (window view of NASA photo iss073e0247726, see `CREDITS.md` and `plans/earth-iss-window.md`) | NASA offers no 360 degree ISS still, so it is one wide photo seen through a drawn window. Could be extended later with more ISS photos (the other worlds' views could reuse the same "window" kind). |
 | The Moon | An Apollo lunar surface panorama (for example Apollo 17 or Apollo 11 mosaics) | Several are cylindrical or scrolling, not sphere pictures: check the projection first. **Do not use** artist-made "VR360 Moon" sets sold online; they are not NASA photographs. |
 | Mercury | A real MESSENGER image of the surface or the planet | No ground photos exist; hover view. |
 | Venus | A real NASA mission image of the clouds or a radar view (Magellan) | No NASA surface photos; the only surface photos were taken by Soviet landers (not NASA). Hover view. |

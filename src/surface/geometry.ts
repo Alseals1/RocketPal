@@ -49,6 +49,75 @@ export function cylindricalPhotoToAzEl(x: number, y: number, photo: CylindricalP
   };
 }
 
+/** A normal wide photo (not a panorama): how wide the lens saw, and the photo's width divided by its height. */
+export interface RectilinearPhoto {
+  horizontalFov: number;
+  aspect: number;
+}
+
+/**
+ * Where a point in an ordinary wide photo is, as an azimuth and elevation. `x` and `y` are fractions of the photo width
+ * and height (0, 0 is the top left corner). `centerAzimuth` is the way the middle of the photo faces. A normal photo shows
+ * straight lines straight, so a point's angle is worked out from how far it is across and up the flat picture, with the
+ * lens sitting in front of the middle of the picture at the distance that gives the right field of view.
+ */
+export function rectilinearPhotoToAzEl(
+  x: number,
+  y: number,
+  photo: RectilinearPhoto,
+  centerAzimuth = 0,
+): { azimuth: number; elevation: number } {
+  const across = x - 0.5; // in photo widths, right is positive
+  const up = (0.5 - y) / photo.aspect; // in photo widths, up is positive
+  const lens = 0.5 / Math.tan((photo.horizontalFov * DEG) / 2); // distance from the lens to the picture, in photo widths
+  return {
+    azimuth: wrapDegrees(centerAzimuth + Math.atan2(across, lens) / DEG),
+    elevation: Math.atan2(up, Math.hypot(lens, across)) / DEG,
+  };
+}
+
+/** How wide a screen sees, given how tall it sees and the screen's width divided by its height. */
+export function viewHorizontalFov(verticalFov: number, screenAspect: number): number {
+  return (2 * Math.atan(Math.tan((verticalFov * DEG) / 2) * screenAspect)) / DEG;
+}
+
+/**
+ * How tall the camera should see in a window view. Normally 50 degrees, but on a screen wider than the photo that would leave
+ * black bars either side, so it zooms in just enough that the screen sees exactly the photo's full width and no more.
+ */
+export function windowCameraFov(photo: { horizontalFov: number }, screenAspect: number, maxVerticalFov = 50): number {
+  const fillsWidth = (2 * Math.atan(Math.tan((photo.horizontalFov * DEG) / 2) / Math.max(0.01, screenAspect))) / DEG;
+  return Math.min(maxVerticalFov, fillsWidth);
+}
+
+export interface LookLimits {
+  /** The way the middle of the picture faces. */
+  azimuthCenter: number;
+  /** How far either side of the middle you may look. */
+  azimuthHalfRange: number;
+  minElevation: number;
+  maxElevation: number;
+}
+
+/**
+ * How far you may look round inside a window picture so the screen never goes past its edge: the picture's field of view
+ * minus the screen's, shared between the two sides. A screen that already sees more than the photo has nothing to look round.
+ */
+export function windowLookLimits(
+  photo: { horizontalFov: number; verticalFov: number },
+  view: { horizontalFov: number; verticalFov: number },
+  centerAzimuth: number,
+): LookLimits {
+  const half = (photoFov: number, viewFov: number) => Math.max(0, (photoFov - viewFov) / 2);
+  const up = half(photo.verticalFov, view.verticalFov);
+  return {
+    azimuthCenter: centerAzimuth,
+    azimuthHalfRange: half(photo.horizontalFov, view.horizontalFov),
+    minElevation: -up,
+    maxElevation: up,
+  };
+}
+
 export interface LookState {
   azimuth: number;
   elevation: number;
@@ -69,12 +138,32 @@ const MAX_DT = 0.1;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-export function stepLook(state: LookState, input: LookInput, dt: number): LookState {
-  const step = clamp(dt, 0, MAX_DT) * LOOK_SPEED;
+/** Keeps a view inside the limits (azimuth is measured the short way round from the middle of the picture). */
+export function clampLook(state: LookState, limits?: LookLimits): LookState {
+  return keepInside(state.azimuth, state.elevation, limits);
+}
+
+function keepInside(azimuth: number, elevation: number, limits?: LookLimits): LookState {
+  if (!limits) {
+    return {
+      azimuth: wrapDegrees(azimuth),
+      elevation: clamp(elevation, LOOK_LIMITS.minElevation, LOOK_LIMITS.maxElevation),
+    };
+  }
+  const fromMiddle = ((azimuth - limits.azimuthCenter + 540) % 360) - 180; // -180 to 180
   return {
-    azimuth: wrapDegrees(state.azimuth + clamp(input.turn, -1, 1) * step),
-    elevation: clamp(state.elevation + clamp(input.tilt, -1, 1) * step, LOOK_LIMITS.minElevation, LOOK_LIMITS.maxElevation),
+    azimuth: wrapDegrees(limits.azimuthCenter + clamp(fromMiddle, -limits.azimuthHalfRange, limits.azimuthHalfRange)),
+    elevation: clamp(elevation, limits.minElevation, limits.maxElevation),
   };
+}
+
+export function stepLook(state: LookState, input: LookInput, dt: number, limits?: LookLimits): LookState {
+  const step = clamp(dt, 0, MAX_DT) * LOOK_SPEED;
+  return keepInside(
+    state.azimuth + clamp(input.turn, -1, 1) * step,
+    state.elevation + clamp(input.tilt, -1, 1) * step,
+    limits,
+  );
 }
 
 export interface ViewSize {
@@ -83,10 +172,7 @@ export interface ViewSize {
 }
 
 /** Dragging moves the picture with the finger, so the view turns the opposite way. `dx`, `dy` are in pixels. */
-export function applyDrag(state: LookState, dx: number, dy: number, view: ViewSize): LookState {
+export function applyDrag(state: LookState, dx: number, dy: number, view: ViewSize, limits?: LookLimits): LookState {
   const degreesPerPixel = view.verticalFovDegrees / Math.max(1, view.viewportHeight);
-  return {
-    azimuth: wrapDegrees(state.azimuth - dx * degreesPerPixel),
-    elevation: clamp(state.elevation + dy * degreesPerPixel, LOOK_LIMITS.minElevation, LOOK_LIMITS.maxElevation),
-  };
+  return keepInside(state.azimuth - dx * degreesPerPixel, state.elevation + dy * degreesPerPixel, limits);
 }

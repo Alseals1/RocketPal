@@ -314,9 +314,9 @@ test('Back to space lifts off again, and you can land again with a fresh count',
 
 test('other worlds without a photo yet still get the plain landing card', async ({ page }) => {
   await start(page);
-  await debug(page, (h) => h.dockAt('earth'));
+  await debug(page, (h) => h.dockAt('moon'));
   await expect(page.getByTestId('landed')).toBeVisible();
-  await expect(page.locator('#landed-title')).toHaveText('You landed on Earth!');
+  await expect(page.locator('#landed-title')).toHaveText('You landed on The Moon!');
   expect(await debug(page, (h) => h.getMode())).toBe('space');
 });
 

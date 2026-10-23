@@ -7,6 +7,10 @@ import {
   applyDrag,
   wrapDegrees,
   LOOK_LIMITS,
+  rectilinearPhotoToAzEl,
+  viewHorizontalFov,
+  windowCameraFov,
+  windowLookLimits,
   type LookState,
 } from '../src/surface/geometry';
 
@@ -147,5 +151,138 @@ describe('dragging the picture', () => {
   it('keeps within the limits and wraps azimuth', () => {
     expect(applyDrag(start, 0, 100000, view).elevation).toBe(LOOK_LIMITS.maxElevation);
     expect(applyDrag({ azimuth: 5, elevation: 0 }, 200, 0, view).azimuth).toBeCloseTo(345, 6);
+  });
+});
+
+describe('rectilinearPhotoToAzEl (an ordinary wide photo: 24 mm lens on a full-frame camera, 3:2)', () => {
+  // The lens sees 2 x atan(18/24) = 73.74 degrees across and 2 x atan(12/24) = 53.13 degrees up and down.
+  // Worked by hand with the width of the photo as 1: the lens is 0.6667 widths from the picture, because
+  // tan(36.87 degrees) = 0.75 and 0.5 / 0.75 = 0.6667.
+  const photo = { horizontalFov: 73.7398, aspect: 1.5 };
+
+  it('puts the middle of the photo straight ahead', () => {
+    const a = rectilinearPhotoToAzEl(0.5, 0.5, photo);
+    expect(a.azimuth).toBeCloseTo(0, 4);
+    expect(a.elevation).toBeCloseTo(0, 4);
+  });
+
+  it('puts the right and left edges 36.87 degrees to either side', () => {
+    expect(rectilinearPhotoToAzEl(1, 0.5, photo).azimuth).toBeCloseTo(36.87, 2);
+    expect(rectilinearPhotoToAzEl(0, 0.5, photo).azimuth).toBeCloseTo(360 - 36.87, 2);
+  });
+
+  it('puts the top edge 26.57 degrees up (a photo 53.13 degrees tall)', () => {
+    expect(rectilinearPhotoToAzEl(0.5, 0, photo).elevation).toBeCloseTo(26.565, 2);
+    expect(rectilinearPhotoToAzEl(0.5, 1, photo).elevation).toBeCloseTo(-26.565, 2);
+  });
+
+  it('puts a corner lower than the edge middle, as a flat photo does (21.80 degrees up at the corner)', () => {
+    const corner = rectilinearPhotoToAzEl(1, 0, photo);
+    expect(corner.azimuth).toBeCloseTo(36.87, 2);
+    expect(corner.elevation).toBeCloseTo(21.8, 2);
+  });
+
+  it('bends angles the way a flat photo does: halfway to the edge is NOT halfway in angle', () => {
+    // A quarter of the width right of the middle: atan(0.25 / 0.6667) = atan(0.375) = 20.56 degrees,
+    // more than the straight-line guess of half of 36.87 = 18.43. (Only at the very edge do the two agree.)
+    expect(rectilinearPhotoToAzEl(0.75, 0.5, photo).azimuth).toBeCloseTo(20.556, 2);
+    // A sixth of the width up from the middle (y = 0.25): atan(0.1667 / 0.6667) = atan(0.25) = 14.04 degrees.
+    expect(rectilinearPhotoToAzEl(0.5, 0.25, photo).elevation).toBeCloseTo(14.036, 2);
+  });
+
+  it('turns everything round when the photo faces another way', () => {
+    expect(rectilinearPhotoToAzEl(0.5, 0.5, photo, 90).azimuth).toBeCloseTo(90, 4);
+    expect(rectilinearPhotoToAzEl(1, 0.5, photo, 90).azimuth).toBeCloseTo(126.87, 2);
+  });
+});
+
+describe('what the screen shows of a window picture', () => {
+  it('works out the sideways field of view from the up-and-down one and the screen shape', () => {
+    expect(viewHorizontalFov(50, 1)).toBeCloseTo(50, 6); // a square screen
+    // 16:9: tan(25 degrees) = 0.46631, times 1.77778 = 0.82899, atan = 39.66 degrees, twice that.
+    expect(viewHorizontalFov(50, 16 / 9)).toBeCloseTo(79.32, 1);
+  });
+
+  const photo = { horizontalFov: 73.74, verticalFov: 53.13 };
+
+  it('lets you look round only as far as the picture reaches past the screen', () => {
+    // A tall phone screen (9:16) sees 50 degrees up and down but only 29.4 across (tan 25 degrees = 0.4663, times 0.5625
+    // = 0.2623, atan = 14.70 degrees, twice that), and the photo is 73.74 wide: (73.74 - 29.4) / 2 = 22.17 either side.
+    const phone = windowLookLimits(photo, { horizontalFov: viewHorizontalFov(50, 9 / 16), verticalFov: 50 }, 0);
+    expect(phone.azimuthHalfRange).toBeCloseTo(22.17, 1);
+    expect(phone.maxElevation).toBeCloseTo((53.13 - 50) / 2, 2);
+    expect(phone.minElevation).toBeCloseTo(-(53.13 - 50) / 2, 2);
+  });
+
+  it('does not let you look past the edge of the picture on a wide screen: nothing to look round', () => {
+    const wide = windowLookLimits(photo, { horizontalFov: viewHorizontalFov(50, 16 / 9), verticalFov: 50 }, 0);
+    expect(wide.azimuthHalfRange).toBe(0); // the screen is already wider than the photo
+  });
+
+  it('keeps the centre of the picture as the middle of the range', () => {
+    expect(windowLookLimits(photo, { horizontalFov: 30, verticalFov: 30 }, 90).azimuthCenter).toBe(90);
+  });
+});
+
+describe('looking round inside limits', () => {
+  const limits = { azimuthCenter: 0, azimuthHalfRange: 20, minElevation: -5, maxElevation: 5 };
+  const hold = (state: LookState, input: { turn: number; tilt: number }, seconds: number): LookState => {
+    let st = state;
+    for (let t = 0; t < seconds; t += 1 / 60) st = stepLook(st, input, 1 / 60, limits);
+    return st;
+  };
+
+  it('stops turning right at the edge of the picture', () => {
+    expect(hold({ azimuth: 0, elevation: 0 }, { turn: 1, tilt: 0 }, 10).azimuth).toBeCloseTo(20, 6);
+  });
+
+  it('stops turning left at the other edge, across the wrap-around', () => {
+    expect(hold({ azimuth: 0, elevation: 0 }, { turn: -1, tilt: 0 }, 10).azimuth).toBeCloseTo(340, 6);
+  });
+
+  it('stops tilting at the top and bottom', () => {
+    expect(hold({ azimuth: 0, elevation: 0 }, { turn: 0, tilt: 1 }, 10).elevation).toBe(5);
+    expect(hold({ azimuth: 0, elevation: 0 }, { turn: 0, tilt: -1 }, 10).elevation).toBe(-5);
+  });
+
+  it('pulls a view that starts outside the limits back inside', () => {
+    expect(stepLook({ azimuth: 90, elevation: 40 }, { turn: 0, tilt: 0 }, 1 / 60, limits)).toEqual({ azimuth: 20, elevation: 5 });
+  });
+
+  it('holds still when there is no room to look round at all', () => {
+    const none = { azimuthCenter: 0, azimuthHalfRange: 0, minElevation: 0, maxElevation: 0 };
+    const moved = stepLook({ azimuth: 0, elevation: 0 }, { turn: 1, tilt: 1 }, 1 / 60, none);
+    expect(moved).toEqual({ azimuth: 0, elevation: 0 });
+  });
+
+  it('applies the same limits to dragging', () => {
+    const view = { verticalFovDegrees: 70, viewportHeight: 700 };
+    expect(applyDrag({ azimuth: 0, elevation: 0 }, -5000, 0, view, limits).azimuth).toBeCloseTo(20, 6);
+    expect(applyDrag({ azimuth: 0, elevation: 0 }, 5000, 0, view, limits).azimuth).toBeCloseTo(340, 6);
+    expect(applyDrag({ azimuth: 0, elevation: 0 }, 0, 5000, view, limits).elevation).toBe(5);
+  });
+});
+
+describe('windowCameraFov: zoom in just enough that the photo fills the screen', () => {
+  const photo = { horizontalFov: 73.7398 }; // tan of half of that is exactly 0.75
+
+  it('keeps the normal 50 degrees on a tall screen, where the photo is wider than the screen', () => {
+    expect(windowCameraFov(photo, 9 / 16)).toBe(50);
+    expect(windowCameraFov(photo, 1)).toBe(50);
+  });
+
+  it('zooms in on a wide screen so the picture is not letterboxed in black', () => {
+    // 16:9: half the photo's width is tan = 0.75, so half the screen's height is atan(0.75 / 1.7778) = atan(0.42188)
+    // = 22.89 degrees, which makes 45.78 degrees tall. (Less than 50, so it zooms in a little.)
+    expect(windowCameraFov(photo, 16 / 9)).toBeCloseTo(45.78, 1);
+    // A very wide phone held sideways, 844 x 390 (2.164:1): atan(0.75 / 2.164) = atan(0.3466) = 19.12, so 38.24 degrees.
+    expect(windowCameraFov(photo, 844 / 390)).toBeCloseTo(38.24, 1);
+  });
+
+  it('is exactly the angle at which the screen sees the whole width of the photo and no more', () => {
+    for (const aspect of [1.5, 16 / 9, 2.164, 3]) {
+      const vertical = windowCameraFov(photo, aspect);
+      if (vertical < 50) expect(viewHorizontalFov(vertical, aspect)).toBeCloseTo(73.7398, 2);
+    }
   });
 });
