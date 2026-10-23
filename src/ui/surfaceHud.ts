@@ -13,16 +13,11 @@ interface SpotState {
   shown: boolean;
 }
 
-const ORBIT_FACE = `
-  <svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true" focusable="false">
-    <line x1="32" y1="4" x2="32" y2="14" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
-    <circle cx="32" cy="5" r="4" fill="#ff8c42"/>
-    <rect x="8" y="14" width="48" height="40" rx="16" fill="#f4f6ff" stroke="#12163d" stroke-width="3"/>
-    <rect x="15" y="24" width="34" height="18" rx="9" fill="#12163d"/>
-    <circle cx="25" cy="33" r="4.5" fill="#7bdff2"/>
-    <circle cx="39" cy="33" r="4.5" fill="#7bdff2"/>
-    <path d="M26 47 Q32 51 38 47" fill="none" stroke="#12163d" stroke-width="2.5" stroke-linecap="round"/>
-  </svg>`;
+/** How Orbit looks. The pictures are rendered from the Blender model and only decorate: Orbit's words are in the speech bubble. */
+type OrbitMood = 'neutral' | 'happy' | 'thinking';
+const ORBIT_FACES = (['neutral', 'happy', 'thinking'] as const)
+  .map((mood) => `<img class="mood-${mood}" src="/images/orbit-${mood}.png" alt="" width="64" height="64" draggable="false" decoding="async">`)
+  .join('');
 
 /** The layer on top of a surface picture: glowing dots, Orbit, the fact card, and the credit for the photo. */
 export class SurfaceHud {
@@ -57,7 +52,7 @@ export class SurfaceHud {
       </section>
       <button class="big-button back-button" data-testid="back-to-space" type="button">Back to space</button>
       <div class="orbit">
-        <div class="orbit-face">${ORBIT_FACE}</div>
+        <div class="orbit-face" data-el="face" data-mood="thinking" aria-hidden="true">${ORBIT_FACES}</div>
         <p class="orbit-bubble" data-el="orbit" data-testid="orbit" role="status" aria-live="polite"></p>
       </div>
       <div class="spots" data-el="spots"></div>
@@ -139,6 +134,7 @@ export class SurfaceHud {
   hide(): void {
     this.closeCard(false);
     this.root.hidden = true;
+    this.root.classList.remove('is-loading'); // leaving mid-load must not leave the next visit's dots and bubble hidden
   }
 
   /** Removes this view from the page for good (used when another world's view takes over). */
@@ -150,6 +146,9 @@ export class SurfaceHud {
 
   setLoading(loading: boolean): void {
     this.els.loading.hidden = !loading;
+    this.root.classList.toggle('is-loading', loading); // the dots and Orbit's bubble wait (see the style sheet)
+    // Orbit thinks while the picture loads, then is calm again (a visit starts with nothing found).
+    this.setMood(loading ? 'thinking' : 'neutral');
   }
 
   /** Moves the dots to match where the picture is. Called every frame: only `transform` and `opacity` are written. */
@@ -179,6 +178,7 @@ export class SurfaceHud {
     this.speaker.reset(); // one false alarm earlier must not hide Listen on every later card
     this.setListenLabel(false);
     this.found.add(spot.id);
+    this.setMood('happy'); // a find makes Orbit happy for the rest of the visit
     button.classList.add('is-found');
     button.setAttribute('aria-label', `${spot.label}: found. Tap to read again`);
     this.updateProgress();
@@ -225,6 +225,10 @@ export class SurfaceHud {
 
   private updateProgress(): void {
     this.els.found.textContent = `Found ${this.found.size} of ${this.surface.hotspots.length}`;
+  }
+
+  private setMood(mood: OrbitMood): void {
+    this.els.face.dataset.mood = mood;
   }
 
   private say(text: string): void {
