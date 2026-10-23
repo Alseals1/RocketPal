@@ -24,9 +24,9 @@ async function start(page: Page) {
 
 const face = (page: Page) => page.locator('.orbit-face');
 
-/** Holds the Mars picture back for a moment so the "loading" look can be seen. */
-async function slowMarsPicture(page: Page, ms = 1500) {
-  await page.route('**/textures/surfaces/mars-jezero-*.jpg', async (route) => {
+/** Holds the landing pictures back for a moment so the "loading" look can be seen. */
+async function slowPictures(page: Page, ms = 1500) {
+  await page.route('**/textures/surfaces/*.jpg', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, ms));
     await route.continue();
   });
@@ -62,7 +62,7 @@ test('Orbit has three pictures, only the one for its mood shows, and they are de
 
 test('Orbit thinks while the picture loads, is calm after, and is happy after a find', async ({ page }) => {
   const errors = watchForErrors(page);
-  await slowMarsPicture(page);
+  await slowPictures(page);
   await start(page);
   await debug(page, (h) => h.dockAt('mars'));
 
@@ -95,7 +95,7 @@ test('Orbit thinks while the picture loads, is calm after, and is happy after a 
 });
 
 test('landing on the same world again: Orbit thinks, then is calm, not still happy from the last visit', async ({ page }) => {
-  await slowMarsPicture(page, 1000);
+  await slowPictures(page, 1000);
   await start(page);
   await debug(page, (h) => h.dockAt('mars'));
   await expect(page.locator('.surface-loading')).toBeHidden({ timeout: 20_000 });
@@ -135,17 +135,90 @@ test('if Orbit\'s pictures cannot load, the screen still works and Orbit still t
   expect(errors).toEqual([]);
 });
 
-test('a find made while the picture is still loading keeps Orbit happy when loading ends', async ({ page }) => {
-  await slowMarsPicture(page, 2000);
+test('while the picture loads, the dots cannot be reached and the bubble waits; both come back after', async ({ page }) => {
+  await slowPictures(page, 1500);
   await start(page);
   await debug(page, (h) => h.dockAt('mars'));
   await expect(page.locator('.surface-loading')).toBeVisible();
-  // The dots can be reached from the keyboard even behind the loading screen.
-  await page.getByTestId('spot-sky').focus();
-  await page.keyboard.press('Enter');
-  await expect(page.getByTestId('found')).toHaveText('Found 1 of 5');
+
+  // A dot cannot be tabbed to (it would open a card behind the black screen), and Orbit's bubble is not drawn over the loading words.
+  const focusedSpot = () =>
+    page.getByTestId('spot-sky').evaluate((el) => {
+      (el as HTMLElement).focus();
+      return document.activeElement === el;
+    });
+  expect(await focusedSpot()).toBe(false);
+  await expect(page.getByTestId('orbit')).toHaveCSS('visibility', 'hidden');
+  await expect(page.getByTestId('found')).toHaveText('Found 0 of 5');
+
   await expect(page.locator('.surface-loading')).toBeHidden({ timeout: 20_000 });
-  await expect(face(page)).toHaveAttribute('data-mood', 'happy');
+  await expect(page.getByTestId('orbit')).toHaveCSS('visibility', 'visible');
+  expect(await focusedSpot()).toBe(true);
+});
+
+test('on the smallest screen with the biggest text, nothing covers the loading words while loading', async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem('rocketpals.settings', JSON.stringify({ version: 1, textSize: 'huge', reducedMotion: 'system' })),
+  );
+  await page.setViewportSize({ width: 320, height: 568 });
+  await slowPictures(page, 2500);
+  await start(page);
+  for (const world of ['mars', 'earth']) {
+    await page.evaluate((id) => (window as unknown as { rocketPals: DebugHandle }).rocketPals.dockAt(id), world);
+    await expect(page.locator('.surface-loading')).toBeVisible();
+    const boxes = await page.evaluate(() => {
+      const rect = (r: DOMRect) => ({ x: r.x, y: r.y, width: r.width, height: r.height });
+      const words = document.createRange();
+      words.selectNodeContents(document.querySelector('.surface-loading')!);
+      return {
+        words: rect(words.getBoundingClientRect()),
+        face: rect(document.querySelector('.orbit-face')!.getBoundingClientRect()),
+        bubbleHidden: getComputedStyle(document.querySelector('.orbit-bubble')!).visibility === 'hidden',
+      };
+    });
+    const overlaps = (a: typeof boxes.words, b: typeof boxes.words) =>
+      a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    expect(boxes.bubbleHidden, `${world}: bubble waits`).toBe(true);
+    expect(overlaps(boxes.words, boxes.face), `${world}: Orbit's face over the loading words`).toBe(false);
+    await expect(page.locator('.surface-loading')).toBeHidden({ timeout: 20_000 });
+    await page.getByTestId('back-to-space').click();
+    await expect.poll(() => debug(page, (h) => h.getMode())).toBe('space');
+  }
+});
+
+test('a dot is drawn above Orbit, and the fact card is above both', async ({ page }) => {
+  await start(page);
+  await debug(page, (h) => h.dockAt('mars'));
+  await expect(page.locator('.surface-loading')).toBeHidden({ timeout: 20_000 });
+
+  // Orbit ignores the mouse, and the browser skips such things when asked what is on top, so let it listen just for this question.
+  await page.locator('.orbit').evaluate((el) => ((el as HTMLElement).style.pointerEvents = 'auto'));
+
+  // Park a dot that is off screen (the game leaves its place alone) on top of Orbit's face and ask what is drawn on top there.
+  const order = await page.evaluate(() => {
+    const face = document.querySelector('.orbit-face')!.getBoundingClientRect();
+    const spot = [...document.querySelectorAll<HTMLElement>('.spot')].find((el) => getComputedStyle(el).opacity === '0')!;
+    spot.style.opacity = '1';
+    spot.style.pointerEvents = 'auto';
+    spot.style.transform = `translate(${face.x + face.width / 2}px, ${face.y + face.height / 2}px) translate(-50%, -50%)`;
+    const stack = document.elementsFromPoint(face.x + face.width / 2, face.y + face.height / 2);
+    return { spot: stack.findIndex((el) => el === spot || spot.contains(el)), face: stack.findIndex((el) => el.closest('.orbit-face')) };
+  });
+  expect(order.spot).toBeGreaterThanOrEqual(0);
+  expect(order.face).toBeGreaterThanOrEqual(0);
+  expect(order.spot, 'dot is on top of Orbit').toBeLessThan(order.face);
+
+  // A fact card covers everything, Orbit included.
+  await page.getByTestId('spot-sky').focus();
+  await expect(page.getByTestId('spot-sky')).toHaveCSS('opacity', '1', { timeout: 5000 });
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('fact-card')).toBeVisible();
+  const cardOnTop = await page.evaluate(() => {
+    const face = document.querySelector('.orbit-face')!.getBoundingClientRect();
+    const top = document.elementsFromPoint(face.x + face.width / 2, face.y + face.height / 2)[0];
+    return !!top.closest('.fact-overlay');
+  });
+  expect(cardOnTop).toBe(true);
 });
 
 test('the portraits carry no local file paths or other text in their metadata', () => {

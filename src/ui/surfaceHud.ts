@@ -145,8 +145,9 @@ export class SurfaceHud {
 
   setLoading(loading: boolean): void {
     this.els.loading.hidden = !loading;
-    // Orbit thinks while the picture loads, then is calm again, or happy if a find already happened behind the loading screen.
-    this.setMood(loading ? 'thinking' : this.found.size > 0 ? 'happy' : 'neutral');
+    this.root.classList.toggle('is-loading', loading); // the dots and Orbit's bubble wait (see the style sheet)
+    // Orbit thinks while the picture loads, then is calm again (a visit starts with nothing found).
+    this.setMood(loading ? 'thinking' : 'neutral');
   }
 
   /** Moves the dots to match where the picture is. Called every frame: only `transform` and `opacity` are written. */

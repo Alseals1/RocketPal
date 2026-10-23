@@ -574,6 +574,12 @@ button:focus-visible {
   display: none;
 }
 
+/* While the picture loads, only Orbit's face shows on top of the loading screen. The dots (which can be reached by keyboard) and the speech bubble (which would cover the loading words on a narrow screen) wait. */
+.surface-hud.is-loading .spots,
+.surface-hud.is-loading .orbit-bubble {
+  visibility: hidden;
+}
+
 .surface-title {
   position: absolute;
   top: var(--gap);
@@ -602,7 +608,7 @@ button:focus-visible {
 
 .orbit {
   position: absolute;
-  z-index: 6; /* above the loading screen (also 6, but later on the page) so Orbit can think while the picture loads; below Back to space and the fact card */
+  z-index: 6; /* level with the loading screen but later on the page, so Orbit shows above it */
   left: var(--gap);
   bottom: var(--gap);
   display: flex;
@@ -642,6 +648,7 @@ button:focus-visible {
 
 .spots {
   position: absolute;
+  z-index: 6; /* level with Orbit but later on the page, so a dot is drawn above Orbit */
   inset: 0;
   overflow: hidden;
   pointer-events: none;

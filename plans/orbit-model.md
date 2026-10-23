@@ -45,7 +45,7 @@ Blender MCP (build, look at renders, export, render the portraits), `frontend-de
 
 ## Testing
 * Vitest: `tests/orbitModel.test.ts` reads `orbit.glb`: part names (`Expr_Neutral/Happy/Think/Blink`, the five materials), triangle and size budget, no textures, no double-sided materials, no cameras/lights/animations, faces forward (-Z), antenna is the top, expressions sit in front of the body.
-* Playwright: landing at Mars and Earth shows Orbit's picture loaded (non-zero size), `data-mood` is `thinking` while loading (and Orbit is really on top of the loading screen, not hidden behind it), `neutral` after the hint, `happy` after finding a dot and until the visit ends, including a find made behind the loading screen; each mood shows its own picture; with the images blocked the screen still works with no console errors; the screen reader text did not change.
+* Playwright: landing at Mars and Earth shows Orbit's picture loaded (non-zero size), `data-mood` is `thinking` while loading (and Orbit is really on top of the loading screen, not hidden behind it; the dots and the bubble wait), `neutral` after the hint, `happy` after finding a dot and until the visit ends; each mood shows its own picture; dots are drawn above Orbit; with the images blocked the screen still works with no console errors; the screen reader text did not change.
 * Real look in the game and on phone-sized screens with the biggest text.
 
 ## What building and looking changed (added while building)
@@ -56,8 +56,15 @@ Blender MCP (build, look at renders, export, render the portraits), `frontend-de
 * Known and left: on a small phone a dot can still sit over Orbit (cosmetic, as for the credit card; noted earlier for the Earth window).
 
 ## What the PR review changed (added after review)
-* **The thinking face was never seen**: the loading screen (opaque, `z-index: 6`) covered Orbit, and the test only checked that the picture was "visible" in the page-layout sense. Orbit now sits at the same level but later on the page, so it shows above the loading screen (below Back to space and the fact card). The test now asks the browser what is at the picture's spot (`elementFromPoint`) and requires it to be Orbit.
-* **A find made behind the loading screen was forgotten** (a dot can be opened with the keyboard while loading; pre-existing): when loading ended the face went calm. It now goes happy if anything was found. New test.
+**Round 1**
+* **The thinking face was never seen**: the loading screen (opaque, `z-index: 6`) covered Orbit, and the first test only checked the picture was "visible" in the page-layout sense. Orbit now sits at the same level but later on the page, so it shows above the loading screen; the test asks the browser what is on top at Orbit's spot.
 * The tests now check each mood shows its own picture file (the reviewer swapped all three to one file and nothing failed).
-* The portraits had a local file path in their metadata (`/Users/.../Untitled.blend`); the text chunks are stripped and a test pins that no portrait contains one.
-* `ASSETS.md` now says to hide all but one `Expr_*` when the model is used in 3D. A flash of an empty box if a portrait arrives late is left (cosmetic; on a fast connection it is not seen).
+* The portraits had a local file path in their metadata; the text chunks are stripped and a test pins that no portrait contains text.
+* `ASSETS.md` says to hide all but one `Expr_*` when the model is used in 3D (a glb has no "hidden by default").
+* The ship browser tests (already in `dev`) asked for the test handle before the game had started and failed 3 of 72 runs under load; they now wait (96 of 96 and 120 of 120 pass under load).
+
+**Round 2** (the round 1 fix caused two new problems)
+* **Orbit and its bubble were drawn over the glowing dots** (raising Orbit reversed the old stacking). The dots layer is now level with Orbit but later on the page, so a dot is above Orbit again, as before. The fact card (10), Back to space (7) and the gear (8) are above both.
+* **At 320 px wide with the biggest text, Orbit's bubble covered the loading words** on the Earth landing. While loading, the dots and the bubble now wait (hidden), so only Orbit's face shows on the loading screen. Side effects, both good: Orbit no longer says "Drag to look around" before the picture is there, and a dot can no longer be opened from the keyboard behind the black loading screen (this was already possible before this feature). Because of that, the "a find made behind the loading screen" rule added in round 1 is gone (nothing can be found while loading).
+* New tests: dots and bubble wait while loading and the dot cannot be focused until loading ends; at 320 x 568 with the biggest text, on Mars and on Earth, Orbit's face does not touch the loading words and the bubble waits; a dot parked over Orbit's face is drawn above it, and an open fact card is above Orbit. Mutations caught: dots layer not above Orbit; nothing waits while loading; Orbit not above the loading screen.
+* Left and known: a flash of an empty 64 px box if a portrait arrives late (cosmetic). At 320 px wide with the biggest text on Mars the title card is very narrow and tall (existing; a small-screen follow-up, not part of Orbit).
