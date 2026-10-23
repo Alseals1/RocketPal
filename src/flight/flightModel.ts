@@ -49,6 +49,8 @@ export interface FlightConfig {
   turnResponse: number;
   /** The nose never goes past this angle up or down (radians). */
   pitchLimit: number;
+  /** With no destination and no pitch input, the nose eases back to level at this many radians per second per radian of tilt. */
+  levelGain: number;
   /** Strength of the always-on pull toward the destination, 0..1. */
   assistBase: number;
   /** Radians per second of turn per radian of aiming error. */
@@ -76,6 +78,7 @@ export const DEFAULT_FLIGHT: FlightConfig = {
   pitchMax: 1.2,
   turnResponse: 6,
   pitchLimit: 1.45,
+  levelGain: 0.8,
   assistBase: 0.5,
   assistGain: 2.5,
   assistMaxRate: 2,
@@ -160,6 +163,8 @@ export function stepFlight(
   // What the player is asking for.
   let yawGoal = -turn * config.yawMax;
   let pitchGoal = pitchInput * config.pitchMax;
+  // Let go of the stick and the rocket levels out by itself, so it is easy to tell which way is "flat".
+  if (!context.target) pitchGoal = lerp(pitchGoal, -state.pitch * config.levelGain, 1 - Math.abs(pitchInput));
   let speedGoal = input.boost ? config.boostSpeed : config.cruiseSpeed;
   let speedCap = Infinity;
 

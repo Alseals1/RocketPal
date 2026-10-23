@@ -287,3 +287,35 @@ describe('obstacles at big frame steps', () => {
     expect(s.position.z).toBeGreaterThan(pebble.position.z); // never got to the far side
   });
 });
+
+describe('levelling out', () => {
+  it('eases the nose back to level when the player lets go of pitch and there is no destination', () => {
+    const tilted = fly(createShip(origin), 1, { ...NONE, pitch: 1 });
+    expect(tilted.pitch).toBeGreaterThan(0.5);
+    const later = fly(tilted, 8, NONE);
+    expect(Math.abs(later.pitch)).toBeLessThan(0.05);
+  });
+
+  it('also levels out from a dive', () => {
+    const diving = fly(createShip(origin), 1, { ...NONE, pitch: -1 });
+    const later = fly(diving, 8, NONE);
+    expect(Math.abs(later.pitch)).toBeLessThan(0.05);
+  });
+
+  it('stays tilted for as long as the player holds the stick', () => {
+    const held = fly(createShip(origin), 6, { ...NONE, pitch: 1 });
+    expect(held.pitch).toBeGreaterThan(1.3);
+  });
+
+  it('does not level out slowly enough to feel like a lock: the player can still fly a climb', () => {
+    const climbing = fly(createShip(origin), 1, { ...NONE, pitch: 1 });
+    const stillClimbing = fly(climbing, 0.3, NONE);
+    expect(stillClimbing.pitch).toBeGreaterThan(climbing.pitch * 0.5);
+  });
+
+  it('does not fight the pull toward a destination', () => {
+    const above: Body = { position: { x: 0, y: 500, z: 0 }, radius: 10 };
+    const s = fly(createShip({ x: 0, y: 0, z: 40 }, 0, 0), 300, NONE, { target: above });
+    expect(s.docked).toBe(true);
+  });
+});

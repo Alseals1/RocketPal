@@ -98,9 +98,12 @@ describe('real numbers for a compressed trip', () => {
     expect(realDistanceRemainingKm(1_000, 25, 100)).toBe(250);
   });
 
-  it('never goes below 0 or above the full leg', () => {
+  it('never goes below 0', () => {
     expect(realDistanceRemainingKm(1_000, -5, 100)).toBe(0);
-    expect(realDistanceRemainingKm(1_000, 120, 100)).toBe(1_000);
+  });
+
+  it('keeps scaling when the ship is farther away than the leg is long (it may start somewhere else)', () => {
+    expect(realDistanceRemainingKm(1_000, 120, 100)).toBe(1_200);
   });
 
   it('is 0 when the leg has no length', () => {

@@ -38,10 +38,13 @@ export function distanceBetweenKm(a: World, b: World): number {
   return Math.abs(a.distanceFromSunKm - b.distanceFromSunKm);
 }
 
-/** The real distance still to go, when the ship is `sceneRemaining` out of `sceneLeg` scene units away. */
+/**
+ * The real distance still to go, when the ship is `sceneRemaining` scene units from the destination
+ * on a trip of `legKm` real km over `sceneLeg` scene units.
+ */
 export function realDistanceRemainingKm(legKm: number, sceneRemaining: number, sceneLeg: number): number {
   if (sceneLeg <= 0) return 0;
-  return Math.min(legKm, Math.max(0, (legKm * sceneRemaining) / sceneLeg));
+  return Math.max(0, (legKm * sceneRemaining) / sceneLeg);
 }
 
 /** The real speed that a scene speed stands for on this leg. */
