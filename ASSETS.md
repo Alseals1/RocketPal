@@ -27,6 +27,19 @@ Procedural textures are used as placeholders. Real textures must have a licence 
 | Sun, Mercury, Venus (surface + cloud), Earth (day, clouds), Moon, Mars, Jupiter, Saturn (+ ring alpha), Uranus, Neptune | `public/textures/<world>.jpg` | Source and licence to be chosen and verified (NASA imagery or an openly licensed set). |
 | Star field / Milky Way | `public/textures/stars.jpg` | Optional; the game can use generated points. |
 
+## Real NASA images for the other worlds (decided 2026-10-23, not yet researched or downloaded)
+
+Landing on a world shows a real NASA photograph (see `plans/mars-panorama.md`). Mars is done. Each other world needs its own picture; every one must have its credit line and licence checked and recorded in `CREDITS.md` before use, and be turned into the sphere picture format with `tools/make-panorama.mjs` (4096 x 2048 and a 2048 x 1024 version, panoramas only may be 4096 wide).
+
+| World | What to show | Notes |
+| --- | --- | --- |
+| Earth | **A real hover view from the International Space Station** (chosen by the user), for example the Earth below from the Cupola or an astronaut photograph | Look for a real 360 degree or very wide ISS panorama; if none is openly usable, build the view from a real NASA ISS photograph of Earth. Credit and licence to verify. |
+| The Moon | An Apollo lunar surface panorama (for example Apollo 17 or Apollo 11 mosaics) | Several are cylindrical or scrolling, not sphere pictures: check the projection first. **Do not use** artist-made "VR360 Moon" sets sold online; they are not NASA photographs. |
+| Mercury | A real MESSENGER image of the surface or the planet | No ground photos exist; hover view. |
+| Venus | A real NASA mission image of the clouds or a radar view (Magellan) | No NASA surface photos; the only surface photos were taken by Soviet landers (not NASA). Hover view. |
+| Jupiter, Saturn, Uranus, Neptune | A real spacecraft photograph (Juno, Cassini, Voyager 2) as a hover view | No surface to land on. |
+| The Sun | A real Solar Dynamics Observatory image | No surface to land on. |
+
 ## Audio (Phase 4)
 
 | Name | Target path | Notes |

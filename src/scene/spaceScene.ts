@@ -86,6 +86,11 @@ export class SpaceScene {
     this.reducedMotion = on;
   }
 
+  /** The game's one WebGL renderer, shared with the surface scenes. */
+  get webglRenderer(): THREE.WebGLRenderer {
+    return this.renderer;
+  }
+
   get isReducedMotion(): boolean {
     return this.reducedMotion;
   }

@@ -1,4 +1,6 @@
+import { createSpeaker } from './audio/speech';
 import type { PlanetData, World } from './data/planets';
+import type { Surface, SurfaceData } from './data/surfaces';
 import {
   DEFAULT_FLIGHT,
   createShip,
@@ -23,7 +25,10 @@ import {
 import { planLeg } from './scale/leg';
 import { layoutWorlds, type BodyLayout } from './scene/layout';
 import { SpaceScene } from './scene/spaceScene';
+import { PanoramaScene } from './surface/panoramaScene';
+import { LookController } from './surface/look';
 import { Hud } from './ui/hud';
+import { SurfaceHud } from './ui/surfaceHud';
 import { SettingsPanel, applySettingsToPage } from './ui/settingsPanel';
 
 const START_POSITION = { x: 0, y: 40, z: 330 }; // near the Sun, facing it
@@ -35,6 +40,7 @@ interface Options {
   /** 'high' or 'low' from the page address, to force a quality (and turn off the automatic chooser). */
   forcedQuality?: Quality;
   touchControls: boolean;
+  surfaces: SurfaceData;
   settings: Settings;
   debug: boolean;
 }
@@ -55,6 +61,14 @@ export class Game {
   private here: string | null = null;
   private reportedError = false;
   private settingsPanel?: SettingsPanel;
+  private readonly stage: HTMLElement;
+  private readonly surfaces: Map<string, Surface>;
+  private readonly speaker = createSpeaker();
+  private mode: 'space' | 'surface' = 'space';
+  private panorama?: PanoramaScene;
+  private look?: LookController;
+  private surfaceHud?: SurfaceHud;
+  private surfaceHudFor?: string;
   private settings: Settings;
   private reducedMotion: boolean;
   private readonly systemMotion = matchMedia(REDUCED_MOTION_QUERY);
@@ -67,6 +81,7 @@ export class Game {
 
   constructor(root: HTMLElement, data: PlanetData, private readonly options: Options) {
     this.layouts = layoutWorlds(data.worlds);
+    this.surfaces = new Map(options.surfaces.surfaces.map((s) => [s.worldId, s]));
     this.ship = this.startFacing('earth');
     this.quality = options.forcedQuality ?? initialQuality(readHardwareHints());
     this.settings = options.settings;
@@ -75,9 +90,14 @@ export class Game {
     const stage = document.createElement('div');
     stage.className = 'stage';
     root.appendChild(stage);
+    this.stage = stage;
 
     this.scene = new SpaceScene(stage, this.layouts, this.quality, this.reducedMotion, options.debug);
-    this.input = new InputController(stage, options.touchControls, () => this.settingsPanel?.isOpen ?? false);
+    this.input = new InputController(
+      stage,
+      options.touchControls,
+      () => (this.settingsPanel?.isOpen ?? false) || (this.surfaceHud?.isCardOpen ?? false),
+    );
     this.hud = new Hud(stage, this.layouts, {
       onSelect: (id) => this.pickTarget(id),
       onAutopilot: (on) => this.setAutopilot(on),
@@ -93,6 +113,7 @@ export class Game {
     const resize = () => {
       this.scene.setSize(stage.clientWidth, stage.clientHeight);
       this.hud.setViewport(stage.clientWidth, stage.clientHeight);
+      this.panorama?.setSize(stage.clientWidth, stage.clientHeight);
     };
     new ResizeObserver(resize).observe(stage);
     resize();
@@ -178,10 +199,12 @@ export class Game {
       target: targetLayout ? this.body(targetLayout) : undefined,
       obstacles: this.layouts.filter((l) => l !== targetLayout).map((l) => this.body(l)),
     });
-    if (this.ship.docked && !wasDocked && targetLayout) {
-      this.autopilot = false;
-      this.hud.setAutopilot(false);
-      this.hud.showLanded(targetLayout.world.name);
+    if (this.ship.docked && !wasDocked && targetLayout) this.onDocked(targetLayout);
+
+    if (this.mode === 'surface' && this.panorama?.isLoaded && this.look) {
+      this.surfaceTick(dt);
+      this.qualityCheck(now);
+      return;
     }
 
     this.scene.update(dt, this.ship, input.boost);
@@ -196,14 +219,108 @@ export class Game {
       this.refreshHere();
       this.updateStats();
     }
-    if (!this.options.forcedQuality && now - this.lastQualityCheck > QUALITY_CHECK_EVERY_MS) {
-      this.lastQualityCheck = now;
-      const next = chooseQuality(this.monitor.samples(), this.quality);
-      if (next !== this.quality) {
-        this.quality = next;
-        this.scene.applyQuality(next);
-      }
+    this.qualityCheck(now);
+  }
+
+  /** The rocket has docked: stand on the world if it has a real photograph, or show the plain landing card. */
+  private onDocked(layout: BodyLayout): void {
+    this.autopilot = false;
+    this.hud.setAutopilot(false);
+    const surface = this.surfaces.get(layout.world.id);
+    if (surface) void this.enterSurface(layout, surface);
+    else this.hud.showLanded(layout.world.name);
+  }
+
+  /** For the browser tests only (page address has ?debug=1): dock at a world straight away, through the normal landing path. */
+  private debugDockAt(id: string): void {
+    const layout = this.layout(id);
+    if (!layout || this.ship.docked) return;
+    this.targetId = id;
+    const dock = dockDistance(this.body(layout));
+    this.ship = {
+      ...createShip({ x: layout.position.x + dock, y: layout.position.y, z: layout.position.z }),
+      speed: 0,
+      docked: true,
+    };
+    this.onDocked(layout);
+  }
+
+  private qualityCheck(now: number): void {
+    if (this.options.forcedQuality || now - this.lastQualityCheck <= QUALITY_CHECK_EVERY_MS) return;
+    this.lastQualityCheck = now;
+    const next = chooseQuality(this.monitor.samples(), this.quality);
+    if (next !== this.quality) {
+      this.quality = next;
+      this.scene.applyQuality(next);
     }
+  }
+
+  /** Standing on a world, looking at a real photograph. */
+  private surfaceTick(dt: number): void {
+    const panorama = this.panorama!;
+    const look = this.look!;
+    const input = this.input.read(); // the same keys: left and right turn, up and down tilt
+    look.step(dt, { turn: input.turn, tilt: input.pitch });
+    panorama.setLook(look.state);
+    this.surfaceHud?.update((azimuth, elevation) => panorama.project(azimuth, elevation));
+    panorama.render();
+  }
+
+  /** The rocket has docked at a world with a real photograph: go and stand in it. */
+  private async enterSurface(layout: BodyLayout, surface: Surface): Promise<void> {
+    this.mode = 'surface';
+    this.stage.classList.add('is-surface');
+    this.input.suspendTouchControls(true);
+
+    if (!this.surfaceHud || this.surfaceHudFor !== surface.worldId) {
+      this.surfaceHud?.hide();
+      this.surfaceHud = new SurfaceHud(
+        this.stage,
+        surface,
+        { onBack: () => this.leaveSurface(), onTurnTo: (az, el) => this.look?.turnTo(az, el, this.reducedMotion) },
+        this.speaker,
+      );
+      this.surfaceHudFor = surface.worldId;
+    }
+    const hud = this.surfaceHud;
+    hud.reset();
+    hud.show();
+    hud.setLoading(true);
+
+    const panorama = (this.panorama ??= new PanoramaScene(this.scene.webglRenderer));
+    panorama.setSize(this.stage.clientWidth, this.stage.clientHeight);
+    // Low quality, or a graphics card that cannot hold a 4096 picture, gets the small one.
+    const small = this.quality === 'low' || panorama.maxTextureSize < 4096;
+    try {
+      await panorama.load(small ? surface.images.low : surface.images.high);
+    } catch (error) {
+      console.error(error);
+      this.leaveSurfaceScreen();
+      this.hud.showLanded(layout.world.name); // fall back to the plain "You landed" card
+      return;
+    }
+    if (this.mode !== 'surface') return; // the player left while it loaded
+
+    this.look = new LookController(surface.start);
+    this.look.attach(this.scene.canvas, () => this.stage.clientHeight, panorama.verticalFov);
+    hud.setLoading(false);
+  }
+
+  /** "Back to space" on a surface: put the screen back and lift off. */
+  private leaveSurface(): void {
+    this.leaveSurfaceScreen();
+    this.flyAgain();
+  }
+
+  private leaveSurfaceScreen(): void {
+    this.mode = 'space';
+    this.stage.classList.remove('is-surface');
+    this.speaker.stop();
+    this.look?.detach();
+    this.look = undefined;
+    this.panorama?.dispose();
+    this.surfaceHud?.hide();
+    this.input.suspendTouchControls(false);
   }
 
   /** Finds the world the rocket is right next to (if any), so the picker can say "you're here". */
@@ -271,6 +388,10 @@ export class Game {
       getWorld: (id: string): World | undefined => this.layout(id)?.world,
       isReducedMotion: () => this.scene.isReducedMotion, // read from the scene itself, so tests cover the wiring
       getSettings: () => this.settings,
+      getMode: () => this.mode,
+      getLook: () => this.look?.state,
+      getFound: () => this.surfaceHud?.foundCount ?? 0,
+      dockAt: (id: string) => this.debugDockAt(id),
       pickTarget: (id: string) => this.pickTarget(id),
       setAutopilot: (on: boolean) => this.setAutopilot(on),
     };
