@@ -6,10 +6,42 @@ interface DebugHandle {
   getTargetId(): string | null;
   getQuality(): string;
   isGlowVisible(): boolean;
+  isReducedMotion(): boolean;
 }
 const ship = (page: Page) => page.evaluate(() => (window as unknown as { rocketPals: DebugHandle }).rocketPals.getShip());
 const handle = <T>(page: Page, fn: (h: DebugHandle) => T) =>
   page.evaluate(`(${fn.toString()})(window.rocketPals)`) as Promise<T>;
+
+/** Looks at the real 3D picture (not the buttons on top of it) and counts bright and coloured pixels. */
+async function pictureStats(page: Page) {
+  return page.evaluate(() => {
+    const canvas = document.querySelector('#game-canvas canvas') as HTMLCanvasElement;
+    const copy = document.createElement('canvas');
+    copy.width = canvas.width;
+    copy.height = canvas.height;
+    const g = copy.getContext('2d')!;
+    g.drawImage(canvas, 0, 0);
+    const data = g.getImageData(0, 0, copy.width, copy.height).data;
+    let bright = 0;
+    let coloured = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const max = Math.max(data[i], data[i + 1], data[i + 2]);
+      const min = Math.min(data[i], data[i + 1], data[i + 2]);
+      if (max > 180) bright++;
+      if (max - min > 60 && max > 80) coloured++;
+    }
+    return { bright, coloured };
+  });
+}
+
+/** Reads the number in a HUD line like "78.4 million km to go" as kilometres. */
+async function distanceShown(page: Page): Promise<number> {
+  const text = (await page.locator('.stats-line').first().innerText()).trim();
+  const match = /^([\d,.]+)( million| billion)? km to go$/.exec(text);
+  if (!match) throw new Error(`Unexpected distance text: "${text}"`);
+  const unit = match[2]?.trim() === 'billion' ? 1e9 : match[2]?.trim() === 'million' ? 1e6 : 1;
+  return parseFloat(match[1].replace(/,/g, '')) * unit;
+}
 
 function watchForErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -30,10 +62,13 @@ test('draws the solar system with no console errors', async ({ page }) => {
   await start(page);
 
   await expect(page.locator('#game-canvas canvas')).toBeVisible();
+  // Pinch-zoom must stay available: it is the only way to enlarge the text until there is a text-size setting.
+  await expect(page.locator('meta[name="viewport"]')).not.toHaveAttribute('content', /user-scalable|maximum-scale/);
   const box = await page.locator('#game-canvas canvas').boundingBox();
   expect(box!.width).toBeGreaterThan(300);
-  // A picture full of stars and planets is far bigger than a blank one.
-  expect((await page.locator('#game-canvas canvas').screenshot()).length).toBeGreaterThan(15_000);
+  // The 3D picture itself (not the HUD on top) has stars in it, and the Sun's orange glow nearby.
+  const picture = await pictureStats(page);
+  expect(picture.bright).toBeGreaterThan(200);
 
   // The game loop is running: the rocket flies forward by itself.
   const before = await ship(page);
@@ -73,12 +108,24 @@ test('tap-only: pick Mars, tap Autopilot, and land', async ({ page }) => {
   await page.getByRole('button', { name: 'Mars' }).click();
 
   await expect(page.locator('.stats-title')).toHaveText('Flying to Mars');
-  await expect(page.locator('.stats')).toContainText('million km to go');
-  await expect(page.locator('.stats')).toContainText('Light needs');
-  await expect(page.locator('.stats')).toContainText('Pretend speed');
-  await expect(page.locator('.stats')).toContainText('Real rockets are much slower');
+  const lines = page.locator('.stats-line');
+  await expect(lines.nth(0)).toHaveText(/^[\d.,]+ million km to go$/);
+  await expect(lines.nth(1)).toHaveText(/^Light needs \d+ (seconds?|minutes?|hours?) to get there$/);
+  await expect(lines.nth(2)).toHaveText(/^Pretend speed: [\d.,]+( million| billion)? km per second$/);
+  await expect(page.locator('.stats-note')).toHaveText('Real rockets are much slower!');
+
+  // Starting near the Sun: the real Sun-to-Mars gap is 228.0 million km, and the rocket is a little off to one side.
+  const atStart = await distanceShown(page);
+  expect(atStart).toBeGreaterThan(200_000_000);
+  expect(atStart).toBeLessThan(260_000_000);
 
   await page.getByTestId('autopilot-button').click();
+  await page.waitForTimeout(2500);
+  const later = await distanceShown(page);
+  expect(later).toBeLessThan(atStart);
+  await page.waitForTimeout(2500);
+  expect(await distanceShown(page)).toBeLessThan(later);
+
   await expect(page.getByTestId('landed')).toBeVisible({ timeout: 150_000 });
   await expect(page.locator('#landed-title')).toHaveText('You landed on Mars!');
   expect((await ship(page)).docked).toBe(true);
@@ -159,10 +206,150 @@ test('low quality mode turns glow off; high quality has it on', async ({ page })
   expect(await handle(page, (h) => h.isGlowVisible())).toBe(false);
 });
 
-test('works with reduced motion switched on', async ({ page }) => {
+test('notices when reduced motion is switched on', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const errors = watchForErrors(page);
   await start(page);
+  expect(await handle(page, (h) => h.isReducedMotion())).toBe(true);
   await page.waitForTimeout(500);
   expect(errors).toEqual([]);
+
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await start(page);
+  expect(await handle(page, (h) => h.isReducedMotion())).toBe(false);
+});
+
+test('really draws the 3D picture, in both quality levels', async ({ page }) => {
+  await start(page);
+  expect((await pictureStats(page)).bright).toBeGreaterThan(200);
+  await page.goto('/?debug=1&quality=low');
+  await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
+  await page.waitForTimeout(300);
+  expect((await pictureStats(page)).bright).toBeGreaterThan(50);
+});
+
+test('changing your mind mid-flight gives a sensible, shrinking distance', async ({ page }) => {
+  await start(page);
+  await page.getByTestId('where-button').click();
+  await page.getByRole('button', { name: 'Neptune' }).click();
+  await page.getByTestId('autopilot-button').click();
+  await page.waitForTimeout(5000);
+
+  // Now pick Earth from the middle of space.
+  await page.getByTestId('where-button').click();
+  await page.getByRole('button', { name: 'Earth' }).click();
+  const first = await distanceShown(page);
+  expect(first).toBeGreaterThan(0);
+  await page.getByTestId('autopilot-button').click();
+  await page.waitForTimeout(6000); // the rocket first has to turn around
+  const second = await distanceShown(page);
+  await page.waitForTimeout(2000);
+  expect(await distanceShown(page)).toBeLessThan(second);
+});
+
+test('Escape closes the picker, and Space goes back to boosting after a click', async ({ page }) => {
+  await start(page);
+  await page.getByTestId('where-button').click();
+  await expect(page.locator('.picker')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.picker')).toBeHidden();
+
+  // A mouse click must not leave the button holding on to the Space bar.
+  await page.getByTestId('where-button').click();
+  await page.getByRole('button', { name: 'Mars' }).click();
+  await page.keyboard.down('Space');
+  await page.waitForTimeout(1800);
+  expect((await ship(page)).speed).toBeGreaterThan(100);
+  await expect(page.locator('.picker')).toBeHidden();
+  await page.keyboard.up('Space');
+});
+
+test('browser shortcuts are not mistaken for steering, and losing focus lets go of the keys', async ({ page }) => {
+  await start(page);
+  const before = await ship(page);
+
+  await page.keyboard.down('Meta');
+  await page.keyboard.down('KeyD');
+  await page.waitForTimeout(500);
+  await page.keyboard.up('KeyD');
+  await page.keyboard.up('Meta');
+  expect(Math.abs((await ship(page)).yaw - before.yaw)).toBeLessThan(0.01);
+
+  await page.keyboard.down('ArrowLeft');
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.dispatchEvent(new Event('blur'))); // the window lost focus; the key-up never arrives
+  await page.waitForTimeout(1200); // let the turn die away
+  const settled = await ship(page);
+  await page.waitForTimeout(500);
+  expect(Math.abs((await ship(page)).yaw - settled.yaw)).toBeLessThan(0.01);
+  await page.keyboard.up('ArrowLeft');
+});
+
+test('boost stays on until the finger that pressed it lets go', async ({ page }) => {
+  await start(page, '&touch=1');
+  const press = (type: string, pointerId: number) =>
+    page.evaluate(
+      ([t, id]) =>
+        document
+          .querySelector('[data-testid="boost-button"]')!
+          .dispatchEvent(new PointerEvent(t as string, { pointerId: id as number, bubbles: true, isPrimary: id === 1 })),
+      [type, pointerId],
+    );
+
+  await press('pointerdown', 1); // first finger down
+  await press('pointerdown', 2); // second finger down...
+  await press('pointerup', 2); // ...and up again: boost must keep going
+  await page.waitForTimeout(2000);
+  expect((await ship(page)).speed).toBeGreaterThan(100);
+
+  await press('pointerup', 1);
+  await page.waitForTimeout(4000);
+  expect((await ship(page)).speed).toBeLessThan(60);
+});
+
+test('switches itself to low quality on a slow computer', async ({ browser }) => {
+  // Software drawing at double pixel density is slow, like a weak school laptop.
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 2 });
+  const page = await context.newPage();
+  await page.goto('/?debug=1');
+  await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
+  await page.waitForFunction(
+    () => (window as unknown as { rocketPals: { getQuality(): string } }).rocketPals.getQuality() === 'low',
+    null,
+    { timeout: 30_000 },
+  );
+  expect(await handle(page, (h) => h.isGlowVisible())).toBe(false);
+  await context.close();
+});
+
+test('the HUD does not rewrite the page every frame', async ({ page }) => {
+  await start(page);
+  // Pick a far-away destination, then count what the HUD changes over about 60 frames.
+  const changes = await page.evaluate(
+    () =>
+      new Promise<{ hidden: number; classes: number; frames: number }>((resolve) => {
+        const counts = { hidden: 0, classes: 0, frames: 0 };
+        const observer = new MutationObserver((records) => {
+          for (const r of records) {
+            if (r.attributeName === 'hidden') counts.hidden++;
+            if (r.attributeName === 'class') counts.classes++;
+          }
+        });
+        observer.observe(document.querySelector('.hud')!, { subtree: true, attributes: true });
+        (window as unknown as { rocketPals: { pickTarget(id: string): void } }).rocketPals.pickTarget('neptune');
+        const count = () => {
+          counts.frames++;
+          if (counts.frames < 60) requestAnimationFrame(count);
+          else {
+            observer.disconnect();
+            resolve(counts);
+          }
+        };
+        requestAnimationFrame(count);
+      }),
+  );
+  // Picking a destination reveals a few things once. It must not be doing this on every frame
+  // (the earlier version made about one change per frame for each of these).
+  expect(changes.hidden).toBeLessThan(10);
+  expect(changes.classes).toBeLessThan(10);
 });

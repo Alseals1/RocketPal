@@ -12,7 +12,6 @@ import { InputController } from './flight/input';
 import { FrameMonitor } from './quality/monitor';
 import { chooseQuality, initialQuality, type Quality } from './quality/quality';
 import {
-  distanceBetweenKm,
   formatDistanceKm,
   formatDuration,
   formatSpeed,
@@ -20,6 +19,7 @@ import {
   realDistanceRemainingKm,
   realSpeedKmPerSec,
 } from './scale/readout';
+import { planLeg } from './scale/leg';
 import { layoutWorlds, type BodyLayout } from './scene/layout';
 import { SpaceScene } from './scene/spaceScene';
 import { Hud } from './ui/hud';
@@ -47,7 +47,9 @@ export class Game {
   private ship: ShipState = createShip(START_POSITION, 0, 0);
   private quality: Quality;
   private targetId: string | null = null;
-  private currentId: string | null = 'sun';
+  /** The world the rocket is right next to, if any. You cannot pick it as a destination. */
+  private here: string | null = null;
+  private reportedError = false;
   private autopilot = false;
   private lastFrame = 0;
   private lastStats = 0;
@@ -64,17 +66,20 @@ export class Game {
     stage.className = 'stage';
     root.appendChild(stage);
 
-    this.scene = new SpaceScene(stage, this.layouts, this.quality, options.reducedMotion);
+    this.scene = new SpaceScene(stage, this.layouts, this.quality, options.reducedMotion, options.debug);
     this.input = new InputController(stage, options.touchControls);
     this.hud = new Hud(stage, this.layouts, {
       onSelect: (id) => this.pickTarget(id),
       onAutopilot: (on) => this.setAutopilot(on),
       onFlyAgain: () => this.flyAgain(),
     });
-    this.hud.setPlaces(this.currentId, null);
+    this.refreshHere();
     this.hud.setAutopilot(false);
 
-    const resize = () => this.scene.setSize(stage.clientWidth, stage.clientHeight);
+    const resize = () => {
+      this.scene.setSize(stage.clientWidth, stage.clientHeight);
+      this.hud.setViewport(stage.clientWidth, stage.clientHeight);
+    };
     new ResizeObserver(resize).observe(stage);
     resize();
 
@@ -84,16 +89,16 @@ export class Game {
 
   pickTarget(id: string): void {
     const layout = this.layout(id);
-    if (!layout || this.ship.docked || id === this.currentId) return;
+    if (!layout || this.ship.docked || id === this.here) return;
     this.targetId = id;
     this.autopilot = false;
     this.hud.setAutopilot(false);
 
-    // The "leg" is the trip from the world you last visited. Real km and scene units are scaled together.
-    const from = this.layout(this.currentId ?? 'sun')!;
-    this.legKm = distanceBetweenKm(from.world, layout.world);
-    this.sceneLeg = Math.max(1, distance(from.position, layout.position) - dockDistance(this.body(layout)));
-    this.hud.setPlaces(this.currentId, id);
+    // The trip starts from the world nearest the rocket right now, wherever it is.
+    const leg = planLeg(this.ship.position, this.layouts, id);
+    this.legKm = leg.legKm;
+    this.sceneLeg = leg.sceneLeg;
+    this.hud.setPlaces(this.here, id);
     this.updateStats();
   }
 
@@ -116,16 +121,28 @@ export class Game {
       ...createShip(this.ship.position, Math.atan2(-away.x, -away.z), 0),
       speed: DEFAULT_FLIGHT.cruiseSpeed,
     };
-    this.currentId = layout.world.id;
     this.targetId = null;
     this.autopilot = false;
     this.hud.hideLanded();
     this.hud.setAutopilot(false);
-    this.hud.setPlaces(this.currentId, null);
+    this.refreshHere();
     this.updateStats();
   }
 
   private frame(now: number): void {
+    try {
+      this.tick(now);
+    } catch (error) {
+      // One bad frame must not freeze the game. Say so once, then keep flying.
+      if (!this.reportedError) {
+        this.reportedError = true;
+        console.error(error);
+      }
+    }
+    requestAnimationFrame((t) => this.frame(t));
+  }
+
+  private tick(now: number): void {
     const dt = this.lastFrame ? Math.min((now - this.lastFrame) / 1000, 0.1) : 1 / 60;
     if (this.lastFrame) this.monitor.add(now - this.lastFrame);
     this.lastFrame = now;
@@ -154,6 +171,7 @@ export class Game {
 
     if (now - this.lastStats > STATS_EVERY_MS) {
       this.lastStats = now;
+      this.refreshHere();
       this.updateStats();
     }
     if (!this.options.forcedQuality && now - this.lastQualityCheck > QUALITY_CHECK_EVERY_MS) {
@@ -164,7 +182,21 @@ export class Game {
         this.scene.applyQuality(next);
       }
     }
-    requestAnimationFrame((t) => this.frame(t));
+  }
+
+  /** Finds the world the rocket is right next to (if any), so the picker can say "you're here". */
+  private refreshHere(): void {
+    let found: string | null = null;
+    for (const layout of this.layouts) {
+      if (distance(this.ship.position, layout.position) <= dockDistance(this.body(layout)) * 3) {
+        found = layout.world.id;
+        break;
+      }
+    }
+    if (found !== this.here) {
+      this.here = found;
+      this.hud.setPlaces(this.here, this.targetId);
+    }
   }
 
   private updateStats(): void {
@@ -215,6 +247,7 @@ export class Game {
       isGlowVisible: () => this.scene.glowVisible,
       getFps: () => this.monitor.fps(),
       getWorld: (id: string): World | undefined => this.layout(id)?.world,
+      isReducedMotion: () => this.options.reducedMotion,
       pickTarget: (id: string) => this.pickTarget(id),
       setAutopilot: (on: boolean) => this.setAutopilot(on),
     };

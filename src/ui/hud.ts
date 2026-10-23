@@ -18,22 +18,40 @@ export interface HudStats {
 
 const EDGE_MARGIN = 64;
 
-/** The HTML/CSS layer on top of the 3D view. */
+interface TagState {
+  shown: boolean;
+  isTarget: boolean;
+}
+
+/**
+ * The HTML/CSS layer on top of the 3D view.
+ *
+ * `updateTags` runs every frame, so it follows two rules: it never reads layout (the screen size is
+ * handed in through `setViewport`), and it only writes to the page when something actually changed.
+ * Moving things around uses `transform` only.
+ */
 export class Hud {
   private readonly tags = new Map<string, HTMLElement>();
+  private readonly tagState = new Map<string, TagState>();
   private readonly pickerButtons = new Map<string, HTMLButtonElement>();
   private readonly els: Record<string, HTMLElement>;
+  private readonly whereButton: HTMLButtonElement;
   private targetId: string | null = null;
+  private pointerShown = false;
+  private lastTitle = '';
+  private width = 1;
+  private height = 1;
 
   constructor(
-    private readonly root: HTMLElement,
+    root: HTMLElement,
     private readonly layouts: BodyLayout[],
     private readonly callbacks: HudCallbacks,
   ) {
     const overlay = document.createElement('div');
     overlay.className = 'hud';
     overlay.innerHTML = `
-      <section class="card stats" aria-live="polite">
+      <p class="visually-hidden" role="status" aria-live="polite" data-el="announce"></p>
+      <section class="card stats">
         <p class="stats-title" data-el="title">Where to, pilot?</p>
         <p class="stats-line" data-el="distance">Tap "Where to?" and pick a world.</p>
         <p class="stats-line" data-el="light"></p>
@@ -59,11 +77,14 @@ export class Hud {
 
     this.els = {};
     overlay.querySelectorAll<HTMLElement>('[data-el]').forEach((el) => (this.els[el.dataset.el!] = el));
+    this.whereButton = overlay.querySelector<HTMLButtonElement>('.where-button')!;
 
-    const where = overlay.querySelector<HTMLButtonElement>('.where-button')!;
-    where.addEventListener('click', () => this.togglePicker(where));
-    this.els.autopilot.addEventListener('click', () => this.callbacks.onAutopilot(this.els.autopilot.getAttribute('aria-pressed') !== 'true'));
-    this.els['fly-again'].addEventListener('click', () => this.callbacks.onFlyAgain());
+    this.onPress(this.whereButton, () => this.togglePicker());
+    this.onPress(this.els.autopilot, () => this.callbacks.onAutopilot(this.els.autopilot.getAttribute('aria-pressed') !== 'true'));
+    this.onPress(this.els['fly-again'], () => this.callbacks.onFlyAgain());
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Escape' && !this.els.picker.hidden) this.closePicker();
+    });
 
     for (const layout of layouts) {
       const button = document.createElement('button');
@@ -80,8 +101,8 @@ export class Hud {
       here.textContent = "you're here";
       name.appendChild(here);
       button.append(dot, name);
-      button.addEventListener('click', () => {
-        this.closePicker(where);
+      this.onPress(button, () => {
+        this.closePicker(false);
         this.callbacks.onSelect(layout.world.id);
       });
       this.els.grid.appendChild(button);
@@ -92,7 +113,14 @@ export class Hud {
       tag.textContent = layout.world.name;
       this.els.tags.appendChild(tag);
       this.tags.set(layout.world.id, tag);
+      this.tagState.set(layout.world.id, { shown: false, isTarget: false });
     }
+  }
+
+  /** Call whenever the screen size changes, so the frame loop never has to measure it. */
+  setViewport(width: number, height: number): void {
+    this.width = width;
+    this.height = height;
   }
 
   /** Marks the world you are at (it cannot be picked) and the one you are heading to. */
@@ -104,6 +132,7 @@ export class Hud {
       button.classList.toggle('is-target', id === targetId);
     }
     this.els.autopilot.hidden = targetId === null || !this.els.landed.hidden;
+    this.els['pointer-name'].textContent = this.layouts.find((l) => l.world.id === targetId)?.world.name ?? '';
   }
 
   setAutopilot(on: boolean): void {
@@ -117,6 +146,11 @@ export class Hud {
     this.els.light.textContent = stats.light;
     this.els.speed.textContent = stats.speed;
     this.els.note.hidden = !stats.showNote;
+    // Screen readers hear when the destination changes, not every number that ticks by.
+    if (stats.title !== this.lastTitle) {
+      this.lastTitle = stats.title;
+      this.els.announce.textContent = stats.title;
+    }
   }
 
   showLanded(worldName: string): void {
@@ -130,63 +164,77 @@ export class Hud {
     this.els.landed.hidden = true;
   }
 
-  /**
-   * Moves the name tags and the off-screen pointer. Called every frame, so it only
-   * writes `transform` and `opacity` (no layout work).
-   */
+  /** Moves the name tags and the off-screen pointer. Called every frame. */
   updateTags(project: (layout: BodyLayout) => ScreenPoint, distanceTo: (layout: BodyLayout) => number): void {
-    const width = this.root.clientWidth;
-    const height = this.root.clientHeight;
     let pointerPoint: ScreenPoint | null = null;
 
     for (const layout of this.layouts) {
-      const tag = this.tags.get(layout.world.id)!;
+      const id = layout.world.id;
+      const tag = this.tags.get(id)!;
+      const state = this.tagState.get(id)!;
       const point = project(layout);
-      const isTarget = layout.world.id === this.targetId;
+      const isTarget = id === this.targetId;
       if (isTarget) pointerPoint = point;
-      const near = distanceTo(layout) < 2500 || isTarget;
-      if (point.onScreen && near) {
-        tag.style.opacity = '1';
+
+      const shown = point.onScreen && (distanceTo(layout) < 2500 || isTarget);
+      if (shown !== state.shown) {
+        state.shown = shown;
+        tag.style.opacity = shown ? '1' : '0';
+      }
+      if (isTarget !== state.isTarget) {
+        state.isTarget = isTarget;
+        tag.classList.toggle('is-target', isTarget);
+      }
+      if (shown) {
         // The Moon sits next to Earth, so its tag goes underneath instead of on top of Earth's.
         tag.style.transform =
           layout.world.kind === 'moon'
             ? `translate(${point.x}px, ${point.y + 10}px) translate(-50%, 0)`
             : `translate(${point.x}px, ${point.y - 8}px) translate(-50%, -100%)`;
-        tag.classList.toggle('is-target', isTarget);
-      } else {
-        tag.style.opacity = '0';
       }
     }
 
-    const pointer = this.els.pointer;
-    if (pointerPoint && !pointerPoint.onScreen && this.els.landed.hidden) {
-      const cx = width / 2;
-      const cy = height / 2;
+    const wantPointer = pointerPoint !== null && !pointerPoint.onScreen && Boolean(this.els.landed.hidden);
+    if (wantPointer !== this.pointerShown) {
+      this.pointerShown = wantPointer;
+      this.els.pointer.hidden = !wantPointer;
+    }
+    if (wantPointer && pointerPoint) {
+      const cx = this.width / 2;
+      const cy = this.height / 2;
       const dx = pointerPoint.x - cx || 0.001;
       const dy = pointerPoint.y - cy || 0.001;
       const scale = Math.min((cx - EDGE_MARGIN) / Math.abs(dx), (cy - EDGE_MARGIN) / Math.abs(dy));
       const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-      pointer.hidden = false;
-      pointer.style.transform = `translate(${cx + dx * scale}px, ${cy + dy * scale}px) translate(-50%, -50%)`;
-      (pointer.firstElementChild as HTMLElement).style.transform = `rotate(${angle}deg)`;
-      this.els['pointer-name'].textContent = this.layouts.find((l) => l.world.id === this.targetId)!.world.name;
-    } else {
-      pointer.hidden = true;
+      this.els.pointer.style.transform = `translate(${cx + dx * scale}px, ${cy + dy * scale}px) translate(-50%, -50%)`;
+      (this.els.pointer.firstElementChild as HTMLElement).style.transform = `rotate(${angle}deg)`;
     }
   }
 
-  private togglePicker(button: HTMLButtonElement): void {
+  /**
+   * A click handler that lets go of the button afterwards when it was a mouse or finger press
+   * (not the keyboard), so the Space bar goes back to boosting instead of pressing the button again.
+   */
+  private onPress(button: HTMLElement, handler: () => void): void {
+    button.addEventListener('click', (e) => {
+      handler();
+      if (e.detail > 0) button.blur();
+    });
+  }
+
+  private togglePicker(): void {
     if (this.els.picker.hidden) {
       this.els.picker.hidden = false;
-      button.setAttribute('aria-expanded', 'true');
+      this.whereButton.setAttribute('aria-expanded', 'true');
       this.els.grid.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
     } else {
-      this.closePicker(button);
+      this.closePicker();
     }
   }
 
-  private closePicker(button: HTMLButtonElement): void {
+  private closePicker(returnFocus = true): void {
     this.els.picker.hidden = true;
-    button.setAttribute('aria-expanded', 'false');
+    this.whereButton.setAttribute('aria-expanded', 'false');
+    if (returnFocus) this.whereButton.focus();
   }
 }

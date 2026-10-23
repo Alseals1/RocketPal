@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { forwardVector, type ShipState, type Vec3 } from '../flight/flightModel';
+import { DEFAULT_FLIGHT, forwardVector, type ShipState, type Vec3 } from '../flight/flightModel';
 import { qualitySettings, type Quality } from '../quality/quality';
 import type { BodyLayout } from './layout';
 import { makeGlowTexture, makeWorldTexture } from './textures';
@@ -40,21 +40,22 @@ export class SpaceScene {
   private readonly flame: THREE.Mesh;
   private readonly cameraTarget = new THREE.Vector3();
   private readonly tmp = new THREE.Vector3();
+  private readonly tmpView = new THREE.Vector3();
   private cameraReady = false;
   private width = 1;
   private height = 1;
-  private quality: Quality;
 
   constructor(
     parent: HTMLElement,
     layouts: BodyLayout[],
     quality: Quality,
     private readonly reducedMotion: boolean,
+    /** Keeps the picture readable after it is drawn. Only for the browser tests, which check the pixels. */
+    keepPicture = false,
   ) {
-    this.quality = quality;
     const settings = qualitySettings(quality);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: quality === 'high', powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ antialias: quality === 'high', powerPreference: 'high-performance', preserveDrawingBuffer: keepPicture });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatioCap));
     this.canvas = this.renderer.domElement;
     this.canvas.setAttribute('role', 'img');
@@ -92,7 +93,6 @@ export class SpaceScene {
 
   /** Low quality: no glow, fewer stars, lower pixel ratio. */
   applyQuality(quality: Quality): void {
-    this.quality = quality;
     const settings = qualitySettings(quality);
     for (const glow of this.glows) glow.visible = settings.glow;
     this.stars.geometry.setDrawRange(0, settings.starCount);
@@ -104,16 +104,12 @@ export class SpaceScene {
     return this.glows.some((g) => g.visible);
   }
 
-  get currentQuality(): Quality {
-    return this.quality;
-  }
-
   update(dt: number, ship: ShipState, boosting: boolean): void {
     // Put the rocket where the flight model says it is.
     this.ship.position.set(ship.position.x, ship.position.y, ship.position.z);
     this.ship.rotation.set(ship.pitch, ship.yaw, 0, 'YXZ');
     const flicker = this.reducedMotion ? 1 : 0.85 + Math.random() * 0.3;
-    const flameSize = ship.docked ? 0.2 : (0.5 + (boosting ? 1.4 : 0.5) * (ship.speed / 160 + 0.4)) * flicker;
+    const flameSize = ship.docked ? 0.2 : (0.5 + (boosting ? 1.4 : 0.5) * (ship.speed / DEFAULT_FLIGHT.boostSpeed + 0.4)) * flicker;
     this.flame.scale.set(1, flameSize, 1);
 
     // Chase camera: behind and a little above the rocket, easing after it.
@@ -147,7 +143,7 @@ export class SpaceScene {
   project(position: Vec3): ScreenPoint {
     this.camera.updateMatrixWorld();
     this.tmp.set(position.x, position.y, position.z);
-    const inFront = this.tmp.clone().applyMatrix4(this.camera.matrixWorldInverse).z < 0;
+    const inFront = this.tmpView.copy(this.tmp).applyMatrix4(this.camera.matrixWorldInverse).z < 0;
     this.tmp.project(this.camera);
     // Behind the camera the projection is mirrored; flip it so an arrow can still point the right way.
     const sign = inFront ? 1 : -1;
