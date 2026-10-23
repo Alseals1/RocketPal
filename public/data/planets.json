@@ -1,6 +1,6 @@
 {
   "lastChecked": "2026-10-23",
-  "source": "NASA Planetary Fact Sheet (metric), updated 2025-03-18: https://nssdc.gsfc.nasa.gov/planetary/factsheet/",
+  "source": "NASA Planetary Fact Sheet (metric), updated 2025-03-18: https://nssdc.gsfc.nasa.gov/planetary/factsheet/ ; moon counts and hook facts from the NASA Science planet pages at https://science.nasa.gov/solar-system/ (read 2026-10-23)",
   "worlds": [
     {
       "id": "sun",
@@ -67,7 +67,7 @@
       "distanceFromSunKm": 228000000,
       "orbitDays": 687,
       "moons": { "count": 2, "verify": false },
-      "hook": "Mars is red because of rusty iron dust. It has Olympus Mons, the tallest volcano in the whole solar system!",
+      "hook": "Mars is red because of rusty iron dust. It has Olympus Mons, the biggest volcano in the whole solar system!",
       "color": "#d1495b"
     },
     {
@@ -77,7 +77,7 @@
       "diameterKm": 142984,
       "distanceFromSunKm": 778500000,
       "orbitDays": 4331,
-      "moons": { "count": 95, "verify": true },
+      "moons": { "count": 115, "verify": true },
       "hook": "Jupiter is the biggest planet. Its Great Red Spot is a storm bigger than Earth!",
       "color": "#d9a066"
     },
@@ -88,7 +88,7 @@
       "diameterKm": 120536,
       "distanceFromSunKm": 1432000000,
       "orbitDays": 10747,
-      "moons": { "count": 274, "verify": true },
+      "moons": { "count": 293, "verify": true },
       "hook": "Saturn has shiny rings. It is so light that it could float in a giant bathtub!",
       "color": "#e0c98f"
     },
@@ -99,7 +99,7 @@
       "diameterKm": 51118,
       "distanceFromSunKm": 2867000000,
       "orbitDays": 30589,
-      "moons": { "count": 28, "verify": true },
+      "moons": { "count": 29, "verify": true },
       "hook": "Uranus spins on its side, like a ball rolling around the Sun!",
       "color": "#8ecae6"
     },
@@ -111,7 +111,7 @@
       "distanceFromSunKm": 4515000000,
       "orbitDays": 59800,
       "moons": { "count": 16, "verify": true },
-      "hook": "Neptune has the fastest winds, over 2,000 km/h!",
+      "hook": "Neptune is the windiest planet. Its winds blow at 2,000 km/h!",
       "color": "#3a5fcd"
     }
   ]
