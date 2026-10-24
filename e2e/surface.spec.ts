@@ -147,7 +147,10 @@ test('every glowing dot opens a card with its own NASA-checked words, and Orbit 
 
     await page.getByTestId('close-card').click();
     await expect(card).toBeHidden();
-    await expect(page.getByTestId('orbit')).toContainText(found < 5 ? `${5 - found} more to discover` : 'You found everything here');
+    // The third find finishes the mission, and Orbit says so instead of counting what is left.
+    await expect(page.getByTestId('orbit')).toContainText(
+      found === 3 ? 'Mission complete' : found < 5 ? `${5 - found} more to discover` : 'You found everything here',
+    );
   }
   expect(await debug(page, (h) => h.getFound())).toBe(5);
   expect(errors).toEqual([]);
