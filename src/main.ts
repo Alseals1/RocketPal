@@ -1,5 +1,7 @@
 import './style.css';
+import { loadMissions } from './data/missions';
 import { loadPlanets } from './data/planets';
+import { loadQuizzes } from './data/quizzes';
 import { loadSurfaces } from './data/surfaces';
 import { browserStorage, loadSettings } from './core/settings';
 import { Game } from './game';
@@ -44,8 +46,22 @@ function start(): void {
         console.error(error);
         return { lastChecked: '', surfaces: [] };
       });
+      // Missions and quizzes are extras: if their data cannot be loaded, the game still flies and lands without them.
+      const worldIds = data.worlds.map((w) => w.id);
+      const [missions, quizzes] = await Promise.all([
+        loadMissions(surfaces, worldIds).catch((error) => {
+          console.error(error);
+          return { lastChecked: '', missions: [] };
+        }),
+        loadQuizzes(surfaces).catch((error) => {
+          console.error(error);
+          return { lastChecked: '', quizzes: [] };
+        }),
+      ]);
       new Game(root, data, {
         surfaces,
+        missions,
+        quizzes,
         forcedQuality: forced === 'low' || forced === 'high' ? (forced as Quality) : undefined,
         touchControls: params.has('touch') || matchMedia('(pointer: coarse)').matches,
         settings,

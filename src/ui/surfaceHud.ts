@@ -1,12 +1,32 @@
+import type { Mission } from '../data/missions';
+import type { QuizQuestionData } from '../data/quizzes';
 import type { Hotspot, Surface } from '../data/surfaces';
 import type { Speaker } from '../audio/speech';
 import type { ScreenPoint } from '../scene/spaceScene';
 import { keepTabInside } from './focus';
+import { QuizPanel } from './quizPanel';
+import { setStars } from './stars';
 
 export interface SurfaceCallbacks {
   onBack(): void;
   /** A dot that is off the screen got keyboard focus: swing the view round to it. */
   onTurnTo(azimuth: number, elevation: number): void;
+  /** The kid found enough dots to finish the mission. The game saves it and calls `setProgress`. */
+  onMissionComplete(): void;
+  /** The kid finished the quiz. The game saves it and returns the stars they now have on this world. */
+  onQuizFinished(perfect: boolean): number;
+}
+
+/** A mission and quiz for this world (left out if their data could not be loaded: the landing still works without them). */
+export interface MissionExtras {
+  mission: Mission;
+  questions: QuizQuestionData[];
+}
+
+/** What the kid has earned on this world so far. */
+export interface WorldProgressView {
+  missionDone: boolean;
+  stars: number;
 }
 
 interface SpotState {
@@ -31,12 +51,18 @@ export class SurfaceHud {
   private current: Hotspot | null = null;
   private listenButton!: HTMLButtonElement;
   private readonly onKeyDown: (e: KeyboardEvent) => void;
+  private readonly quizPanel?: QuizPanel;
+  private missionDone = false;
+  /** The mission was finished by the card that is open right now: Orbit says so when it closes. */
+  private missionJustDone = false;
+  private quizOpenedByKeyboard = false;
 
   constructor(
     parent: HTMLElement,
     private readonly surface: Surface,
     private readonly callbacks: SurfaceCallbacks,
     private readonly speaker: Speaker,
+    private readonly extras?: MissionExtras,
   ) {
     this.root = document.createElement('div');
     this.root.className = 'surface-hud';
@@ -47,13 +73,20 @@ export class SurfaceHud {
       <div class="surface-loading" data-el="loading" role="status">Landing on ${this.escape(surface.title.split(',')[0])}...</div>
       <section class="card surface-title">
         <p class="stats-title" data-el="title"></p>
-        <p class="stats-line" data-el="found" data-testid="found"></p>
+        <p class="stats-line mission-line" data-el="mission" data-testid="mission" hidden></p>
+        <div class="stats-row">
+          <p class="stats-line" data-el="found" data-testid="found"></p>
+          <p class="stats-line" data-el="starsLine" hidden>Stars: <span class="stars" data-el="stars" data-testid="stars"></span></p>
+        </div>
         <p class="photo-credit" data-el="credit" data-testid="photo-credit"></p>
       </section>
       <button class="big-button back-button" data-testid="back-to-space" type="button">Back to space</button>
       <div class="orbit">
         <div class="orbit-face" data-el="face" data-mood="thinking" aria-hidden="true">${ORBIT_FACES}</div>
-        <p class="orbit-bubble" data-el="orbit" data-testid="orbit" role="status" aria-live="polite"></p>
+        <div class="orbit-talk">
+          <p class="orbit-bubble" data-el="orbit" data-testid="orbit" role="status" aria-live="polite"></p>
+          <button class="big-button quiz-button" type="button" data-el="quizButton" data-testid="quiz-time" hidden>Quiz time</button>
+        </div>
       </div>
       <div class="spots" data-el="spots"></div>
       <div class="fact-overlay" data-el="overlay" hidden>
@@ -88,6 +121,24 @@ export class SurfaceHud {
     };
     window.addEventListener('keydown', this.onKeyDown);
 
+    if (extras) {
+      this.quizPanel = new QuizPanel(this.root, extras.questions, extras.mission.teaser, this.speaker, {
+        onFinished: (perfect) => this.callbacks.onQuizFinished(perfect),
+        onBackToSpace: () => this.callbacks.onBack(),
+        onClosed: () => {
+          if (this.quizOpenedByKeyboard) this.els.quizButton.focus();
+          else (document.activeElement as HTMLElement | null)?.blur();
+        },
+      });
+      this.els.quizButton.addEventListener('click', (e) => {
+        this.quizOpenedByKeyboard = e.detail === 0;
+        this.quizPanel!.open();
+      });
+      this.els.mission.hidden = false;
+      this.els.starsLine.hidden = false;
+      this.setProgress({ missionDone: false, stars: 0 });
+    }
+
     for (const spot of surface.hotspots) {
       const button = document.createElement('button');
       button.type = 'button';
@@ -107,8 +158,9 @@ export class SurfaceHud {
     this.reset();
   }
 
+  /** A fact card or the quiz is open (so the game's own keys wait). */
   get isCardOpen(): boolean {
-    return !this.els.overlay.hidden;
+    return !this.els.overlay.hidden || (this.quizPanel?.isOpen ?? false);
   }
 
   get foundCount(): number {
@@ -118,6 +170,7 @@ export class SurfaceHud {
   /** Starts a visit from scratch (nothing found yet). */
   reset(): void {
     this.found.clear();
+    this.missionJustDone = false;
     for (const [id, button] of this.spotButtons) {
       button.classList.remove('is-found');
       const spot = this.surface.hotspots.find((h) => h.id === id)!;
@@ -133,6 +186,7 @@ export class SurfaceHud {
 
   hide(): void {
     this.closeCard(false);
+    this.quizPanel?.close();
     this.root.hidden = true;
     this.root.classList.remove('is-loading'); // leaving mid-load must not leave the next visit's dots and bubble hidden
   }
@@ -140,8 +194,18 @@ export class SurfaceHud {
   /** Removes this view from the page for good (used when another world's view takes over). */
   destroy(): void {
     this.hide();
+    this.quizPanel?.destroy();
     window.removeEventListener('keydown', this.onKeyDown);
     this.root.remove();
+  }
+
+  /** Shows what the kid has earned on this world: the mission, the Quiz time button and the stars. */
+  setProgress({ missionDone, stars }: WorldProgressView): void {
+    if (!this.extras) return;
+    this.missionDone = missionDone;
+    this.els.mission.textContent = missionDone ? `\u2713 ${this.extras.mission.title}` : `Mission: ${this.extras.mission.title}`;
+    this.els.quizButton.hidden = !missionDone;
+    setStars(this.els.stars, stars);
   }
 
   setLoading(loading: boolean): void {
@@ -179,6 +243,10 @@ export class SurfaceHud {
     this.setListenLabel(false);
     this.found.add(spot.id);
     this.setMood('happy'); // a find makes Orbit happy for the rest of the visit
+    if (this.extras && !this.missionDone && this.found.size >= this.extras.mission.findCount) {
+      this.missionJustDone = true;
+      this.callbacks.onMissionComplete();
+    }
     button.classList.add('is-found');
     button.setAttribute('aria-label', `${spot.label}: found. Tap to read again`);
     this.updateProgress();
@@ -191,11 +259,16 @@ export class SurfaceHud {
     this.els.overlay.hidden = true;
     this.current = null;
     const total = this.surface.hotspots.length;
-    this.say(
-      this.found.size >= total
-        ? 'You found everything here! Great exploring, space pal!'
-        : `Nice find! ${total - this.found.size} more to discover.`,
-    );
+    if (this.missionJustDone && this.extras) {
+      this.missionJustDone = false;
+      this.say(this.extras.mission.done);
+    } else {
+      this.say(
+        this.found.size >= total
+          ? 'You found everything here! Great exploring, space pal!'
+          : `Nice find! ${total - this.found.size} more to discover.`,
+      );
+    }
     if (returnFocus && this.focusReturns) this.openedBy?.focus();
     else (document.activeElement as HTMLElement | null)?.blur();
   }

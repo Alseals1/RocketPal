@@ -60,3 +60,11 @@ Rocket Pals/
 ## Skills and tools used across the project
 
 `tdd` (game logic), `frontend-design` (HUD/menus/fact cards), `animation-performance` (smooth on a Chromebook), `grill-me` (plan check; its `grilling` sub-skill is not installed here, so the plan check was done as a direct question round with the user), `pr-reviewer` agent on every PR.
+
+## Follow-ups after missions and quiz (2026-10-23)
+
+* Space Journal and badges (and whether to remember found dots).
+* Missions and quizzes for the other eight worlds as their landing pictures arrive (each needs a mission, three questions tied to dots, and a teaser).
+* Stars shown in the world picker; pilot ranks from total stars.
+* A "start over" button for shared computers (a data-deletion decision: ask the user first).
+* Small-screen follow-up: a 667 x 375 landscape phone with the biggest text is too short for the Earth title card.

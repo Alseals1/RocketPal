@@ -1,3 +1,5 @@
+import { isRealDate, isText } from './text';
+
 export type WorldKind = 'star' | 'planet' | 'moon';
 
 export interface World {
@@ -25,13 +27,6 @@ export const WORLD_IDS = ['sun', 'mercury', 'venus', 'earth', 'moon', 'mars', 'j
 const KINDS = ['star', 'planet', 'moon'];
 
 const isPositive = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0;
-const isText = (s: unknown): s is string => typeof s === 'string' && s.trim().length > 0;
-
-function isRealDate(s: unknown): boolean {
-  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-  const d = new Date(`${s}T00:00:00Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(s);
-}
 
 /** Returns a list of problems in the planets data. An empty list means it is valid. */
 export function validatePlanets(raw: unknown): string[] {

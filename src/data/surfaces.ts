@@ -1,3 +1,5 @@
+import { isRealDate, isText, sentences, words } from './text';
+
 export interface Hotspot {
   id: string;
   /** A few words a screen reader says for the glowing dot. */
@@ -50,16 +52,7 @@ export interface SurfaceData {
 /** Short enough for an 8 to 10 year old to read in one go. */
 export const LIMITS = { titleChars: 40, textWords: 45, textSentences: 3, hintWords: 20, maxHotspots: 8 };
 
-const isText = (s: unknown): s is string => typeof s === 'string' && s.trim().length > 0;
 const isNumberIn = (n: unknown, lo: number, hi: number): n is number => typeof n === 'number' && Number.isFinite(n) && n >= lo && n <= hi;
-const words = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
-const sentences = (text: string) => (text.match(/[.!?]+(\s|$)/g) ?? []).length || (text.trim() ? 1 : 0);
-
-function isRealDate(s: unknown): boolean {
-  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-  const d = new Date(`${s}T00:00:00Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(s);
-}
 
 /** Returns a list of problems in the surface data. An empty list means it is valid. */
 export function validateSurfaces(raw: unknown, worldIds: string[]): string[] {

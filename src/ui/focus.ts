@@ -13,7 +13,8 @@ export function focusGameArea(area: HTMLElement): void {
  * Call this from a keydown handler when the key is Tab.
  */
 export function keepTabInside(container: HTMLElement, e: KeyboardEvent): void {
-  const buttons = [...container.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')].filter((b) => b.tabIndex >= 0);
+  // Only buttons that are really on screen count: a hidden one (such as Next before an answer is picked) would make the ends wrong.
+  const buttons = [...container.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')].filter((b) => b.tabIndex >= 0 && b.getClientRects().length > 0);
   if (buttons.length === 0) return;
   const first = buttons[0];
   const last = buttons[buttons.length - 1];
