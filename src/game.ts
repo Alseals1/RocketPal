@@ -1,5 +1,7 @@
 import { createSpeaker } from './audio/speech';
 import type { PlanetData, World } from './data/planets';
+import type { Mission, MissionData } from './data/missions';
+import type { QuizData, QuizQuestionData } from './data/quizzes';
 import type { Surface, SurfaceData } from './data/surfaces';
 import {
   DEFAULT_FLIGHT,
@@ -11,6 +13,7 @@ import {
   type ShipState,
 } from './flight/flightModel';
 import { InputController } from './flight/input';
+import { emptyProgress, loadProgress, recordMission, recordQuiz, saveProgress, starsFor, type Progress } from './core/progress';
 import { browserStorage, effectiveReducedMotion, saveSettings, type Settings } from './core/settings';
 import { FrameMonitor } from './quality/monitor';
 import { chooseQuality, initialQuality, type Quality } from './quality/quality';
@@ -42,6 +45,8 @@ interface Options {
   forcedQuality?: Quality;
   touchControls: boolean;
   surfaces: SurfaceData;
+  missions: MissionData;
+  quizzes: QuizData;
   settings: Settings;
   debug: boolean;
 }
@@ -64,6 +69,10 @@ export class Game {
   private settingsPanel?: SettingsPanel;
   private readonly stage: HTMLElement;
   private readonly surfaces: Map<string, Surface>;
+  private readonly missions: Map<string, Mission>;
+  private readonly quizzes: Map<string, QuizQuestionData[]>;
+  /** Stars and missions done so far, remembered in this browser only. */
+  private progress: Progress = emptyProgress();
   private readonly speaker = createSpeaker();
   private mode: 'space' | 'surface' = 'space';
   private panorama?: PanoramaScene;
@@ -86,6 +95,9 @@ export class Game {
   constructor(root: HTMLElement, data: PlanetData, private readonly options: Options) {
     this.layouts = layoutWorlds(data.worlds);
     this.surfaces = new Map(options.surfaces.surfaces.map((s) => [s.worldId, s]));
+    this.missions = new Map(options.missions.missions.map((m) => [m.worldId, m]));
+    this.quizzes = new Map(options.quizzes.quizzes.map((q) => [q.worldId, q.questions]));
+    this.progress = loadProgress(browserStorage());
     this.ship = this.startFacing('earth');
     this.quality = options.forcedQuality ?? initialQuality(readHardwareHints());
     this.settings = options.settings;
@@ -300,13 +312,17 @@ export class Game {
             const view = this.panorama?.viewFov();
             if (view) this.look?.turnToShow(az, el, view, this.reducedMotion);
           },
+          onMissionComplete: () => this.earn(surface.worldId, (p) => recordMission(p, surface.worldId)),
+          onQuizFinished: (perfect) => this.earn(surface.worldId, (p) => recordQuiz(p, surface.worldId, perfect)),
         },
         this.speaker,
+        this.missionExtras(surface.worldId),
       );
       this.surfaceHudFor = surface.worldId;
     }
     const hud = this.surfaceHud;
     hud.reset();
+    hud.setProgress(this.progressView(surface.worldId));
     hud.show();
     hud.setLoading(true);
 
@@ -336,6 +352,26 @@ export class Game {
     this.updateLookLimits();
     this.look.attach(this.scene.canvas, () => this.stage.clientHeight, () => panorama.verticalFov);
     hud.setLoading(false);
+  }
+
+  /** The mission and quiz for a world, if both exist. A world without them just has no mission. */
+  private missionExtras(worldId: string): { mission: Mission; questions: QuizQuestionData[] } | undefined {
+    const mission = this.missions.get(worldId);
+    const questions = this.quizzes.get(worldId);
+    return mission && questions ? { mission, questions } : undefined;
+  }
+
+  private progressView(worldId: string) {
+    const world = this.progress.worlds[worldId];
+    return { missionDone: world?.missionDone ?? false, stars: starsFor(this.progress, worldId) };
+  }
+
+  /** Records something the kid earned, remembers it (if the browser allows) and shows the new stars. Returns the stars on this world. */
+  private earn(worldId: string, change: (progress: Progress) => Progress): number {
+    this.progress = change(this.progress);
+    saveProgress(this.progress, browserStorage());
+    this.surfaceHud?.setProgress(this.progressView(worldId));
+    return starsFor(this.progress, worldId);
   }
 
   /** In a window view you can only look as far as the photo reaches past the screen; a 360 degree picture has no limit. */
@@ -448,6 +484,7 @@ export class Game {
       getViewFov: () => this.panorama?.viewFov(),
       setBackdrop: (color: number) => this.panorama?.setBackdrop(color),
       getFound: () => this.surfaceHud?.foundCount ?? 0,
+      getStars: (worldId: string) => starsFor(this.progress, worldId),
       hasPanorama: () => this.panorama?.isLoaded ?? false,
       dockAt: (id: string) => this.debugDockAt(id),
       pickTarget: (id: string) => this.pickTarget(id),

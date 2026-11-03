@@ -576,7 +576,8 @@ button:focus-visible {
 
 /* While the picture loads, only Orbit's face shows on top of the loading screen. The dots (which can be reached by keyboard) and the speech bubble (which would cover the loading words on a narrow screen) wait. */
 .surface-hud.is-loading .spots,
-.surface-hud.is-loading .orbit-bubble {
+.surface-hud.is-loading .orbit-bubble,
+.surface-hud.is-loading .quiz-button {
   visibility: hidden;
 }
 
@@ -590,6 +591,45 @@ button:focus-visible {
 
 .surface-title p {
   margin: 0;
+}
+
+/* The mission line is a little smaller than the rest so it stays on one line. */
+.mission-line {
+  font-size: 0.92em;
+}
+
+/* "Found 1 of 5" and the stars share a row so the card stays short. */
+.stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 18px;
+}
+
+/* On a short screen (a phone held sideways) the credit is a little smaller so the card stays clear of Orbit. */
+@media (max-height: 520px) {
+  .photo-credit {
+    font-size: 0.78em;
+    margin-top: 3px !important;
+  }
+}
+
+/* A wide but short screen (a phone held sideways): the card may reach nearly to the Back button, and Orbit and the gaps are a little tighter. */
+@media (max-height: 520px) and (min-width: 701px) {
+  .stage.is-surface {
+    --gap: 8px;
+  }
+  .surface-title {
+    max-width: calc(100% - 8.6em - 36px);
+  }
+  .orbit-bubble {
+    font-size: 0.9em;
+  }
+  /* The Quiz time button sits beside Orbit's words, not under them, so Orbit stays short. */
+  .orbit .orbit-talk {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 8px;
+  }
 }
 
 .photo-credit {
@@ -635,6 +675,19 @@ button:focus-visible {
 .orbit-face[data-mood='happy'] .mood-happy,
 .orbit-face[data-mood='thinking'] .mood-thinking {
   display: block;
+}
+
+.orbit-talk {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+/* Orbit ignores the mouse so dots under it still work; the Quiz time button does not. */
+.quiz-button {
+  margin: 0 0 8px;
+  pointer-events: auto;
 }
 
 .orbit-bubble {
@@ -785,8 +838,8 @@ button:focus-visible {
   .surface-title {
     max-width: calc(100% - 9em - 12px);
   }
-  /* A long credit makes a tall narrow card, so on a window view it spans the full width under the buttons instead. */
-  .surface-hud.is-window .surface-title {
+  /* A long credit makes a tall narrow card (and the mission and stars make it taller), so it spans the full width under the buttons instead. */
+  .surface-title {
     top: calc(var(--gap) * 2 + 4.2em + 56px);
     max-width: calc(100% - 2 * var(--gap));
   }
@@ -812,4 +865,88 @@ button:focus-visible {
     0 0 0 100vmax #080a16,
     inset 0 0 0 5px #4b5170,
     inset 0 0 40px 12px rgba(0, 0, 0, 0.75);
+}
+
+/* ---- Stars, missions and the quiz ---- */
+
+.stars {
+  color: var(--sun);
+  letter-spacing: 0.15em;
+  white-space: nowrap;
+}
+
+.quiz-step {
+  margin: 0 0 6px;
+  font-size: 0.9em;
+  color: var(--sky);
+}
+
+.quiz-card h2 {
+  font-size: 1.3em;
+  line-height: 1.25;
+}
+
+.quiz-options {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.quiz-options[hidden] {
+  display: none;
+}
+
+.quiz-option {
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 18px;
+  border: 3px solid var(--sky);
+  border-radius: 18px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 700;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.quiz-option.is-wrong {
+  border-style: dashed;
+  border-color: #8a90b8;
+  color: #c9cdea;
+  opacity: 0.75;
+  cursor: default;
+}
+
+.quiz-option.is-right {
+  border-color: var(--sun);
+  background: var(--sun);
+  color: var(--navy);
+  cursor: default;
+}
+
+.quiz-option[aria-disabled='true'] {
+  cursor: default;
+}
+
+.quiz-feedback {
+  margin: 0 0 8px;
+  min-height: 1.3em;
+  font-weight: 800;
+  color: var(--sun);
+}
+
+.quiz-because:not([hidden]) {
+  margin: 0 0 12px;
+}
+
+.quiz-stars {
+  margin: 0 0 6px;
+  font-size: 3em;
+  line-height: 1.1;
+  letter-spacing: 0.12em;
+  color: var(--sun);
+}
+
+.quiz-teaser {
+  color: var(--sky);
 }
