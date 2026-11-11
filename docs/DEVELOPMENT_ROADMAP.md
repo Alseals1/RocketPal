@@ -8,6 +8,8 @@ Related: [GAME_DESIGN.md](GAME_DESIGN.md) (what the game is), [TECHNICAL_ARCHITE
 
 Started 2026-11-11. The goal is a polished game on four pillars: fun, education, action and customization (see `GAME_DESIGN.md`). This order comes from [PROJECT_AUDIT.md](PROJECT_AUDIT.md) and was **approved by the product owner on 2026-11-11**. It makes the game safe to grow, then makes the loop worth playing, then gives kids reasons to come back, and polishes the look and sound around that.
 
+The full game design is in [GAME_DESIGN.md](GAME_DESIGN.md) (draft for approval). It proposes moving the Journal and patches (step 19) and sound effects (step 15) into the MVP; this table changes if that is approved.
+
 The work is tracked as GitHub issues under epic #16. The P0 and P1 issues (`prio:first`, `prio:next`) come before the original epic issues #18-#25 (`prio:later`). Each step gets its own plan, branch and PR.
 
 | Priority | Step | Issue | Status |
