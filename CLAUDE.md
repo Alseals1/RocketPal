@@ -2,6 +2,22 @@
 
 A 3D browser game that teaches kids aged 8-10 about the solar system. The player flies a small rocket between the Sun, eight planets, and the Moon, lands, learns facts, completes short missions, and answers quizzes. See `plans/` for per-feature plans.
 
+## G.O.A.T. AI issues
+
+Some work comes through G.O.A.T. AI, which runs agents on this repo's GitHub issues (issues with a `goat:` label; the agent is started by `/goat-intake`, `/goat-plan`, `/goat-implement`, `/goat-review` or the coordinator). When you are working a G.O.A.T. issue, the G.O.A.T. protocol (`goat-board/protocol.md`, and `python3 ~/.goat-ai/goat.py guide`) wins over the git, workflow and decision rules below wherever they differ:
+
+- **Branches:** use G.O.A.T.'s branch names (`goat/<issue number>-<slug>`) in the issue's own worktree, not `feature/<name>`. They are cut from `dev`, the default branch, and PRs target `dev`.
+- **Plan:** the spec and plan go on the issue through `goat.py doc`, not in `plans/`.
+- **Review:** the G.O.A.T. Review agent reviews the PR. Do not run the `pr-reviewer` loop.
+- **Merge:** never merge, and never delete branches. A person merges, and `goat.py cleanup` removes branches and worktrees afterwards.
+- **Questions:** ask through the issue (`goat:answer-question`), not in the chat.
+
+Everything else in this file still applies: the testing rules, the skills, the tech stack, the product rules (kids' safety, no data collection), the assets rules, and logging non-trivial decisions in `decisions/`. Test commands:
+
+- Unit tests: `npm test` (Vitest)
+- Type check and build: `npm run build`
+- Browser smoke tests: `npm run test:e2e` (Playwright)
+
 ## Git and branch rules (non-negotiable)
 
 - **Never push to `main`.** Never commit to `main`. Never force-push. Only a human promotes `dev` to `main`.
