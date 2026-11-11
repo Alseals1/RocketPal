@@ -43,6 +43,24 @@ export function recordQuiz(progress: Progress, worldId: string, perfect: boolean
   return update(progress, worldId, (w) => ({ ...w, quizDone: true, perfectQuiz: w.perfectQuiz || perfect }));
 }
 
+/**
+ * Two copies of the progress (for example from two windows of the game open at once) become one that keeps every flag
+ * either copy has turned on. Stars can only go up, so saving an older copy must never undo a newer one.
+ */
+export function mergeProgress(a: Progress, b: Progress): Progress {
+  const worlds: Record<string, WorldProgress> = {};
+  for (const id of new Set([...Object.keys(a.worlds), ...Object.keys(b.worlds)])) {
+    const x = Object.hasOwn(a.worlds, id) ? a.worlds[id] : NOTHING_DONE;
+    const y = Object.hasOwn(b.worlds, id) ? b.worlds[id] : NOTHING_DONE;
+    worlds[id] = {
+      missionDone: x.missionDone || y.missionDone,
+      quizDone: x.quizDone || y.quizDone,
+      perfectQuiz: x.perfectQuiz || y.perfectQuiz,
+    };
+  }
+  return { worlds };
+}
+
 /** Reads the saved progress. Anything missing or wrong counts as "not done", one flag at a time. */
 export function loadProgress(storage: SettingsStorage | null): Progress {
   let raw: unknown;

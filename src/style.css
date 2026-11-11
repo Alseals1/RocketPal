@@ -605,14 +605,6 @@ button:focus-visible {
   column-gap: 18px;
 }
 
-/* On a short screen (a phone held sideways) the credit is a little smaller so the card stays clear of Orbit. */
-@media (max-height: 520px) {
-  .photo-credit {
-    font-size: 0.78em;
-    margin-top: 3px !important;
-  }
-}
-
 /* A wide but short screen (a phone held sideways): the card may reach nearly to the Back button, and Orbit and the gaps are a little tighter. */
 @media (max-height: 520px) and (min-width: 701px) {
   .stage.is-surface {
@@ -637,6 +629,14 @@ button:focus-visible {
   margin-top: 6px !important;
   font-size: 0.9em;
   color: var(--sky);
+}
+
+/* On a short screen (a phone held sideways) the credit is a little smaller so the card stays clear of Orbit. */
+@media (max-height: 520px) {
+  .photo-credit {
+    font-size: 0.78em;
+    margin-top: 3px !important;
+  }
 }
 
 .back-button {
@@ -884,6 +884,11 @@ button:focus-visible {
 .quiz-card h2 {
   font-size: 1.3em;
   line-height: 1.25;
+}
+
+/* The question takes focus so it is read out; it is not a control, so it needs no ring. */
+.quiz-card h2:focus {
+  outline: none;
 }
 
 .quiz-options {

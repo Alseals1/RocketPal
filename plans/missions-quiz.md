@@ -13,7 +13,7 @@ A kid lands on Earth or Mars, finds three glowing dots (the mission), hears Orbi
 ## Design (decided by the main agent; logged in `decisions/`)
 **Mission** (one per world, in `public/data/missions.json`): "Find 3 things on Mars" / "Find 3 things at the space station". It counts the dots the kid finds on this visit (the existing "Found x of y"). When the third is found Orbit says the mission is done, a big **Quiz time** button appears, and the kid can keep exploring first. The quiz can be taken any time after the mission.
 
-**Quiz** (one per world, in `public/data/quizzes.json`): 3 questions, 3 answers each, shown as a card like the fact card (same look, same Listen button, same focus rules). Every question is built only from facts already on that world's dots (read from NASA and dated), and says which dot it came from.
+**Quiz** (one per world, in `public/data/quizzes.json`): 3 questions, 3 answers each, shown as a card like the fact card (same look, same Listen button, same focus rules). Every question is built only from facts already on that world's dots (read from NASA and dated), and says which dot it came from. The quiz is about the dots of the world, not only the ones the kid happened to open: a wrong answer points to the dot that has the answer ("Hint: the “Why is Mars red?” dot has the answer.").
 * Pick a wrong answer: it softly greys out with "Not quite, try another!" (a word and a mark, not only a colour), Orbit encourages, nothing is lost, and the other answers stay open. There is no limit on tries.
 * Pick the right answer: a tick, a one-sentence "because" taken from the fact card, then Next.
 * After the last question: a result card with the stars, Orbit's teaser for the next world (a friendly cliffhanger), **Play again** and **Back to space**.
@@ -31,7 +31,7 @@ A kid lands on Earth or Mars, finds three glowing dots (the mission), hears Orbi
 ## Approach / files
 * `src/quiz/quiz.ts` (pure): a quiz run (current question, check an answer, wrong answers recorded, finished, first-try count) and `starsFor(...)`.
 * `src/core/progress.ts` (pure): defaults, load with per-field fallback, save that never throws, `recordMission`, `recordQuiz` (flags only turn on), `starsFor(world)`.
-* `src/data/missions.ts`, `src/data/quizzes.ts` (+ JSON files): loaders and validators (exactly 3 questions, 3 options, exactly one correct, short reading-level limits, each question points at a real dot of that world, https sources, real dates, teaser and mission text limits).
+* `src/data/missions.ts`, `src/data/quizzes.ts` (+ JSON files): loaders and validators (exactly 3 questions, 3 options, exactly one correct, short reading-level limits, each question points at a real dot of that world, real dates, teaser and mission text limits, and the content checks listed under Testing).
 * `src/ui/quizPanel.ts`: the quiz and result card (focus trap, Listen, Escape closes back to the landing screen, big targets, `aria-live` feedback). `src/ui/surfaceHud.ts`: mission line, Quiz-time button, stars on the title card. `src/game.ts`: loads the data, owns progress, wires callbacks. `src/style.css`: styles.
 * Read-aloud works on the question and on the "because" line.
 
@@ -56,7 +56,7 @@ A kid lands on Earth or Mars, finds three glowing dots (the mission), hears Orbi
 * Unmeasured on a Chromebook, as always.
 
 ## Testing
-* **Vitest (the three agreed seams):** (1) quiz logic and star rules: a wrong answer never ends the run, the run finishes only when every question is right, the first-try bonus is awarded only for three first-try answers, stars never go down when replaying badly; (2) saving and loading progress: defaults, per-field fallback for garbage, flags only turn on, a storage that throws, version field; (3) `quizzes.json` and `missions.json` validation: counts, one correct answer, limits, every question points at a real dot, sources and dates, and a check that every question's right answer actually appears in (or follows from) the text of the dot it names.
+* **Vitest (the three agreed seams):** (1) quiz logic and star rules: a wrong answer never ends the run, the run finishes only when every question is right, the first-try bonus is awarded only for three first-try answers, stars never go down when replaying badly; (2) saving and loading progress: defaults, per-field fallback for garbage, flags only turn on, a storage that throws, version field; (3) `quizzes.json` and `missions.json` validation: counts, one correct answer, limits, every question points at a real dot, sources and dates, and content checks against the dot a question names: the evidence phrase is word for word in the dot, the right answer uses only words from the dot, each wrong answer brings in something the dot does not say, the "because" line is mostly the dot's own words, and the right answer is not the longest option in every question. **What this cannot catch:** a wrong answer that is a reworded version of the right one. A person still reads every question against NASA's pages before it ships.
 * **Playwright:** full flow on Mars and on Earth (find 3, mission done, quiz, a wrong answer then the right one, result card, stars saved, reload keeps them, replay keeps them), by keyboard and by touch layout, Listen on the quiz card, nothing leaves the page (no network requests beyond the game's own files), storage blocked still plays, leaving mid-quiz, huge text on small phones, no console errors, repeat runs under load.
 * A real play-through in Chrome, with notes in the PR.
 
@@ -68,3 +68,17 @@ A kid lands on Earth or Mars, finds three glowing dots (the mission), hears Orbi
 * **Reading the quiz with the right words**: question and answers are read together; after a right answer Listen reads the reason.
 * **Layout limits that stay**: on a 667 x 375 landscape phone with the biggest text, the Earth card was already too tall for the screen (not part of this feature); 844 x 390 and 420 x 900 are tested.
 * Test strength: 7 deliberate breakages of the screens are each caught (mission at two finds, bonus never recorded, progress never saved, Tab trap with hidden buttons, Quiz button over loading, no stars shown, Escape not closing); 8 for the data checks; 5 for saving; 3 for the quiz logic. A first attempt at two of them did not compile and proved nothing; they were redone.
+
+## What the PR review changed (added after review)
+Round 1 (REQUEST CHANGES, three must-fix):
+* **Stars could go down with two windows open.** Each window kept its own copy of the progress and saved it over whatever was stored, so an older window could undo a newer window's stars. Now every save first reads what is stored and merges it (`mergeProgress`: a flag stays on if either copy has it on). Unit tests for the merge and the two-window case through storage; a browser test with two real windows.
+* **The data check claimed more than it did.** It only proved the evidence phrase was in the dot; it did not tie the *marked right answer* to the dot, and the "because" line could say anything. Now the right answer's words must all be in the dot, every wrong answer must bring in a word the dot does not have, the "because" line must be mostly the dot's own words, and the right answer may not be the longest option in every question. The wording in this plan, the decision note and the PR now says exactly what is checked and what only a person can check.
+* **Screen readers were not told the new question** on questions 2 and 3 (focus stayed on the first answer). Focus now lands on the question (it reads out), then Tab goes to the first answer. The tick and cross are hidden from screen readers (the words say the same), and the live message is emptied first so "not quite" twice in a row is announced twice.
+Also done from the suggestions:
+* A wrong answer now shows a hint naming the dot that has the answer (the quiz covers the whole world, not only the dots the kid opened).
+* Tapping outside the card no longer closes the quiz (it restarted at question 1); Not now and Escape still do.
+* The dead short-screen credit rule (it came before the base rule, so it never applied) now comes after it, and 844 x 390 still clears.
+* A mission-complete screen at normal text size on small phones (320 x 568, 360 x 640, 390 x 844) is now tested; Earth at 320 x 568 overlapped by 13 px, so the greeting and the mission-complete line were shortened ("Mission complete! Ready for the quiz?").
+* Content: two "because" lines now say why; wrong answers are longer so the right one is not always the longest; Earth's mission is "Find 3 things out the window" (the aurora and clouds are not on the station).
+* Two-star result: "You earned 2 stars! Play again to try for the bonus star."
+Left as known: a dot drawn over the Quiz time button can take the tap (dots are above Orbit on purpose; keyboard and the unobscured part of the button still work); the Jupiter teaser leads to a world with no landing yet.

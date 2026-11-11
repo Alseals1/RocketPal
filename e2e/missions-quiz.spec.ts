@@ -2,11 +2,16 @@ import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
 
 interface QuizFile {
-  quizzes: { worldId: string; questions: { question: string; because: string; options: { text: string; correct: boolean }[] }[] }[];
+  quizzes: { worldId: string; questions: { question: string; because: string; hotspot: string; options: { text: string; correct: boolean }[] }[] }[];
 }
 interface MissionFile {
   missions: { worldId: string; title: string; done: string; teaser: string }[];
 }
+interface SurfaceFile {
+  surfaces: { worldId: string; hotspots: { id: string; title: string }[] }[];
+}
+const surfaceFile = JSON.parse(readFileSync('public/data/surfaces.json', 'utf8')) as SurfaceFile;
+const dotTitle = (world: string, id: string) => surfaceFile.surfaces.find((x) => x.worldId === world)!.hotspots.find((h) => h.id === id)!.title;
 const quizzes = JSON.parse(readFileSync('public/data/quizzes.json', 'utf8')) as QuizFile;
 const missions = JSON.parse(readFileSync('public/data/missions.json', 'utf8')) as MissionFile;
 const quizOf = (world: string) => quizzes.quizzes.find((q) => q.worldId === world)!.questions;
@@ -156,7 +161,8 @@ test.describe('the quiz', () => {
           await expect(option).toContainText('not quite');
           await expect(option).toContainText('✗');
           await expect(option).toHaveAttribute('aria-disabled', 'true');
-          await expect(page.getByTestId('quiz-feedback')).toHaveText('Not quite. Try another one!');
+          await expect(page.getByTestId('quiz-feedback')).toContainText('Not quite. Try another one!');
+          await expect(page.getByTestId('quiz-feedback')).toContainText(`Hint: the \u201c${dotTitle('mars', quizOf('mars')[0].hotspot)}\u201d dot has the answer.`);
           await expect(page.getByTestId('quiz-card')).toBeVisible();
           await expect(page.getByTestId('quiz-step')).toHaveText('Question 1 of 3');
         }
@@ -174,7 +180,7 @@ test.describe('the quiz', () => {
     await expect(page.getByTestId('quiz-question')).toHaveText('Quiz done!');
     await expect(page.getByTestId('quiz-stars')).toHaveAttribute('aria-label', '2 of 3 stars');
     await expect(page.getByTestId('quiz-teaser')).toHaveText(missionOf('mars').teaser);
-    await expect(page.getByTestId('quiz-feedback')).toContainText('bonus star');
+    await expect(page.getByTestId('quiz-feedback')).toHaveText('You earned 2 stars! Play again to try for the bonus star.');
     expect(await starsText(page)).toBe('2 of 3 stars');
     expect(await stars(page, 'mars')).toBe(2);
     expect(errors).toEqual([]);
@@ -220,7 +226,9 @@ test.describe('the quiz', () => {
     await page.getByTestId('quiz-time').focus();
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('quiz-card')).toBeVisible();
-    await expect(page.getByTestId('quiz-option-0')).toBeFocused(); // focus starts on the first answer
+    await expect(page.getByTestId('quiz-question')).toBeFocused(); // focus lands on the question so a screen reader reads it
+    await page.keyboard.press('Tab');
+    await expect(page.getByTestId('quiz-option-0')).toBeFocused(); // and Tab goes to the first answer
 
     for (let q = 0; q < 3; q++) {
       await page.getByTestId(`quiz-option-${rightIndex('earth', q)}`).focus();
@@ -300,6 +308,61 @@ test.describe('the quiz', () => {
   });
 });
 
+test.describe('for screen readers and small hands', () => {
+  test('on every question the question takes focus, so it is read out, and the tick and cross are decoration', async ({ page }) => {
+    await startAndLand(page, 'mars');
+    await finishMission(page, 'mars');
+    await page.getByTestId('quiz-time').click();
+    for (let q = 0; q < 3; q++) {
+      await expect(page.getByTestId('quiz-question')).toBeFocused();
+      await expect(page.getByTestId('quiz-question')).toHaveText(quizOf('mars')[q].question);
+      if (q === 0) {
+        const wrong = page.getByTestId(`quiz-option-${wrongIndexes('mars', 0)[0]}`);
+        await wrong.click();
+        await expect(wrong.locator('.quiz-mark')).toHaveAttribute('aria-hidden', 'true');
+        // A screen reader hears the words, not the cross: "<answer> - not quite".
+        await expect(wrong).toHaveAccessibleName(`${quizOf('mars')[0].options[wrongIndexes('mars', 0)[0]].text} \u2013 not quite`);
+      }
+      await answerRight(page, 'mars', q);
+    }
+  });
+
+  test('saying "not quite" twice in a row is announced twice: the live message is emptied in between', async ({ page }) => {
+    await startAndLand(page, 'mars');
+    await finishMission(page, 'mars');
+    await page.getByTestId('quiz-time').click();
+    // Record every value the live message takes, including empty.
+    await page.evaluate(() => {
+      const w = window as unknown as { __seen: string[] };
+      w.__seen = [];
+      const el = document.querySelector('[data-testid=quiz-feedback]')!;
+      new MutationObserver(() => w.__seen.push(el.textContent ?? '')).observe(el, { childList: true, characterData: true, subtree: true });
+    });
+    const [first, second] = wrongIndexes('mars', 0);
+    await page.getByTestId(`quiz-option-${first}`).click();
+    await expect(page.getByTestId('quiz-feedback')).toContainText('Not quite');
+    await page.getByTestId(`quiz-option-${second}`).click();
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __seen: string[] }).__seen.filter((t) => t.startsWith('Not quite')).length))
+      .toBe(2);
+    const seen = await page.evaluate(() => (window as unknown as { __seen: string[] }).__seen);
+    const firstAt = seen.findIndex((t) => t.startsWith('Not quite'));
+    const secondAt = seen.findIndex((t, i) => i > firstAt && t.startsWith('Not quite'));
+    expect(seen.slice(firstAt + 1, secondAt), 'emptied between the two announcements').toContain('');
+  });
+
+  test('a stray tap outside the card does not close the quiz or lose your place', async ({ page }) => {
+    await startAndLand(page, 'mars');
+    await finishMission(page, 'mars');
+    await page.getByTestId('quiz-time').click();
+    await answerRight(page, 'mars', 0);
+    await expect(page.getByTestId('quiz-step')).toHaveText('Question 2 of 3');
+    await page.mouse.click(5, 300); // outside the card, on the dim backdrop
+    await expect(page.getByTestId('quiz-card')).toBeVisible();
+    await expect(page.getByTestId('quiz-step')).toHaveText('Question 2 of 3');
+  });
+});
+
 test.describe('remembering', () => {
   test('stars, the finished mission and the Quiz time button are still there after reloading the page', async ({ page }) => {
     await startAndLand(page, 'mars');
@@ -326,6 +389,27 @@ test.describe('remembering', () => {
     expect(saved).toEqual({ version: 1, worlds: { earth: { missionDone: true, quizDone: false, perfectQuiz: false } } });
     const keys = await page.evaluate(() => Object.keys(localStorage));
     expect(keys.filter((k) => k.startsWith('rocketpals.'))).toEqual(['rocketpals.progress']);
+  });
+
+  test('two windows of the game open at once: the second one saving never undoes the first one\'s stars', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1000, height: 700 } });
+    await context.addInitScript(WORKING_VOICE);
+    const a = await context.newPage();
+    const b = await context.newPage();
+    await start(a); // window A starts out knowing nothing
+    await startAndLand(b, 'mars'); // window B earns three stars on Mars and saves them
+    await finishMission(b, 'mars');
+    await b.getByTestId('quiz-time').click();
+    await takeQuizPerfectly(b, 'mars');
+    expect(await stars(b, 'mars')).toBe(3);
+
+    await land(a, 'earth'); // window A, with its old picture of the world, earns the Earth mission
+    await finishMission(a, 'earth');
+    const saved = await a.evaluate(() => JSON.parse(localStorage.getItem('rocketpals.progress')!));
+    expect(saved.worlds.mars).toEqual({ missionDone: true, quizDone: true, perfectQuiz: true });
+    expect(saved.worlds.earth.missionDone).toBe(true);
+    expect(await stars(a, 'mars')).toBe(3); // and A itself now knows about them too
+    await context.close();
   });
 
   test('the Quiz time button is not drawn over the loading screen', async ({ page }) => {
@@ -500,6 +584,34 @@ test.describe('on small screens with the biggest text', () => {
         expect(quiz.x + quiz.width).toBeLessThanOrEqual(size.width);
         expect(quiz.y + quiz.height).toBeLessThanOrEqual(size.height);
         expect(quiz.height).toBeGreaterThanOrEqual(55);
+        await page.evaluate(() => localStorage.clear());
+      }
+    });
+  }
+
+  for (const size of [
+    { width: 320, height: 568 },
+    { width: 360, height: 640 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`at normal text size the mission-complete screen is clear of overlaps at ${size.width}x${size.height}`, async ({ page }) => {
+      await page.setViewportSize(size);
+      for (const world of ['mars', 'earth']) {
+        await startAndLand(page, world);
+        await finishMission(page, world);
+        const box = async (selector: string) => (await page.locator(selector).boundingBox())!;
+        const title = await box('.surface-title');
+        const quiz = await box('[data-testid="quiz-time"]');
+        const orbit = await box('.orbit');
+        const back = await box('[data-testid="back-to-space"]');
+        const gear = await box('[data-testid="settings-button"]');
+        expect(overlaps(title, orbit), `${world}: title over Orbit (title ${JSON.stringify(title)}, orbit ${JSON.stringify(orbit)})`).toBe(false);
+        expect(overlaps(title, quiz), `${world}: title over Quiz time`).toBe(false);
+        expect(overlaps(title, back), `${world}: title over Back`).toBe(false);
+        expect(overlaps(title, gear), `${world}: title over settings`).toBe(false);
+        expect(overlaps(quiz, back), `${world}: Quiz time over Back`).toBe(false);
+        expect(quiz.y + quiz.height).toBeLessThanOrEqual(size.height);
+        expect(quiz.x + quiz.width).toBeLessThanOrEqual(size.width);
         await page.evaluate(() => localStorage.clear());
       }
     });

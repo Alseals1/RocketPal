@@ -5,15 +5,15 @@
       "worldId": "mars",
       "title": "Find 3 things on Mars",
       "findCount": 3,
-      "done": "Mission complete! You found 3 things on Mars. Ready for 3 quick questions?",
+      "done": "Mission complete! Ready for the quiz?",
       "teaser": "Next stop: Jupiter, the biggest planet. It has a storm bigger than Earth!",
       "teaserWorld": "jupiter"
     },
     {
       "worldId": "earth",
-      "title": "Find 3 things on the station",
+      "title": "Find 3 things out the window",
       "findCount": 3,
-      "done": "Mission complete! You found 3 things on the space station. Ready for 3 quick questions?",
+      "done": "Mission complete! Ready for the quiz?",
       "teaser": "Next stop: Mars! A robot explorer is waiting for you there.",
       "teaserWorld": "mars"
     }

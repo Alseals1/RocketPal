@@ -13,7 +13,9 @@
 * 2 of 3 stars come from finishing, so a kid who needs retries is never short-changed; the third is a bonus, not a penalty. This follows the rule "wrong answers never end a mission; healthy engagement only (collection, rewards)". No timers, streaks, leaderboards or counts of mistakes.
 * Flags instead of a star count means stars cannot decrease by construction, which is easier to test and to trust than "max(old, new)" arithmetic.
 * A word and a mark on wrong answers keeps feedback readable for colour-blind kids.
-* Facts for the questions come from the dots (already read from NASA and dated); the data check proves each right answer is backed by a phrase that is word for word in its dot, and that no wrong option repeats it.
+* Facts for the questions come from the dots (already read from NASA and dated). The data check enforces: the evidence phrase is word for word in the dot, the right answer uses only the dot's words, each wrong answer brings in something the dot does not say, the "because" line is mostly the dot's words. It cannot catch a reworded wrong answer that is really right, so a person reads every question against NASA's pages before shipping.
+* Saving reads and merges what is stored before every write, because two windows of the game can be open at once and an older window must never undo a newer one's stars.
+* A wrong answer shows a hint naming the dot that has the answer, so the quiz is about the whole world and elimination is not the only way through.
 
 ## Alternatives
 * Stars per correct answer (0 to 3): rejected, it makes mistakes feel like losses.

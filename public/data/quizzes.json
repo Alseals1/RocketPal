@@ -8,9 +8,18 @@
           "id": "mars-red",
           "question": "Why does the ground on Mars look red?",
           "options": [
-            { "text": "Red paint", "correct": false },
-            { "text": "Iron in the dirt that rusts", "correct": true },
-            { "text": "Red grass", "correct": false }
+            {
+              "text": "Red paint on the rocks",
+              "correct": false
+            },
+            {
+              "text": "Iron in the dirt that rusts",
+              "correct": true
+            },
+            {
+              "text": "Red grass that grows there",
+              "correct": false
+            }
           ],
           "because": "The iron rusts, a bit like an old bike left in the rain.",
           "hotspot": "ground",
@@ -20,9 +29,18 @@
           "id": "mars-rover",
           "question": "What is Perseverance?",
           "options": [
-            { "text": "A robot explorer", "correct": true },
-            { "text": "A Martian animal", "correct": false },
-            { "text": "A giant rock", "correct": false }
+            {
+              "text": "A robot explorer",
+              "correct": true
+            },
+            {
+              "text": "A Martian animal",
+              "correct": false
+            },
+            {
+              "text": "A giant rock",
+              "correct": false
+            }
           ],
           "because": "It looks for signs of ancient life and collects rocks to study.",
           "hotspot": "rover",
@@ -32,11 +50,20 @@
           "id": "mars-lake",
           "question": "Long ago, rivers poured into Jezero Crater. What did they make?",
           "options": [
-            { "text": "A volcano", "correct": false },
-            { "text": "A forest", "correct": false },
-            { "text": "A lake", "correct": true }
+            {
+              "text": "A volcano",
+              "correct": false
+            },
+            {
+              "text": "A forest",
+              "correct": false
+            },
+            {
+              "text": "A lake",
+              "correct": true
+            }
           ],
-          "because": "That was more than 3.5 billion years ago!",
+          "because": "Rivers made a lake there more than 3.5 billion years ago!",
           "hotspot": "rim",
           "evidence": "made a lake"
         }
@@ -49,9 +76,18 @@
           "id": "earth-aurora",
           "question": "What makes Earth's air glow in an aurora?",
           "options": [
-            { "text": "Lights from big cities", "correct": false },
-            { "text": "Fireflies in space", "correct": false },
-            { "text": "Tiny charged bits from the Sun", "correct": true }
+            {
+              "text": "Bright lights from big cities",
+              "correct": false
+            },
+            {
+              "text": "Fireflies flying in space",
+              "correct": false
+            },
+            {
+              "text": "Tiny charged bits from the Sun",
+              "correct": true
+            }
           ],
           "because": "They are called the solar wind. The green comes from oxygen.",
           "hotspot": "aurora",
@@ -61,9 +97,18 @@
           "id": "earth-orbit",
           "question": "How often does the space station go all the way around Earth?",
           "options": [
-            { "text": "Once a week", "correct": false },
-            { "text": "About every 90 minutes", "correct": true },
-            { "text": "Once a year", "correct": false }
+            {
+              "text": "Once a week",
+              "correct": false
+            },
+            {
+              "text": "About every 90 minutes",
+              "correct": true
+            },
+            {
+              "text": "Once a year",
+              "correct": false
+            }
           ],
           "because": "The crew sees 16 sunrises and 16 sunsets each day!",
           "hotspot": "speed",
@@ -73,11 +118,20 @@
           "id": "earth-air",
           "question": "What is Earth's air mostly made of?",
           "options": [
-            { "text": "Nitrogen and oxygen", "correct": true },
-            { "text": "Dust and smoke", "correct": false },
-            { "text": "Steam and sand", "correct": false }
+            {
+              "text": "Nitrogen and oxygen",
+              "correct": true
+            },
+            {
+              "text": "Dust and smoke",
+              "correct": false
+            },
+            {
+              "text": "Steam and sand",
+              "correct": false
+            }
           ],
-          "because": "It also shields us from much of the harmful radiation from the Sun.",
+          "because": "It is mostly nitrogen and oxygen, so we can breathe.",
           "hotspot": "air",
           "evidence": "mostly nitrogen and oxygen"
         }
