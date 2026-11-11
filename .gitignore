@@ -151,3 +151,6 @@ vite.config.ts.timestamp-*
 # Playwright
 test-results/
 playwright-report/
+
+# First-play and bundle size report (written by the e2e run)
+size-report/

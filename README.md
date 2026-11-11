@@ -11,8 +11,35 @@ npm install
 npm run dev          # play at http://localhost:5173
 npm test             # unit tests (Vitest)
 npm run build        # type-check + production build into dist/
-npm run test:e2e     # browser smoke test (Playwright; first run: npx playwright install chromium)
+npm run test:e2e     # browser tests (Playwright; first run: npx playwright install chromium)
+npm run size-report  # after test:e2e: bundle size and first-play download size
 ```
+
+Use Node 24 (`.nvmrc`).
+
+**Browser-test port.** `npm run test:e2e` builds the game and serves it on a port picked from the checkout's folder (somewhere from 4200 to 4999), so two checkouts or worktrees can run the browser tests at the same time without testing each other's build. It never reuses a server that is already running: if the port is taken, the run stops with an "already used" error. To pick the port yourself, set `E2E_PORT` (a whole number from 1024 to 65535):
+
+```sh
+E2E_PORT=4300 npm run test:e2e
+```
+
+## Continuous integration
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request into `dev` and every push to `dev`. The check is called **Tests and build**. It runs, in order:
+
+1. `npm ci`
+2. `npm test` (unit tests)
+3. `npm run build` (type check and production build)
+4. `npm run test:e2e` (browser tests in Chromium; in CI each test gets 60 seconds and one retry, because the 3D scene is drawn in software)
+5. `npm run size-report`
+
+The **job summary** (open the run, then "Summary") shows the code bundle size, the whole `dist/` size, and the first-play download size against the 15 MB budget. A browser test fails if first play reaches 15 MB, or if the page fetches anything from another site.
+
+When a run fails, the Playwright report and test results are uploaded as the **playwright-report** artifact (kept 14 days) at the bottom of the run's summary page.
+
+A few known failures are marked, not hidden: they are listed with their reasons in `e2e/known-issues.ts`. A test marked `test.fail()` that starts passing turns the check red, so remove its mark once the bug is fixed.
+
+npm packages and the Playwright browser are cached between runs. The check should be required before merging into `dev` (a repo setting a person turns on).
 
 ## How to play
 

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { noTrebuchetMs, TITLE_OVERLAP_WITHOUT_TREBUCHET } from './known-issues.ts';
 import { readFileSync } from 'node:fs';
 
 interface SurfaceFile {
@@ -385,6 +386,7 @@ test.describe('on a touch screen', () => {
   });
 
   test('nothing sits on top of anything else, even with the biggest text', async ({ page }) => {
+    test.fail(noTrebuchetMs, TITLE_OVERLAP_WITHOUT_TREBUCHET);
     await page.addInitScript(() =>
       localStorage.setItem('rocketpals.settings', JSON.stringify({ version: 1, textSize: 'huge', reducedMotion: 'system' })),
     );
