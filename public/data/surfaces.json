@@ -1,0 +1,186 @@
+{
+  "lastChecked": "2026-10-23",
+  "surfaces": [
+    {
+      "worldId": "mars",
+      "kind": "panorama",
+      "title": "Jezero Crater, Mars",
+      "description": "A real 360 degree photo of Jezero Crater on Mars, taken by NASA's Perseverance rover. The sky above and the ground below the photographed band are filled in. Drag to look all the way around.",
+      "images": {
+        "high": "/textures/surfaces/mars-jezero-4096.jpg",
+        "low": "/textures/surfaces/mars-jezero-2048.jpg"
+      },
+      "credit": "NASA/JPL-Caltech/MSSS/ASU",
+      "creditNote": "Taken by the Perseverance rover on its third day on Mars (Feb 21, 2021). The sky above and the dark ground below are filled in.",
+      "sourceUrl": "https://science.nasa.gov/photojournal/mastcam-zs-first-360-degree-panorama/",
+      "start": {
+        "azimuth": 137,
+        "elevation": -6
+      },
+      "orbitHint": "Hi, I'm Orbit! Drag to look around. Then tap the glowing dots!",
+      "hotspots": [
+        {
+          "id": "rim",
+          "label": "Far away hills",
+          "azimuth": 115.2,
+          "elevation": 1.5,
+          "title": "The edge of Jezero Crater",
+          "text": "Those far-away hills are the rim of Jezero Crater. Long ago, rivers poured into this crater and made a lake. That was more than 3.5 billion years ago!",
+          "sources": [
+            "https://science.nasa.gov/mission/mars-2020-perseverance/",
+            "https://science.nasa.gov/photojournal/mastcam-zs-first-360-degree-panorama/"
+          ],
+          "lastChecked": "2026-10-23"
+        },
+        {
+          "id": "ground",
+          "label": "Red ground",
+          "azimuth": 75.6,
+          "elevation": -31.2,
+          "title": "Why is Mars red?",
+          "text": "The dirt on Mars has iron in it. The iron rusts, a bit like an old bike left in the rain. That is why the ground looks red.",
+          "sources": [
+            "https://science.nasa.gov/mars/facts/"
+          ],
+          "lastChecked": "2026-10-23"
+        },
+        {
+          "id": "sky",
+          "label": "The sky",
+          "azimuth": 130,
+          "elevation": 30,
+          "title": "A dusty sky",
+          "text": "Mars has thin air with lots of dust floating in it. To our eyes, the sky would look hazy and red, not blue like on Earth.",
+          "sources": [
+            "https://science.nasa.gov/mars/facts/"
+          ],
+          "lastChecked": "2026-10-23"
+        },
+        {
+          "id": "rover",
+          "label": "The rover",
+          "azimuth": 225,
+          "elevation": -41.6,
+          "title": "Meet Perseverance",
+          "text": "This is Perseverance, a robot explorer on Mars. It is looking for signs of ancient life. It also collects pieces of rock to study.",
+          "sources": [
+            "https://science.nasa.gov/mission/mars-2020-perseverance/"
+          ],
+          "lastChecked": "2026-10-23"
+        },
+        {
+          "id": "photo",
+          "label": "About this picture",
+          "azimuth": 324,
+          "elevation": -24.2,
+          "title": "A picture made of 142 photos",
+          "text": "This 360 degree picture is made of 142 photos. Perseverance took them on its third day on Mars. People on Earth joined them together.",
+          "sources": [
+            "https://science.nasa.gov/photojournal/mastcam-zs-first-360-degree-panorama/"
+          ],
+          "lastChecked": "2026-10-23"
+        }
+      ]
+    },
+    {
+      "worldId": "earth",
+      "kind": "window",
+      "title": "Earth from the Space Station",
+      "description": "A real NASA astronaut photo of Earth taken from the International Space Station, seen through a window: a green aurora over a cloudy ocean, with dark space and stars below. Drag to look a little around.",
+      "images": {
+        "high": "/textures/surfaces/earth-iss-4096.jpg",
+        "low": "/textures/surfaces/earth-iss-2048.jpg"
+      },
+      "photo": {
+        "horizontalFov": 73.74,
+        "verticalFov": 53.13,
+        "aspect": 1.5
+      },
+      "credit": "Image courtesy of the Earth Science and Remote Sensing Unit, NASA Johnson Space Center",
+      "creditNote": "Photo iss073e0247726 (eol.jsc.nasa.gov), June 12, 2025. The window frame is drawn.",
+      "sourceUrl": "https://images.nasa.gov/details/iss073e0247726",
+      "start": {
+        "azimuth": 0,
+        "elevation": 0
+      },
+      "orbitHint": "Hi, I'm Orbit! Look out of the window. Then tap the glowing dots!",
+      "hotspots": [
+        {
+          "id": "aurora",
+          "label": "Green aurora",
+          "azimuth": 348.6,
+          "elevation": 4.4,
+          "title": "The southern lights",
+          "text": "This green glow is an aurora, also called the southern lights. Tiny charged bits from the Sun, called the solar wind, make Earth's air glow. Green comes from oxygen.",
+          "sources": [
+            "https://science.nasa.gov/sun/auroras/",
+            "https://images.nasa.gov/details/iss073e0247726"
+          ],
+          "lastChecked": "2026-10-23"
+        },
+        {
+          "id": "air",
+          "label": "Glowing edge of Earth",
+          "azimuth": 1.7,
+          "elevation": -6.3,
+          "title": "Earth's blanket of air",
+          "text": "This glowing edge is Earth's air, seen from the side. It is mostly nitrogen and oxygen, so we can breathe. It also shields us from much of the harmful radiation from the Sun.",
+          "sources": [
+            "https://science.nasa.gov/earth/facts/",
+            "https://images.nasa.gov/details/iss072e011489"
+          ],
+          "lastChecked": "2026-10-23"
+        },
+        {
+          "id": "clouds",
+          "label": "Clouds over the ocean",
+          "azimuth": 12.8,
+          "elevation": 17.3,
+          "title": "Clouds over the ocean",
+          "text": "These clouds are floating over the Indian Ocean. Earth's oceans cover about 71 percent of the planet. Most of our planet is covered in water!",
+          "sources": [
+            "https://science.nasa.gov/earth/facts/",
+            "https://images.nasa.gov/details/iss073e0247726"
+          ],
+          "lastChecked": "2026-10-23"
+        },
+        {
+          "id": "array",
+          "label": "Solar array",
+          "azimuth": 28.4,
+          "elevation": -16.2,
+          "title": "A piece of the space station",
+          "text": "This orange grid looks like one of the station's big solar arrays. The station has 8 main solar arrays, and together they give it power.",
+          "sources": [
+            "https://www.nasa.gov/international-space-station/space-station-facts-and-figures/"
+          ],
+          "lastChecked": "2026-10-23"
+        },
+        {
+          "id": "speed",
+          "label": "Space station speed",
+          "azimuth": 351.5,
+          "elevation": -12.3,
+          "title": "A very fast trip",
+          "text": "The space station travels five miles every second. It goes all the way around Earth about every 90 minutes. The crew sees 16 sunrises and 16 sunsets each day!",
+          "sources": [
+            "https://www.nasa.gov/international-space-station/space-station-facts-and-figures/"
+          ],
+          "lastChecked": "2026-10-23"
+        },
+        {
+          "id": "about",
+          "label": "About this picture",
+          "azimuth": 330.3,
+          "elevation": -9.9,
+          "title": "About this picture",
+          "text": "An astronaut took this photo from the space station on June 12, 2025. The station was 269 miles above the Indian Ocean, between Australia and Antarctica.",
+          "sources": [
+            "https://images.nasa.gov/details/iss073e0247726"
+          ],
+          "lastChecked": "2026-10-23"
+        }
+      ]
+    }
+  ]
+}

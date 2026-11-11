@@ -1,6 +1,24 @@
 # Rocket Pals
 
-A 3D browser game that teaches kids aged 8-10 about the solar system. The player flies a small rocket between the Sun, eight planets, and the Moon, lands, learns facts, completes short missions, and answers quizzes. See `plans/` for per-feature plans.
+A 3D browser game that teaches kids aged 8-10 about the solar system. The player flies a small rocket between the Sun, eight planets, and the Moon, lands, learns facts, completes short missions, and answers quizzes. The roadmap, progress, game design, architecture and visual design are in `docs/` (update `docs/PROGRESS.md` with every PR). Per-feature plans are in `plans/`.
+
+## G.O.A.T. AI issues
+
+Some work comes through G.O.A.T. AI, which runs agents on this repo's GitHub issues (issues with a `goat:` label; the agent is started by `/goat-intake`, `/goat-plan`, `/goat-implement`, `/goat-review` or the coordinator). When you are working a G.O.A.T. issue, the G.O.A.T. protocol (`goat-board/protocol.md`, and `python3 ~/.goat-ai/goat.py guide`) wins over the git, workflow and decision rules below wherever they differ:
+
+- **Branches:** use G.O.A.T.'s branch names (`goat/<issue number>-<slug>`) in the issue's own worktree, not `feature/<name>`. They are cut from `dev`, the default branch, and PRs target `dev`.
+- **Plan:** the spec and plan go on the issue through `goat.py doc`, not in `plans/`.
+- **Review:** the G.O.A.T. Review agent reviews the PR. Do not run the `pr-reviewer` loop.
+- **Merge:** never merge, and never delete branches. A person merges, and `goat.py cleanup` removes branches and worktrees afterwards.
+- **Questions:** ask through the issue (`goat:answer-question`), not in the chat.
+
+**Before working a Rocket Pal 2.0 issue** (epic #16), read the sections of `docs/` it names: `GAME_DESIGN.md` (what to build), `VISUAL_DESIGN.md` (how it looks), `TECHNICAL_ARCHITECTURE.md` (the layers, the import rules and the shared types in section 4: use them, and change them only with a recorded decision), and `DEVELOPMENT_ROADMAP.md` (the definition of done and the testing rules). Check that every issue in its "Depends on" list is closed; if one is not, ask through the issue instead of starting. Photo, model and sound licences, and any change to a product rule, are the product owner's call: ask before using them.
+
+Everything else in this file still applies: the testing rules, the skills, the tech stack, the product rules (kids' safety, no data collection), the assets rules, and logging non-trivial decisions in `decisions/`. Test commands:
+
+- Unit tests: `npm test` (Vitest)
+- Type check and build: `npm run build`
+- Browser smoke tests: `npm run test:e2e` (Playwright)
 
 ## Git and branch rules (non-negotiable)
 
@@ -40,6 +58,17 @@ This project already has these skills installed in `.agents/skills/` (listed in 
 - `animation-performance`: for UI and in-game animation, so it stays smooth on a Chromebook.
 - `grill-me`: use it while writing a feature plan to pressure-test the idea and surface gaps before building.
 
+## Chief of staff and decisions
+
+You (the main agent) act as chief of staff. Make routine decisions yourself and keep moving.
+
+- **Staffing:** if a task needs a specialist that does not exist, run the `chief-of-staff` agent (`.claude/agents/chief-of-staff.md`) to create it, then delegate to it. Reuse existing agents first. Check `.claude/agents/ROSTER.md`.
+- **Decide on your own:** library choices within the stack, code structure, naming, test approach, content wording, which skill or agent to use, and fixing PR review comments.
+- **Log it:** write each non-trivial decision in `decisions/YYYY-MM-DD-<topic>.md` (what, why, alternatives), so the user can review later without being asked.
+- **Always ask the user first (critical decisions):** anything involving payment or paid services, installing software or changing device or system settings, accounts, secrets, or API keys, deleting data or force-pushing, adding data collection or changing kids-safety rules, and licensing or copyright concerns.
+- **When asking:** one question, a recommendation, and the cost of waiting. Keep working on unblocked tasks in the meantime.
+- New agents are created on a feature branch and reviewed through the normal PR process.
+
 ## Tech stack
 
 - Three.js + TypeScript + Vite, static site, no backend, no accounts.
@@ -53,6 +82,8 @@ This project already has these skills installed in `.agents/skills/` (listed in 
 - Audience: ages 8-10. Short sentences, friendly tone, nothing scary.
 - Healthy engagement only: collection, rewards, cliffhangers, ranks, surprises. **Never add** ads, purchases, loot boxes, countdown timers, streak penalties, push notifications, leaderboards, or any data collection.
 - Wrong answers never end a mission. Kids can always retry.
+- Action never ends in failure: bumping into something bounces the rocket and costs a few seconds, and the run goes on. A timed challenge is a stopwatch with "beat your best time", never a countdown.
+- Every reward is earned in a way the kid can see (stars, or finishing a named mission). Nothing is random and nothing costs money. Stars and unlocks only go up. See `decisions/2026-11-11-rocket-pal-2-game-rules.md`.
 - Accessibility: keyboard and touch, large targets, colorblind-safe palette, adjustable text size, read-aloud on every fact card, reduced-motion option.
 - Performance: 30+ fps on a school Chromebook, under 15 MB to first play, automatic low-quality mode.
 
