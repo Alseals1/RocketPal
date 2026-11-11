@@ -1,6 +1,6 @@
 # Rocket Pal 2.0: game design document
 
-**Status: draft for the product owner's approval (2026-11-11).** Nothing in it is built yet unless it says "exists today". Once approved, `docs/DEVELOPMENT_ROADMAP.md` and the issues under epic #16 follow it, and it is the reference for #18 (experience contract).
+**Status: approved by the product owner on 2026-11-11**, with all eight decisions in section 19 (see `decisions/2026-11-11-game-design-approved.md`). Nothing in it is built yet unless it says "exists today". `docs/DEVELOPMENT_ROADMAP.md` and the issues under epic #16 follow it, and it is the reference for #18 (experience contract).
 
 The product rules in `CLAUDE.md` always win. Facts quoted in this document are examples of tone; every fact in the game is checked against a NASA page and dated before it ships.
 
@@ -512,13 +512,14 @@ Unlocks are never stored: they are worked out from ranks, stars and patches.
 
 ---
 
-## 19. Questions for the product owner
+## 19. Decisions (approved 2026-11-11)
 
-1. **Three kinds of progress** (stars, XP, patches) and no coins. Approve, or prefer fewer?
-2. **The Grand Tour guides but never locks** worlds. Approve?
-3. **The asteroid belt as a new place** on the Star Map. Approve?
-4. **Two roadmap moves:** the Journal and patches into MVP (the roadmap had them in P4), and sound effects into MVP (music stays later). Approve?
-5. **Call signs from a list, no free text.** Approve?
-6. **Gear shows more but never helps you win.** Approve?
-7. **The astronaut in Phase 2,** because it needs a new Blender model. Approve, or move it to MVP?
-8. **Fly-by worlds get one postcard question,** not a full 3-question quiz, to keep content work realistic. Approve?
+The product owner approved all eight:
+1. **Three kinds of progress** (stars, XP, patches) and no coins.
+2. **The Grand Tour guides but never locks** worlds.
+3. **The asteroid belt is a new place** on the Star Map.
+4. **Two roadmap moves:** the Journal and patches into MVP, and sound effects into MVP (music stays in Phase 2).
+5. **Call signs from a list,** no free text anywhere.
+6. **Gear shows more but never helps you win.**
+7. **The astronaut in Phase 2,** because it needs a new Blender model.
+8. **Fly-by worlds get one postcard question,** not a full 3-question quiz.

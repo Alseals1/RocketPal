@@ -8,7 +8,7 @@ Related: [GAME_DESIGN.md](GAME_DESIGN.md) (what the game is), [TECHNICAL_ARCHITE
 
 Started 2026-11-11. The goal is a polished game on four pillars: fun, education, action and customization (see `GAME_DESIGN.md`). This order comes from [PROJECT_AUDIT.md](PROJECT_AUDIT.md) and was **approved by the product owner on 2026-11-11**. It makes the game safe to grow, then makes the loop worth playing, then gives kids reasons to come back, and polishes the look and sound around that.
 
-The full game design is in [GAME_DESIGN.md](GAME_DESIGN.md) (draft for approval). It proposes moving the Journal and patches (step 19) and sound effects (step 15) into the MVP; this table changes if that is approved.
+The full game design is in [GAME_DESIGN.md](GAME_DESIGN.md), approved on 2026-11-11. Its MVP is the P2 steps below plus steps 14, 15 (effects) and 19 (Journal and patches), which the approval moved earlier.
 
 The work is tracked as GitHub issues under epic #16. The P0 and P1 issues (`prio:first`, `prio:next`) come before the original epic issues #18-#25 (`prio:later`). Each step gets its own plan, branch and PR.
 
@@ -29,11 +29,11 @@ The work is tracked as GitHub issues under epic #16. The P0 and P1 issues (`prio
 | P2 | 12. Things to do on a flight: ring gates and fact capsules | #19 | Not started |
 | P2 | 13. Asteroid course with a stopwatch and personal best | #19 | Not started |
 | P3 | 14. Hangar with earned unlocks: rocket trims and decals | #20 | Not started |
-| P3 | 15. Sound effects, then music | No issue yet | Not started |
+| P2 | 15. Sound effects and Listen everywhere (music later, in Phase 2) | #34 | Not started |
 | P3 | 16. Cinematic pass: tone mapping, lighting, atmospheres, ring, real planet textures | #22 | Not started |
 | P3 | 17. Design tokens, then glass panels and the cockpit HUD with a no-blur fallback | #21 | Not started |
 | P3 | 18. Controls: mouse and touchpad steering, floating touch stick, gamepad | #24 | Not started |
-| P4 | 19. Space Journal and sticker book; remember found dots | #20 | Not started |
+| P2 | 19. Space Journal (fact pages, capsule facts, found dots remembered) and 12 patches | #20 | Not started |
 | P4 | 20. Rescue missions and timed runs between worlds | No issue yet | Not started |
 | P4 | 21. Full landings for more worlds, starting with the Moon | No issue yet | Not started |
 | P4 | 22. Orbit in 3D; astronaut model and outfits | #23 | Not started |

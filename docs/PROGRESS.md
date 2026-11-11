@@ -6,7 +6,7 @@ Last updated: 2026-11-11.
 
 ## Now
 
-* **Game design document:** `docs/GAME_DESIGN.md` is a full draft for Rocket Pal 2.0, waiting for the product owner's approval. It proposes two roadmap moves (the Journal and patches, and sound effects, into the MVP).
+* **Game design document:** `docs/GAME_DESIGN.md`, approved on 2026-11-11 with all eight decisions. The Journal, patches and sound effects (#34) moved into the MVP.
 * **Next:** #26 (the two quiz bugs from the PR #14 review), then #27 (CI), #28 (Chromebook measurement) and #29 (safe saves).
 
 ## Health (2026-11-11)
