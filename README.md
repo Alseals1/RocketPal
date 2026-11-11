@@ -37,6 +37,8 @@ The **job summary** (open the run, then "Summary") shows the code bundle size, t
 
 When a run fails, the Playwright report and test results are uploaded as the **playwright-report** artifact (kept 14 days) at the bottom of the run's summary page.
 
+A few known failures are marked, not hidden: they are listed with their reasons in `e2e/known-issues.ts`. A test marked `test.fail()` that starts passing turns the check red, so remove its mark once the bug is fixed.
+
 npm packages and the Playwright browser are cached between runs. The check should be required before merging into `dev` (a repo setting a person turns on).
 
 ## How to play
