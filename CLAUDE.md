@@ -12,6 +12,8 @@ Some work comes through G.O.A.T. AI, which runs agents on this repo's GitHub iss
 - **Merge:** never merge, and never delete branches. A person merges, and `goat.py cleanup` removes branches and worktrees afterwards.
 - **Questions:** ask through the issue (`goat:answer-question`), not in the chat.
 
+**Before working a Rocket Pal 2.0 issue** (epic #16), read the sections of `docs/` it names: `GAME_DESIGN.md` (what to build), `VISUAL_DESIGN.md` (how it looks), `TECHNICAL_ARCHITECTURE.md` (the layers, the import rules and the shared types in section 4: use them, and change them only with a recorded decision), and `DEVELOPMENT_ROADMAP.md` (the definition of done and the testing rules). Check that every issue in its "Depends on" list is closed; if one is not, ask through the issue instead of starting. Photo, model and sound licences, and any change to a product rule, are the product owner's call: ask before using them.
+
 Everything else in this file still applies: the testing rules, the skills, the tech stack, the product rules (kids' safety, no data collection), the assets rules, and logging non-trivial decisions in `decisions/`. Test commands:
 
 - Unit tests: `npm test` (Vitest)
