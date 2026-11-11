@@ -103,7 +103,7 @@
         "azimuth": 0,
         "elevation": 0
       },
-      "orbitHint": "Hi, I'm Orbit! We are looking out of a space station window. Tap the glowing dots!",
+      "orbitHint": "Hi, I'm Orbit! Look out of the window. Then tap the glowing dots!",
       "hotspots": [
         {
           "id": "aurora",

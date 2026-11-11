@@ -13,7 +13,7 @@ import {
   type ShipState,
 } from './flight/flightModel';
 import { InputController } from './flight/input';
-import { emptyProgress, loadProgress, recordMission, recordQuiz, saveProgress, starsFor, type Progress } from './core/progress';
+import { emptyProgress, loadProgress, mergeProgress, recordMission, recordQuiz, saveProgress, starsFor, type Progress } from './core/progress';
 import { browserStorage, effectiveReducedMotion, saveSettings, type Settings } from './core/settings';
 import { FrameMonitor } from './quality/monitor';
 import { chooseQuality, initialQuality, type Quality } from './quality/quality';
@@ -368,7 +368,8 @@ export class Game {
 
   /** Records something the kid earned, remembers it (if the browser allows) and shows the new stars. Returns the stars on this world. */
   private earn(worldId: string, change: (progress: Progress) => Progress): number {
-    this.progress = change(this.progress);
+    // Another window of the game may have saved something since this one started: read it first so saving never undoes it.
+    this.progress = change(mergeProgress(loadProgress(browserStorage()), this.progress));
     saveProgress(this.progress, browserStorage());
     this.surfaceHud?.setProgress(this.progressView(worldId));
     return starsFor(this.progress, worldId);

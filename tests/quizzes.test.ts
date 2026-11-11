@@ -94,6 +94,40 @@ describe('quizzes.json', () => {
     expect(problems.join()).toMatch(/wrong option.*evidence/);
   });
 
+  it('only accepts a right answer whose words are all in the dot it comes from', () => {
+    // The paint answer marked right instead of the iron one: paint is nowhere in the Mars fact.
+    const problems = problemsWith((q) => {
+      const first = marsQuiz(q).questions[0];
+      first.options.forEach((o: any) => (o.correct = /paint/.test(o.text)));
+    });
+    expect(problems.join()).toMatch(/right answer.*words.*not in the/);
+  });
+
+  it('only accepts a wrong answer that brings in something the dot does not say', () => {
+    // A wrong option made only of the dot's own words would be right as well.
+    const problems = problemsWith((q) => {
+      const first = marsQuiz(q).questions[0];
+      first.options.find((o: any) => !o.correct).text = 'The iron in the dirt';
+    });
+    expect(problems.join()).toMatch(/wrong option.*only words from the dot/);
+  });
+
+  it('wants the "because" line to come from the dot, not be made up', () => {
+    const problems = problemsWith((q) => (marsQuiz(q).questions[0].because = 'Mars is made of cheese and glows in the dark.'));
+    expect(problems.join()).toMatch(/because.*not from the/);
+  });
+
+  it('does not let the right answer be the longest option in every question (it would give the answer away)', () => {
+    const problems = problemsWith((q) => {
+      for (const question of marsQuiz(q).questions) {
+        question.options.forEach((o: any, i: number) => {
+          if (!o.correct) o.text = `Wrong${i}`; // one word each, so the right answer is the longest everywhere
+        });
+      }
+    });
+    expect(problems.join()).toMatch(/longest/);
+  });
+
   it('puts the right answer in more than one position in a quiz, so it is not always the same button', () => {
     expect(
       problemsWith((q) => {

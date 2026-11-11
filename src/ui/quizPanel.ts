@@ -26,6 +26,8 @@ export class QuizPanel {
     parent: HTMLElement,
     private readonly questions: QuizQuestion[],
     private readonly teaser: string,
+    /** The title of each dot by id, so a wrong answer can point the kid to where the answer is. */
+    private readonly dotTitles: Record<string, string>,
     private readonly speaker: Speaker,
     private readonly callbacks: QuizPanelCallbacks,
   ) {
@@ -59,9 +61,6 @@ export class QuizPanel {
     this.els.back.addEventListener('click', () => {
       this.close();
       this.callbacks.onBackToSpace();
-    });
-    this.overlay.addEventListener('click', (e) => {
-      if (e.target === this.overlay) this.closeByKid();
     });
     this.onKeyDown = (e) => {
       if (!this.isOpen) return;
@@ -121,7 +120,7 @@ export class QuizPanel {
       button.type = 'button';
       button.className = 'quiz-option';
       button.dataset.testid = `quiz-option-${i}`;
-      button.textContent = option.text;
+      this.setOption(button, '', option.text, '');
       button.addEventListener('click', () => this.pick(i));
       this.els.options.appendChild(button);
       return button;
@@ -134,7 +133,8 @@ export class QuizPanel {
     this.els.close.textContent = 'Not now';
     this.spoken = `${q.question} ${q.options.map((o) => o.text).join('. ')}.`;
     this.setListenLabel(false);
-    this.optionButtons[0].focus();
+    // Focus lands on the question, so a screen reader reads it; Tab then goes to the first answer.
+    this.els.heading.focus();
   }
 
   private pick(optionIndex: number): void {
@@ -147,14 +147,15 @@ export class QuizPanel {
       // A word and a mark, not only a colour. Nothing is lost and every other answer stays open.
       button.classList.add('is-wrong');
       button.setAttribute('aria-disabled', 'true');
-      button.textContent = `✗ ${q.options[optionIndex].text} – not quite`;
-      this.els.feedback.textContent = 'Not quite. Try another one!';
+      this.setOption(button, '✗', q.options[optionIndex].text, ' – not quite');
+      const dot = this.dotTitles[q.hotspot];
+      this.announce(dot ? `Not quite. Try another one! Hint: the “${dot}” dot has the answer.` : 'Not quite. Try another one!');
     } else if (result === 'right') {
       this.answered = true;
       button.classList.add('is-right');
-      button.textContent = `✓ ${q.options[optionIndex].text}`;
+      this.setOption(button, '✓', q.options[optionIndex].text, '');
       for (const b of this.optionButtons) b.setAttribute('aria-disabled', 'true');
-      this.els.feedback.textContent = 'Yes! That is right!';
+      this.announce('Yes! That is right!');
       this.els.because.textContent = q.because;
       this.els.because.hidden = false;
       this.spoken = `That is right! ${q.because}`;
@@ -185,12 +186,13 @@ export class QuizPanel {
     this.els.options.replaceChildren();
     this.optionButtons = [];
     this.els.because.hidden = true;
-    this.els.feedback.textContent =
+    this.announce(
       stars >= MAX_STARS
         ? run.perfect
           ? 'All three right on the first try! You earned the bonus star!'
           : 'You have all 3 stars on this world!'
-        : 'Great job! Get all three right on the first try for a bonus star.';
+        : `You earned ${stars} ${stars === 1 ? 'star' : 'stars'}! Play again to try for the bonus star.`,
+    );
     this.els.teaser.textContent = this.teaser;
     this.els.teaser.hidden = false;
 
@@ -199,9 +201,37 @@ export class QuizPanel {
     this.show('back', true);
     this.show('listen', true);
     this.els.close.textContent = 'Keep exploring';
-    this.spoken = `${this.els.heading.textContent} ${this.els.feedback.textContent} ${this.teaser}`;
+    this.spoken = `${this.els.heading.textContent} ${this.pendingFeedback} ${this.teaser}`;
     this.setListenLabel(false);
     (this.els.again as HTMLButtonElement).focus();
+  }
+
+  /** Sets what an answer button shows. The tick or cross is decoration (hidden from screen readers); the words say the same thing. */
+  private setOption(button: HTMLButtonElement, mark: string, text: string, note: string): void {
+    button.replaceChildren();
+    if (mark) {
+      const m = document.createElement('span');
+      m.className = 'quiz-mark';
+      m.setAttribute('aria-hidden', 'true');
+      m.textContent = `${mark} `;
+      button.appendChild(m);
+    }
+    button.appendChild(document.createTextNode(text + note));
+  }
+
+  /** The latest feedback line, kept so Listen can read it. */
+  private pendingFeedback = '';
+
+  /**
+   * Shows a feedback line in the live region. It is cleared first, so saying the same thing twice in a row
+   * (two wrong answers) is announced again by a screen reader.
+   */
+  private announce(text: string): void {
+    this.pendingFeedback = text;
+    this.els.feedback.textContent = '';
+    requestAnimationFrame(() => {
+      if (this.pendingFeedback === text) this.els.feedback.textContent = text;
+    });
   }
 
   private show(name: string, visible: boolean): void {

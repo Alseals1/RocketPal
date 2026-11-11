@@ -122,7 +122,8 @@ export class SurfaceHud {
     window.addEventListener('keydown', this.onKeyDown);
 
     if (extras) {
-      this.quizPanel = new QuizPanel(this.root, extras.questions, extras.mission.teaser, this.speaker, {
+      const dotTitles = Object.fromEntries(surface.hotspots.map((h) => [h.id, h.title]));
+      this.quizPanel = new QuizPanel(this.root, extras.questions, extras.mission.teaser, dotTitles, this.speaker, {
         onFinished: (perfect) => this.callbacks.onQuizFinished(perfect),
         onBackToSpace: () => this.callbacks.onBack(),
         onClosed: () => {

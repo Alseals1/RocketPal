@@ -3,6 +3,7 @@ import {
   PROGRESS_KEY,
   emptyProgress,
   loadProgress,
+  mergeProgress,
   recordMission,
   recordQuiz,
   saveProgress,
@@ -163,5 +164,44 @@ describe('saving and loading', () => {
     expect(starsFor(loadProgress(angry), 'mars')).toBe(0);
     expect(saveProgress(recordMission(emptyProgress(), 'mars'), angry)).toBe(false);
     expect(saveProgress(recordMission(emptyProgress(), 'mars'), null)).toBe(false);
+  });
+});
+
+describe('two windows open at once', () => {
+  it('merges two copies of the progress by keeping every flag either one has turned on', () => {
+    const a = recordMission(emptyProgress(), 'earth');
+    const b = recordQuiz(recordMission(emptyProgress(), 'mars'), 'mars', true);
+    const merged = mergeProgress(a, b);
+    expect(starsFor(merged, 'earth')).toBe(1);
+    expect(starsFor(merged, 'mars')).toBe(3);
+    // The same result whichever way round they are given.
+    expect(mergeProgress(b, a)).toEqual(merged);
+  });
+
+  it('never loses a flag: merging with an empty copy changes nothing', () => {
+    const p = recordQuiz(recordMission(emptyProgress(), 'mars'), 'mars', true);
+    expect(mergeProgress(p, emptyProgress())).toEqual(p);
+    expect(mergeProgress(emptyProgress(), p)).toEqual(p);
+  });
+
+  it('does not change what it was given', () => {
+    const a = recordMission(emptyProgress(), 'earth');
+    const b = recordMission(emptyProgress(), 'mars');
+    const snapshot = JSON.stringify([a, b]);
+    mergeProgress(a, b);
+    expect(JSON.stringify([a, b])).toBe(snapshot);
+  });
+
+  it('keeps stars from going down when a second window saves an older copy (the two-tab case, through storage)', () => {
+    const storage = fakeStorage();
+    // Window A starts out knowing nothing. Window B then earns three stars on Mars and saves.
+    const windowA = loadProgress(storage);
+    saveProgress(recordQuiz(recordMission(loadProgress(storage), 'mars'), 'mars', true), storage);
+    // Window A now earns the Earth mission. It must read what is saved, merge, then save: Mars keeps its three stars.
+    const earned = recordMission(mergeProgress(loadProgress(storage), windowA), 'earth');
+    saveProgress(earned, storage);
+    const after = loadProgress(storage);
+    expect(starsFor(after, 'mars')).toBe(3);
+    expect(starsFor(after, 'earth')).toBe(1);
   });
 });
