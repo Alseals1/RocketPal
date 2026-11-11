@@ -40,7 +40,7 @@ Last updated: 2026-11-11.
 | #13 | `CLAUDE.md`: rules for G.O.A.T. AI issues |
 | #14 | Missions and quiz: the review fixes PR #12 was merged without (two new bugs from its review are #26) |
 | #15 | `docs/`: roadmap, progress, design docs, the 2.0 rules, and the project audit |
-| #26 (issue) | Quiz fixes: Shift+Tab stays in the quiz, no stale "Yes!", Listen reads the hint, fairer Earth answers |
+| #57 | Quiz fixes: Shift+Tab stays in the quiz, no stale "Yes!", Listen reads the hint, fairer Earth answers |
 
 ## Content coverage
 
