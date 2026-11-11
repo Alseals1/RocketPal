@@ -21,6 +21,8 @@ export class QuizPanel {
   private answered = false;
   /** What Listen reads right now. */
   private spoken = '';
+  /** The latest feedback line, kept so Listen can read it. */
+  private pendingFeedback = '';
 
   constructor(
     parent: HTMLElement,
@@ -113,6 +115,8 @@ export class QuizPanel {
     this.els.because.hidden = true;
     this.els.teaser.hidden = true;
     this.els.feedback.textContent = '';
+    // A line still waiting for its animation frame must not land on the new question.
+    this.pendingFeedback = '';
     this.els.options.hidden = false;
     this.els.options.replaceChildren();
     this.optionButtons = q.options.map((option, i) => {
@@ -131,7 +135,7 @@ export class QuizPanel {
     this.show('back', false);
     this.show('listen', true);
     this.els.close.textContent = 'Not now';
-    this.spoken = `${q.question} ${q.options.map((o) => o.text).join('. ')}.`;
+    this.spoken = this.questionSpeech(q);
     this.setListenLabel(false);
     // Focus lands on the question, so a screen reader reads it; Tab then goes to the first answer.
     this.els.heading.focus();
@@ -149,7 +153,11 @@ export class QuizPanel {
       button.setAttribute('aria-disabled', 'true');
       this.setOption(button, '✗', q.options[optionIndex].text, ' – not quite');
       const dot = this.dotTitles[q.hotspot];
-      this.announce(dot ? `Not quite. Try another one! Hint: the “${dot}” dot has the answer.` : 'Not quite. Try another one!');
+      const line = dot ? `Not quite. Try another one! Hint: the “${dot}” dot has the answer. You can look at it after the quiz.` : 'Not quite. Try another one!';
+      this.announce(line);
+      this.spoken = `${line} ${this.questionSpeech(q)}`;
+      this.speaker.stop();
+      this.setListenLabel(false);
     } else if (result === 'right') {
       this.answered = true;
       button.classList.add('is-right');
@@ -165,6 +173,11 @@ export class QuizPanel {
       this.show('next', true);
       (this.els.next as HTMLButtonElement).focus();
     }
+  }
+
+  /** The question and its answers, as Listen reads them. */
+  private questionSpeech(q: QuizQuestion): string {
+    return `${q.question} ${q.options.map((o) => o.text).join('. ')}.`;
   }
 
   private next(): void {
@@ -218,9 +231,6 @@ export class QuizPanel {
     }
     button.appendChild(document.createTextNode(text + note));
   }
-
-  /** The latest feedback line, kept so Listen can read it. */
-  private pendingFeedback = '';
 
   /**
    * Shows a feedback line in the live region. It is cleared first, so saying the same thing twice in a row

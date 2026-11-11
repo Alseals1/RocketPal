@@ -8,14 +8,15 @@ Last updated: 2026-11-11.
 
 * **Game design document:** `docs/GAME_DESIGN.md`, approved on 2026-11-11 with all eight decisions. The Journal, patches and sound effects (#34) moved into the MVP.
 * **Technical architecture and milestone roadmap:** approved on 2026-11-11. Every issue under epic #16 now matches a roadmap milestone (GitHub milestones `M0` to `M9`).
-* **Next:** #26 (the two quiz bugs from the PR #14 review), then #27 (CI), #28 (Chromebook measurement) and #29 (safe saves).
+* **Quiz bugs from the PR #14 review (#26):** fixed on a branch, waiting for review. Shift+Tab stays inside the quiz, no stale "Yes!", Listen reads the hint, fairer Earth answers.
+* **Next:** #27 (CI), then #28 (Chromebook measurement) and #29 (safe saves).
 
 ## Health (2026-11-11)
 
 | Check | Result |
 | --- | --- |
-| `npm test` (Vitest) | 277 passed |
-| `npm run test:e2e` (Playwright) | 136 passed |
+| `npm test` (Vitest) | 278 passed |
+| `npm run test:e2e` (Playwright) | 139 passed |
 | `npm run build` | Clean. 646 KB JavaScript (167 KB gzipped) |
 | CI | None yet. Tests only run on a developer's machine |
 | Chromebook | Never measured: frame rate, memory and read-aloud voice |
@@ -39,6 +40,7 @@ Last updated: 2026-11-11.
 | #13 | `CLAUDE.md`: rules for G.O.A.T. AI issues |
 | #14 | Missions and quiz: the review fixes PR #12 was merged without (two new bugs from its review are #26) |
 | #15 | `docs/`: roadmap, progress, design docs, the 2.0 rules, and the project audit |
+| #26 (issue) | Quiz fixes: Shift+Tab stays in the quiz, no stale "Yes!", Listen reads the hint, fairer Earth answers |
 
 ## Content coverage
 
@@ -50,7 +52,6 @@ Last updated: 2026-11-11.
 
 ## Known issues and open items
 
-* **Two quiz bugs on `dev` (#26):** Shift+Tab from the question heading leaves the quiz card, and a quick right-answer-then-Next can show "Yes! That is right!" on the next question.
 * **Not measured on a Chromebook:** frame rate, the 4096 px panoramas (about 45 MB of video memory; low quality uses 2048 px), and read-aloud with a Chromebook voice.
 * **8 slow browser tests are set aside** (product owner's decision, 2026-10-23): the Earth-window "never shows empty space beyond the photo at W x H" tests in `e2e/surface-earth.spec.ts` time out under 8-worker load. Make them cheaper; do not delete them.
 * A dot drawn over the **Quiz time** button can take the tap (keyboard and the uncovered part of the button still work).

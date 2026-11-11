@@ -77,7 +77,8 @@ export function validateQuizzes(raw: unknown, surfaces: SurfaceData): string[] {
       if (options.length > 0 && rightCount !== 1) problems.push(`${label}: needs exactly one right answer (has ${rightCount})`);
       else if (options.length === QUIZ_LIMITS.optionsPerQuestion) {
         rightPositions.add(options.findIndex((o) => o?.correct === true));
-        const lengths = options.map((o) => (isText(o?.text) ? words(o.text) : 0));
+        // By characters, not words: a long word still makes an option look like the answer.
+        const lengths = options.map((o) => (isText(o?.text) ? o.text.trim().length : 0));
         const right = options.findIndex((o) => o?.correct === true);
         if (lengths.every((n, i) => i === right || lengths[right] > n)) rightIsLongest++;
       }
