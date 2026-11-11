@@ -1,6 +1,6 @@
 # Rocket Pals: technical architecture
 
-**Status: proposal for the product owner's approval (2026-11-11).** No code has changed. It designs how Rocket Pal 2.0 is built on today's code. It follows [GAME_DESIGN.md](GAME_DESIGN.md) and [VISUAL_DESIGN.md](VISUAL_DESIGN.md), both approved on 2026-11-11, and the findings in [PROJECT_AUDIT.md](PROJECT_AUDIT.md). The order of work is in [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md).
+**Status: approved by the product owner on 2026-11-11**, with all decisions in section 12 (see `decisions/2026-11-11-technical-architecture-approved.md`). No code has changed yet. It designs how Rocket Pal 2.0 is built on today's code. It follows [GAME_DESIGN.md](GAME_DESIGN.md) and [VISUAL_DESIGN.md](VISUAL_DESIGN.md), both approved on 2026-11-11, and the findings in [PROJECT_AUDIT.md](PROJECT_AUDIT.md). The order of work is in [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md).
 
 **Contents:** 1. Goals and constraints · 2. Today, in one page · 3. Layers and rules · 4. Shared types · 5. The systems (14) · 6. Map from gameplay to code · 7. How one action flows through the game · 8. How to extend it · 9. Testing · 10. Getting there without a rewrite · 11. Risks · 12. Decisions for approval
 
@@ -709,7 +709,7 @@ Folders: new code goes into new folders (`app/`, `screens/`, `activities/`, `ren
 | Chromebook performance with new effects | Quality tiers, the budget in VISUAL_DESIGN.md section 11, and measurement (#28) before effects are committed |
 | Too many new abstractions at once | Each interface arrives with its first real user, never ahead of it |
 
-## 12. Decisions for approval
+## 12. Decisions (approved 2026-11-11)
 
 1. **No backend;** saves stay in `localStorage` (section 1).
 2. **Derived progression:** XP, rank, stars, mission and chapter status, patches, unlocks and Journal pages are worked out from saved facts, never stored (section 4.5).

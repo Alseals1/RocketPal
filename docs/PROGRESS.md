@@ -7,7 +7,7 @@ Last updated: 2026-11-11.
 ## Now
 
 * **Game design document:** `docs/GAME_DESIGN.md`, approved on 2026-11-11 with all eight decisions. The Journal, patches and sound effects (#34) moved into the MVP.
-* **Technical architecture and milestone roadmap:** `docs/TECHNICAL_ARCHITECTURE.md` and `docs/DEVELOPMENT_ROADMAP.md`, waiting for the product owner's approval.
+* **Technical architecture and milestone roadmap:** approved on 2026-11-11. Every issue under epic #16 now matches a roadmap milestone (GitHub milestones `M0` to `M9`).
 * **Next:** #26 (the two quiz bugs from the PR #14 review), then #27 (CI), #28 (Chromebook measurement) and #29 (safe saves).
 
 ## Health (2026-11-11)

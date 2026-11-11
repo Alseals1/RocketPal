@@ -1,6 +1,6 @@
 # Rocket Pals: development roadmap
 
-The plan for Rocket Pal 2.0, milestone by milestone. **Status: proposal for the product owner's approval (2026-11-11)**, together with [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md). It keeps the order approved on 2026-11-11 from [PROJECT_AUDIT.md](PROJECT_AUDIT.md) and the MVP from [GAME_DESIGN.md](GAME_DESIGN.md), grouped into milestones (the step-by-step mapping is at the end).
+The plan for Rocket Pal 2.0, milestone by milestone. **Status: approved by the product owner on 2026-11-11**, together with [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md). The work is tracked as GitHub issues under epic #16, grouped by GitHub milestones `M0` to `M9`. It keeps the order approved on 2026-11-11 from [PROJECT_AUDIT.md](PROJECT_AUDIT.md) and the MVP from [GAME_DESIGN.md](GAME_DESIGN.md), grouped into milestones (the step-by-step mapping is at the end).
 
 Related: [GAME_DESIGN.md](GAME_DESIGN.md) (what the game is), [VISUAL_DESIGN.md](VISUAL_DESIGN.md) (how it looks), [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md) (how it is built), [PROGRESS.md](PROGRESS.md) (where we are).
 
@@ -55,7 +55,7 @@ After the MVP: P2-A Astronaut · P2-B Learning mini-games · P2-C More action ·
 | **M8** Presentation pass | Cinematic 3D, restyle of the older screens, pointer and floating-stick controls | #21 (part 2), #22, #24 (part) | M3, M5 |
 | **M9** MVP release | Accessibility and performance pass; end-to-end QA; release candidate on `dev` | #24, #25 | M4-M8 |
 
-**One change from the approved order, for approval:** design tokens and components (M3) move ahead of the new screens instead of after them. Otherwise the Star Map, reward screen, Mission Control and Hangar would be built in the old style and restyled later. Only the parts are built early; the full restyle of the older screens stays late (M8), as approved.
+**One change from the earlier order (approved 2026-11-11):** design tokens and components (M3) move ahead of the new screens instead of after them. Otherwise the Star Map, reward screen, Mission Control and Hangar would be built in the old style and restyled later. Only the parts are built early; the full restyle of the older screens stays late (M8), as approved.
 
 ---
 
