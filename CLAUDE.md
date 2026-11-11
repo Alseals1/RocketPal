@@ -1,6 +1,6 @@
 # Rocket Pals
 
-A 3D browser game that teaches kids aged 8-10 about the solar system. The player flies a small rocket between the Sun, eight planets, and the Moon, lands, learns facts, completes short missions, and answers quizzes. See `plans/` for per-feature plans.
+A 3D browser game that teaches kids aged 8-10 about the solar system. The player flies a small rocket between the Sun, eight planets, and the Moon, lands, learns facts, completes short missions, and answers quizzes. The roadmap, progress, game design, architecture and visual design are in `docs/` (update `docs/PROGRESS.md` with every PR). Per-feature plans are in `plans/`.
 
 ## G.O.A.T. AI issues
 
@@ -80,6 +80,8 @@ You (the main agent) act as chief of staff. Make routine decisions yourself and 
 - Audience: ages 8-10. Short sentences, friendly tone, nothing scary.
 - Healthy engagement only: collection, rewards, cliffhangers, ranks, surprises. **Never add** ads, purchases, loot boxes, countdown timers, streak penalties, push notifications, leaderboards, or any data collection.
 - Wrong answers never end a mission. Kids can always retry.
+- Action never ends in failure: bumping into something bounces the rocket and costs a few seconds, and the run goes on. A timed challenge is a stopwatch with "beat your best time", never a countdown.
+- Every reward is earned in a way the kid can see (stars, or finishing a named mission). Nothing is random and nothing costs money. Stars and unlocks only go up. See `decisions/2026-11-11-rocket-pal-2-game-rules.md`.
 - Accessibility: keyboard and touch, large targets, colorblind-safe palette, adjustable text size, read-aloud on every fact card, reduced-motion option.
 - Performance: 30+ fps on a school Chromebook, under 15 MB to first play, automatic low-quality mode.
 

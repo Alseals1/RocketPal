@@ -26,7 +26,7 @@ A kid lands on Earth or Mars, finds three glowing dots (the mission), hears Orbi
 
 **Saving** (`rocketpals.progress` in localStorage): per world three yes/no flags (mission done, quiz done, perfect quiz). Stars are worked out from the flags, so they can only go up. Anything missing or wrong falls back to "not done", field by field (same pattern as `settings.ts`). If the browser will not save (private mode, school rules), everything still works for the visit and nothing breaks. No other data is stored and nothing is sent anywhere.
 
-**Not in this feature** (kept out on purpose): badges and the Space Journal, pilot ranks, the world picker showing stars, missions and quizzes for the other eight worlds, a "start over" button, sound, mini-games. Listed as follow-ups in `plans/00-roadmap.md`.
+**Not in this feature** (kept out on purpose): badges and the Space Journal, pilot ranks, the world picker showing stars, missions and quizzes for the other eight worlds, a "start over" button, sound, mini-games. Listed as later candidates in `docs/DEVELOPMENT_ROADMAP.md`.
 
 ## Approach / files
 * `src/quiz/quiz.ts` (pure): a quiz run (current question, check an answer, wrong answers recorded, finished, first-try count) and `starsFor(...)`.

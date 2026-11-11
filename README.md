@@ -38,7 +38,7 @@ Page options (add to the address, for example `http://localhost:5173/?quality=lo
 * `?touch=1` shows the touch controls on a computer.
 * `?debug=1` adds a read-only `window.rocketPals` object used by the browser tests.
 
-Project rules, branch workflow, and product rules are in `CLAUDE.md`. Per-feature plans are in `plans/`. Game content (planets, quizzes, missions) lives in `public/data/*.json` so it can be edited without code.
+Project rules, branch workflow, and product rules are in `CLAUDE.md`. The roadmap, progress and design docs are in `docs/`. Per-feature plans are in `plans/`. Game content (planets, quizzes, missions) lives in `public/data/*.json` so it can be edited without code.
 
 ## Connecting the Blender MCP to Claude Code (macOS)
 
