@@ -1,6 +1,6 @@
 # Rocket Pals: visual design system
 
-**Status: proposal for the product owner's review (2026-11-11).** No application code has changed. Once approved, #21 (mission-control UI) and #22 (Three.js scenes) build it, screen by screen, behind the foundations in #30, #31 and #32.
+**Status: approved by the product owner on 2026-11-11**, with all eight decisions in section 13 (see `decisions/2026-11-11-visual-design-approved.md`). No application code has changed yet. #21 (mission-control UI) and #22 (Three.js scenes) build it, screen by screen, behind the foundations in #30, #31 and #32.
 
 It designs the screens in [GAME_DESIGN.md](GAME_DESIGN.md) (approved 2026-11-11). The accessibility and performance rules in `CLAUDE.md` come first: a look that breaks them does not ship.
 
@@ -541,12 +541,13 @@ Subtle, for a sense of technology; never on text a child reads.
 
 File layout: `src/ui/styles/tokens.css`, `components.css`, `screens/<screen>.css`, with `src/style.css` importing them; `src/ui/tokens.ts` for the colours Three.js needs; `public/fonts/`.
 
-## 13. Decisions for review
+## 13. Decisions (approved 2026-11-11)
 
+The product owner approved all eight:
 1. **Fonts:** Fredoka for titles and Lexend for everything else, self-hosted (about 90 KB).
-2. **Gold means "do this", only.** One gold button per screen; borders and titles stop being gold. This is the biggest visible change.
+2. **Gold means "do this", only.** One gold button per screen; borders and titles stop being gold.
 3. **Glass at 0.75 fill** for anything with text (measured for contrast), and no blur on full-screen sheets.
-4. **The Star Map is an HTML orrery** over the live scene (accessible and cheap), not a separate 3D map.
+4. **The Star Map is an HTML orrery** over the live scene, not a separate 3D map.
 5. **Tapping an item in the Hangar equips it straight away,** with no Equip button.
 6. **One menu button replaces the gear.** Settings move into Mission Control.
 7. **The photo credit becomes one line with an info button,** and the full credit opens in a dialog. It is still always on screen.
