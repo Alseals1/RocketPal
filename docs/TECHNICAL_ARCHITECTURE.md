@@ -608,27 +608,27 @@ For each: what it does, what exists today, what changes, the data, and the tests
 | Gameplay system (GAME_DESIGN.md) | Exists today | Changes | New modules and data | Issue |
 | --- | --- | --- | --- | --- |
 | Core loop and screens | `game.ts` modes | Split into screens | `app/screens.ts`, `screens/*` | #32 |
-| Welcome, First flight | — | — | `screens/welcomeScreen.ts`, `ui/welcome.ts` | #18, #19 |
-| Star Map | `ui/hud.ts` picker | Replaced by an overlay | `ui/starMap.ts`, `data/places` | #19 |
-| Cockpit HUD | `ui/hud.ts` stats | Instruments, honest speed | `ui/cockpitHud.ts` | #30, #21 |
-| Flying and capsules | `flight/flightModel.ts`, `scene/spaceScene.ts` | Events, checkpoints | `capsules.json`, `core/capsules.ts` | #19 |
-| Landing and fly-by | `surface/*`, `ui/surfaceHud.ts` | `flyby` kind, cockpit frame, remembered dots | `surfaces.json` entries | #19 |
-| Quizzes and postcards | `quiz/quiz.ts`, `ui/quizPanel.ts` | Pools, levels, seeded draw | `quizzes.json` pools | #19 |
-| Missions and Grand Tour | `data/missions.ts` | Conditions, derived | `chapters.json`, `core/conditions.ts`, `ui/missionBoard.ts` | #19, #20 |
-| XP, ranks, stars | `core/progress.ts` stars | Derived progression | `core/progression/`, `progression.json` | #20 |
-| Reward screen, toasts | — | — | `ui/rewardScreen.ts`, `ui/toast.ts` | #20 |
+| Welcome, First flight | — | — | `screens/welcomeScreen.ts`, `ui/welcome.ts` | #48 |
+| Star Map | `ui/hud.ts` picker | Replaced by an overlay | `ui/starMap.ts`, `data/places` | #42 |
+| Cockpit HUD | `ui/hud.ts` stats | Instruments, honest speed | `ui/cockpitHud.ts` | #30, #50 |
+| Flying and capsules | `flight/flightModel.ts`, `scene/spaceScene.ts` | Events, checkpoints | `capsules.json`, `core/capsules.ts` | #49, #50 |
+| Landing and fly-by | `surface/*`, `ui/surfaceHud.ts` | `flyby` kind, cockpit frame, remembered dots | `surfaces.json` entries | #43, #44 |
+| Quizzes and postcards | `quiz/quiz.ts`, `ui/quizPanel.ts` | Pools, levels, seeded draw | `quizzes.json` pools | #45 |
+| Missions and Grand Tour | `data/missions.ts` | Conditions, derived | `chapters.json`, `core/conditions.ts`, `ui/missionBoard.ts` | #39, #47 |
+| XP, ranks, stars | `core/progress.ts` stars | Derived progression | `core/progression/`, `progression.json` | #39, #46 |
+| Reward screen, toasts | — | — | `ui/rewardScreen.ts`, `ui/toast.ts` | #46 |
 | Save | `core/progress.ts` | v2 format, schema merge | `core/save/`, `platform/saveStore.ts` | #29 |
-| Rocket customization | `ship.glb` `Trim` and `Flame` | Looks in the render frame | `items.json`, `screens/hangarScreen.ts`, `render/hangarScene.ts` | #20 |
+| Rocket customization | `ship.glb` `Trim` and `Flame` | Looks in the render frame | `items.json`, `screens/hangarScreen.ts`, `render/hangarScene.ts` | #52 |
 | Gear | — | — | `Capability`, `items.json` gear | Phase 2 |
-| Astronaut | — | — | astronaut model, `HangarScene` | Phase 2, #23 |
-| Asteroid Belt Run | flight obstacles | Bounce, grid, courses | `activities/flightCourse.ts`, `courses.json` | #19 |
+| Astronaut | — | — | astronaut model, `HangarScene` | #23 (Phase 2) |
+| Asteroid Belt Run | flight obstacles | Bounce, grid, courses | `activities/flightCourse.ts`, `courses.json` | #51 |
 | Educational mini-games | — | — | `activities/*`, `activities.json` | Phase 2 |
-| Journal, patches | dots, `surfaceHud` ticks | Remembered dots | `ui/journal.ts`, `ui/patchBoard.ts`, `patches.json` | #20 |
-| Sound, Listen everywhere | `audio/speech.ts` | Volume for voice | `platform/audio.ts`, `sounds.json` | #34 |
+| Journal, patches | dots, `surfaceHud` ticks | Remembered dots | `ui/journal.ts`, `ui/patchBoard.ts`, `patches.json` | #53, #54 |
+| Sound, Listen everywhere | `audio/speech.ts` | Volume for voice | `platform/audio.ts`, `sounds.json` | #41, #34 |
 | Quality and context loss | `quality/*` | Host owns renderer | `render/rendererHost.ts` | #31 |
-| Assets | `shipModel.ts`, photo loads | Manifest, ref counts | `platform/assets.ts`, `assets/manifest.ts` | #31, #22 |
-| Controls | `flight/input.ts` | Sources, actions | `platform/input/*` | #24 |
-| Visual system | `style.css` | Tokens, components | `ui/styles/*`, `ui/tokens.ts`, `public/fonts/` | #21 |
+| Assets | `shipModel.ts`, photo loads | Manifest, ref counts | `platform/assets.ts`, `assets/manifest.ts` | #40, #22 |
+| Controls | `flight/input.ts` | Sources, actions | `platform/input/*` | #41, #56 |
+| Visual system | `style.css` | Tokens, components | `ui/styles/*`, `ui/tokens.ts`, `public/fonts/` | #21, #55 |
 
 ## 7. How one action flows through the game
 

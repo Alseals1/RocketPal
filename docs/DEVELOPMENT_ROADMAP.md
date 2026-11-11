@@ -46,13 +46,13 @@ After the MVP: P2-A Astronaut · P2-B Learning mini-games · P2-C More action ·
 | --- | --- | --- | --- |
 | **M0** Safety net | Nothing untested reaches `dev`; real Chromebook numbers | #26, #27, #28 | — |
 | **M1** Foundations | Safe saves, quick fixes, Chromebook readiness, screens | #29, #30, #31, #32 | M0 |
-| **M2** Core systems | Content, events, conditions, progression, assets, audio and input services | #18 + new issues | M1 |
-| **M3** Tokens and components | The visual system's parts, under today's look | #21 (part 1) | M1 (#31) |
-| **M4** The loop on every world | Star Map, fly-by worlds, question pools, XP and ranks, rewards, Grand Tour, welcome | #19, #20 (parts) | M2, M3 |
-| **M5** Flight and first action | Capsules, the honest cockpit HUD, the Asteroid Belt Run | #19 (parts) | M2, M3 |
-| **M6** Customization and collection | Hangar (rocket), Journal, patches | #20 (parts) | M4 |
+| **M2** Core systems | Content, events, conditions, progression, assets, audio and input services | #37-#41 | M1 |
+| **M3** Tokens and components | The visual system's parts, under today's look | #21 | M1 (#31) |
+| **M4** The loop on every world | Star Map, fly-by worlds, question pools, XP and ranks, rewards, Grand Tour, welcome | #42-#48 | M2, M3 |
+| **M5** Flight and first action | Capsules, the honest cockpit HUD, the Asteroid Belt Run | #49-#51 | M2, M3 |
+| **M6** Customization and collection | Hangar (rocket), Journal, patches | #52-#54 | M4 |
 | **M7** Sound | Effects and Listen everywhere | #34 | M2 |
-| **M8** Presentation pass | Cinematic 3D, restyle of the older screens, pointer and floating-stick controls | #21 (part 2), #22, #24 (part) | M3, M5 |
+| **M8** Presentation pass | Cinematic 3D, restyle of the older screens, pointer and floating-stick controls | #22, #55, #56 | M3, M5 |
 | **M9** MVP release | Accessibility and performance pass; end-to-end QA; release candidate on `dev` | #24, #25 | M4-M8 |
 
 **One change from the earlier order (approved 2026-11-11):** design tokens and components (M3) move ahead of the new screens instead of after them. Otherwise the Star Map, reward screen, Mission Control and Hangar would be built in the old style and restyled later. Only the parts are built early; the full restyle of the older screens stays late (M8), as approved.
@@ -85,7 +85,7 @@ After the MVP: P2-A Astronaut · P2-B Learning mini-games · P2-C More action ·
 | #29 | Save v2: `SaveData`, `SAVE_SCHEMA`, `migrate`, `merge`, `SaveStore` (TECHNICAL_ARCHITECTURE.md 4.5, 5.13) |
 | #30 | The honest speed lesson, "flying past" wording, the landing-card focus trap, `?debug=1` only, per-entry quiz fail-soft |
 | #31 | `RendererHost` with quality and context loss; no antialiasing on low; pixel ratio cap; off-thread photo decode; 2048 Earth photo; `data-quality` on `<html>` |
-| #32 | Screen manager: `Screen`, `ScreenContext`; `SpaceScreen` and `ArrivalScreen` take today's code out of `Game` (approval of the plan first) |
+| #32 | Screen manager (before #31, so the renderer host lands in the new structure): `Screen`, `ScreenContext`; `SpaceScreen` and `ArrivalScreen` take today's code out of `Game` (approval of the plan first) |
 
 **Acceptance criteria**
 - [ ] A v1 save loads with every star; unknown fields survive load and save; another window's progress appears without reload.
@@ -112,7 +112,7 @@ After the MVP: P2-A Astronaut · P2-B Learning mini-games · P2-C More action ·
 | `InputManager` with today's keyboard and touch sources (no new controls yet) | 4.15, 5.14 |
 | `tests/architecture.test.ts` (import rules) | 3 |
 
-**Issues:** #18 (experience contract) is closed by the approved design docs plus this milestone's types. Split the rest into one issue per row before starting.
+**Issues:** #37 (architecture test), #38 (content loader), #39 (events, conditions, progression), #40 (asset manager), #41 (platform services). #18 (the experience contract) is done by the approved design documents.
 
 **Acceptance criteria**
 - [ ] The game plays exactly as before; every existing test passes.
@@ -123,6 +123,8 @@ After the MVP: P2-A Astronaut · P2-B Learning mini-games · P2-C More action ·
 **Testing:** unit tests for every condition kind, the recorder for every event, the progression fixture totals; fake storage, fake Howler and fake input for the services.
 
 ## M3: Tokens and components
+
+**Issue:** #21.
 
 **Goal:** the visual system's building blocks (VISUAL_DESIGN.md sections 4-6), ready for the new screens, with today's screens moved onto tokens without a visible change.
 
@@ -137,6 +139,8 @@ After the MVP: P2-A Astronaut · P2-B Learning mini-games · P2-C More action ·
 **Testing:** a component test page used by the browser tests; the contrast test; screenshots at the four sizes.
 
 ## M4: The loop on every world
+
+**Issues:** #42 (Star Map and Mission Control), #43 and #44 (fly-by worlds), #45 (question pools), #46 (rewards), #47 (Grand Tour), #48 (welcome and First flight).
 
 **Goal:** the GAME_DESIGN.md core loop works on all 10 worlds: pick, fly, arrive, explore, mission, question, reward, next. (The asteroid belt, the 11th place, arrives in M5.)
 
@@ -161,6 +165,8 @@ After the MVP: P2-A Astronaut · P2-B Learning mini-games · P2-C More action ·
 
 ## M5: Flight and first action
 
+**Issues:** #49 (flight events; pure logic, can start early), #50 (capsules and the cockpit HUD), #51 (the Asteroid Belt Run).
+
 **Goal:** flights have something to do, and the first action challenge is fun and never punishing.
 
 | Deliverable | Architecture / design |
@@ -182,6 +188,8 @@ After the MVP: P2-A Astronaut · P2-B Learning mini-games · P2-C More action ·
 
 ## M6: Customization and collection
 
+**Issues:** #52 (Hangar), #53 (Journal), #54 (patches).
+
 **Goal:** progress becomes visible and personal.
 
 | Deliverable | Design |
@@ -200,6 +208,8 @@ After the MVP: P2-A Astronaut · P2-B Learning mini-games · P2-C More action ·
 
 ## M7: Sound
 
+**Issue:** #34.
+
 **Goal:** gentle effects and read-aloud everywhere (#34).
 
 **Acceptance criteria**
@@ -211,6 +221,8 @@ After the MVP: P2-A Astronaut · P2-B Learning mini-games · P2-C More action ·
 **Testing:** the cue table unit test; fake-Howler tests; browser tests muted and with audio blocked.
 
 ## M8: Presentation pass
+
+**Issues:** #22 (cinematic 3D), #55 (restyle the older screens), #56 (controls).
 
 **Goal:** the cinematic look and the full visual system on every screen, within the Chromebook budget.
 
@@ -232,6 +244,8 @@ After the MVP: P2-A Astronaut · P2-B Learning mini-games · P2-C More action ·
 
 ## M9: MVP release
 
+**Issues:** #24 (accessibility and performance), #25 (QA and the release candidate).
+
 **Goal:** a reviewed release candidate on `dev` (#24, #25). A person decides when `dev` goes to `main`.
 
 **Acceptance criteria**
@@ -249,7 +263,7 @@ After the MVP: P2-A Astronaut · P2-B Learning mini-games · P2-C More action ·
 
 | Milestone | What (GAME_DESIGN.md section 16) | Depends on |
 | --- | --- | --- |
-| **P2-A** Astronaut | Astronaut model in Blender (#23); suit, visor, backpack, helmet light; earned patches on the suit; call sign card | M6 |
+| **P2-A** Astronaut (#23) | Astronaut model in Blender; suit, visor, backpack, helmet light; earned patches on the suit; call sign card | M6 |
 | **P2-B** Learning mini-games | Photo Detective, Planet Lineup, Weigh-in, Light-Speed Messenger (as activities) | M2, M4 |
 | **P2-C** More action | Ring Gate Runs (one route per chapter), rescue missions with towing, Orbit's requests | M5 |
 | **P2-D** Moon, gear and collections | Moon landing in an Apollo panorama; Telescope and Radio dish gear; spacecraft cards; postcards; 12 more patches; music; gamepad | M6, M7 |
