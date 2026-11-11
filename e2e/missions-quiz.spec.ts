@@ -163,6 +163,7 @@ test.describe('the quiz', () => {
           await expect(option).toHaveAttribute('aria-disabled', 'true');
           await expect(page.getByTestId('quiz-feedback')).toContainText('Not quite. Try another one!');
           await expect(page.getByTestId('quiz-feedback')).toContainText(`Hint: the \u201c${dotTitle('mars', quizOf('mars')[0].hotspot)}\u201d dot has the answer.`);
+          await expect(page.getByTestId('quiz-feedback')).toContainText('You can look at it after the quiz.');
           await expect(page.getByTestId('quiz-card')).toBeVisible();
           await expect(page.getByTestId('quiz-step')).toHaveText('Question 1 of 3');
         }
@@ -265,6 +266,33 @@ test.describe('the quiz', () => {
     await expect(page.getByTestId('quiz-step')).toHaveText('Question 1 of 3'); // starts over
   });
 
+  test('Shift+Tab from the question stays inside the card, on every question', async ({ page }) => {
+    await startAndLand(page, 'mars');
+    await finishMission(page, 'mars');
+    await page.getByTestId('quiz-time').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('quiz-question')).toBeFocused();
+
+    // From the heading, Shift+Tab goes to the last button ("Not now" before an answer), not to a dot behind the card.
+    await page.keyboard.press('Shift+Tab');
+    await expect(page.getByTestId('quiz-close')).toBeFocused();
+    for (let i = 0; i < 8; i++) {
+      await page.keyboard.press('Shift+Tab');
+      expect(await page.evaluate(() => !!document.activeElement?.closest('.quiz-card'))).toBe(true);
+    }
+
+    // And again on the next question, where focus also starts on the heading.
+    await answerRight(page, 'mars', 0);
+    await expect(page.getByTestId('quiz-question')).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    expect(await page.evaluate(() => !!document.activeElement?.closest('.quiz-card'))).toBe(true);
+
+    // Tab from the heading still goes to the first answer.
+    await page.getByTestId('quiz-question').focus();
+    await page.keyboard.press('Tab');
+    await expect(page.getByTestId('quiz-option-0')).toBeFocused();
+  });
+
   test('the game\'s own keys wait while the quiz is open', async ({ page }) => {
     await startAndLand(page, 'mars');
     await finishMission(page, 'mars');
@@ -291,6 +319,18 @@ test.describe('the quiz', () => {
     await page.getByTestId(`quiz-option-${rightIndex('mars', 0)}`).click();
     await page.getByTestId('quiz-listen').click();
     expect((await spoken()).at(-1)).toContain(quizOf('mars')[0].because);
+  });
+
+  test('Listen reads the hint after a wrong answer', async ({ page }) => {
+    await startAndLand(page, 'mars');
+    await finishMission(page, 'mars');
+    await page.getByTestId('quiz-time').click();
+
+    await page.getByTestId(`quiz-option-${wrongIndexes('mars', 0)[0]}`).click();
+    await page.getByTestId('quiz-listen').click();
+    const said = await page.evaluate(() => (window as unknown as { __utterances: { text: string }[] }).__utterances.at(-1)!.text);
+    expect(said).toContain(`Hint: the \u201c${dotTitle('mars', quizOf('mars')[0].hotspot)}\u201d dot has the answer.`);
+    expect(said).toContain(quizOf('mars')[0].question);
   });
 
   test('Back to space on the result card leaves, and the quiz is closed when you come back', async ({ page }) => {
@@ -325,6 +365,22 @@ test.describe('for screen readers and small hands', () => {
       }
       await answerRight(page, 'mars', q);
     }
+  });
+
+  test('a right answer and Next in the same frame never carry "Yes! That is right!" to the next question', async ({ page }) => {
+    await startAndLand(page, 'mars');
+    await finishMission(page, 'mars');
+    await page.getByTestId('quiz-time').click();
+
+    // Both clicks in one task, so they land before the announcement's animation frame runs.
+    await page.evaluate((right) => {
+      (document.querySelector(`[data-testid=quiz-option-${right}]`) as HTMLElement).click();
+      (document.querySelector('[data-testid=quiz-next]') as HTMLElement).click();
+    }, rightIndex('mars', 0));
+    await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+
+    await expect(page.getByTestId('quiz-step')).toHaveText('Question 2 of 3');
+    await expect(page.getByTestId('quiz-feedback')).toHaveText('');
   });
 
   test('saying "not quite" twice in a row is announced twice: the live message is emptied in between', async ({ page }) => {
