@@ -30,5 +30,5 @@ Date: 2026-11-11. Decided by the Implement agent for issue #27, following the ap
 ## Follow-ups for a person
 - Require the `Tests and build` check on `dev` (repo settings).
 - Add two issues: (1) the title card overlaps the buttons when Trebuchet MS is missing (Chromebook); (2) make the Orbit second-landing test independent of timing.
-- Three "every dot can be found" tests (2560 x 1080, 1920 x 700, ultra-wide mouse) flaked once in CI, timing out on the 5 s wait for the look to stop turning. They passed on retry. Worth watching.
+- "Every dot can be found" tests flake in CI, timing out on the 5 s wait for the look to stop turning: the ultra-wide mouse test in 2 of 4 runs on PR #60, the 2560 x 1080 and 1920 x 700 tests in 1. They passed on retry. Worth a follow-up if it keeps happening.
 - On a private repo, each run uses about 5-7 minutes of the account's Actions minutes.
