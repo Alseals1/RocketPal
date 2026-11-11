@@ -35,7 +35,7 @@ How the code is built today, and the changes proposed for 2.0. Proposed changes 
 
 That works for two screens. 2.0 adds mini-games, a hangar and a cockpit view. Adding each as another branch inside `Game` would make it hard to change safely.
 
-### Proposed: a screen manager (milestone 2)
+### Proposed: a screen manager (#32)
 
 Each screen becomes its own class with the same small interface:
 
@@ -54,7 +54,7 @@ interface Screen {
 * **How it is proven safe:** behaviour does not change. All 277 unit tests and 136 browser tests must pass before and after, and the debug handle keeps its shape.
 * **Alternatives:** keep adding modes to `Game` (cheapest now, costly later); or a full engine or state library (more than the game needs, and a new dependency).
 
-### Proposed: progress v2 (milestone 5)
+### Proposed: progress v2 (#29, then #20)
 
 Saved progress today is `{ version, worlds: { [id]: { missionDone, quizDone, perfectQuiz } } }` under `rocketpals.progress`. Unlocks need more: which trims, outfits and equipment are unlocked, and which are in use. The plan is a version 2 shape with a tested upgrade from version 1 that keeps every star. Unlocks follow the same rule as stars: a merge keeps anything either copy has unlocked, so nothing is ever lost.
 
@@ -70,4 +70,4 @@ Saved progress today is `{ version, worlds: { [id]: { missionDone, quizDone, per
 
 * **Vitest** (`tests/`, 277 tests): every pure module above, and the JSON validators run against the real data files.
 * **Playwright** (`e2e/`, 136 tests): headless Chromium with software WebGL against `npm run build && npm run preview` on port 4173. Flying, landing on Earth and Mars, missions and quizzes, settings, the ship model, small screens with the biggest text, blocked storage, slow loads, read-aloud edge cases.
-* Run `npm test`, `npm run build` and `npm run test:e2e` before every push. There is no CI yet (milestone 0).
+* Run `npm test`, `npm run build` and `npm run test:e2e` before every push. There is no CI yet (#27).

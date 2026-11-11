@@ -253,7 +253,7 @@ Each idea reuses what is already there. All follow the 2.0 rules: no countdowns,
 
 ## Prioritized implementation roadmap
 
-This is a recommendation. It changes the order in `DEVELOPMENT_ROADMAP.md` (it puts making the loop worth playing before the glass look), so it needs the product owner's approval before that file is updated. Each step is its own plan, branch and PR.
+**Approved by the product owner on 2026-11-11.** It is now the order in `DEVELOPMENT_ROADMAP.md` and is tracked as GitHub issues under epic #16 (steps 1-7 are #26-#32). Each step is its own plan, branch and PR.
 
 | Priority | Step | Why now | Size |
 | --- | --- | --- | --- |
