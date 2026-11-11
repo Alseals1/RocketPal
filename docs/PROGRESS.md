@@ -6,10 +6,10 @@ Last updated: 2026-11-11.
 
 ## Now
 
-* **Milestone 0, rescue:** the review fixes for missions and quiz (PR #12 was merged before they were committed) are in PR #14 into `dev`, branch `feature/missions-quiz-review-fixes`. All tests pass; the reviewer asked for two fixes (Shift+Tab leaves the quiz; a stale "Yes! That is right!" can show on the next question).
-* **Milestone 1, design docs:** this file and the other docs in `docs/`, in their own PR, branch `feature/project-docs`.
-* **Audit:** `docs/PROJECT_AUDIT.md`, a technical and gameplay audit with a prioritized roadmap, waiting for the product owner's review.
-* **Next:** CI for tests and build (rest of milestone 0), then the screen-manager design for the product owner to approve (milestone 2).
+* **Rescue (#26):** the review fixes for missions and quiz (PR #12 was merged before they were committed) are in PR #14 into `dev`, branch `feature/missions-quiz-review-fixes`. All tests pass; the reviewer asked for two fixes (Shift+Tab leaves the quiz; a stale "Yes! That is right!" can show on the next question).
+* **Design docs and audit:** this file and the other docs in `docs/`, in PR #15, branch `feature/project-docs`.
+* **Audit:** `docs/PROJECT_AUDIT.md`. Its roadmap was approved on 2026-11-11 and is now `DEVELOPMENT_ROADMAP.md`, tracked as issues #26-#32 (first) and #18-#25 (later) under epic #16.
+* **Next:** #26 (finish PR #14), then #27 (CI), #28 (Chromebook measurement) and #29 (safe saves).
 
 ## Health (2026-11-11)
 
