@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { noTrebuchetMs, TITLE_OVERLAP_WITHOUT_TREBUCHET } from './known-issues.ts';
 import { readFileSync } from 'node:fs';
 
 interface SurfaceFile {
@@ -389,6 +390,7 @@ test('going from Earth to Mars and back swaps the view each time, with the right
 
 test.describe('on small screens with the biggest text', () => {
   test('nothing sits on top of anything else, and every button is a big target', async ({ page }) => {
+    test.fail(noTrebuchetMs, TITLE_OVERLAP_WITHOUT_TREBUCHET);
     await page.addInitScript(() =>
       localStorage.setItem('rocketpals.settings', JSON.stringify({ version: 1, textSize: 'huge', reducedMotion: 'system' })),
     );
