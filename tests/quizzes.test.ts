@@ -121,7 +121,20 @@ describe('quizzes.json', () => {
     const problems = problemsWith((q) => {
       for (const question of marsQuiz(q).questions) {
         question.options.forEach((o: any, i: number) => {
-          if (!o.correct) o.text = `Wrong${i}`; // one word each, so the right answer is the longest everywhere
+          if (!o.correct) o.text = `W${i}`; // two characters each, so the right answer is the longest everywhere
+        });
+      }
+    });
+    expect(problems.join()).toMatch(/longest/);
+  });
+
+  it('judges "longest" by characters, not words', () => {
+    // The right answer is one word but 20 characters; each wrong one is four words but only 7 characters.
+    // By words the right answer is the shortest; by characters it is the longest in every question, which is what must be caught.
+    const problems = problemsWith((q) => {
+      for (const question of marsQuiz(q).questions) {
+        question.options.forEach((o: any, i: number) => {
+          o.text = o.correct ? 'Supercalifragilistic' : `a b c ${i}`;
         });
       }
     });
