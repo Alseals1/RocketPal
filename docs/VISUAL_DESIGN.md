@@ -41,6 +41,6 @@ Premium glassmorphism, cinematic 3D, a futuristic cockpit, and playful but sophi
 * **Big targets** for touch, and every control reachable by keyboard.
 * **Text size.** Every panel works at Normal, Big and Extra big, including on small phones (the browser tests check this).
 
-## Proposed: design tokens (milestone 3)
+## Proposed: design tokens (#21)
 
 Before restyling, replace the hand-written values in `src/style.css` with tokens: glass fill and edge, blur amount (0 on low quality), radii, shadows, spacing, type scale and motion durations. The new look is then applied one screen at a time, starting with the flying HUD, with the browser tests' layout checks proving nothing overlaps.
