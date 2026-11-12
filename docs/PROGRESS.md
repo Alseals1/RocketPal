@@ -18,13 +18,13 @@ Last updated: 2026-11-12.
 * **Screen split (#32, M1):** parts 2 and 3 had merged into their stack branches, not `dev`; they reach `dev` through #31 part 1 (`goat/31-1-land-32`, draft PR), which also moves #38's `Content` into the split files (`ctx.content`, plus a `layouts` stand-in). `src/game.ts` is split into `SpaceScreen` (flying) and `ArrivalScreen` (standing on a world), behind the `Screen` interface from architecture 4.11, run by a small `ScreenManager` (`src/app/`). `Game` is now a shell of 139 lines in `src/app/game.ts`. Nothing the player sees, hears or saves changed. One fix came with it: leaving a world now frees the surface HUD and its keyboard listeners, which used to stay behind. New tests: `tests/screenManager.test.ts`, `tests/gameShell.test.ts`, `e2e/screens.spec.ts` (listeners and graphics memory after leaving). Scripted play-through in headless Chrome on a Mac (keyboard, touch layout, Mars with dots and quiz, Earth, Jupiter's card): same results as `dev`, 60 fps flying on both, 59 fps on Mars (58 on `dev`) (`decisions/2026-11-11-screen-split.md`).
 * **Chromebook readiness and the renderer host (#31, M1):** stack of 2 draft PRs, waiting for review; the merge waits for a person to fill in the "Before and after #31" table below on a Chromebook. Part 1 lands #32 on `dev` (see the screen split). Part 2: `WebRendererHost` (`src/render/rendererHost.ts`) owns the one renderer. Devices with 4 GB or 4 cores or less start on low (defaults until measured), and low means no antialiasing and pixel ratio 1; a run-time drop cuts the pixel ratio at once. `<html data-quality>` follows the quality. Earth's window view always uses the 2048 photo, and photos decode off the main thread (`ImageBitmapLoader`, with a fallback). A lost WebGL context pauses the game behind a kid-friendly notice with "Start again", and the picture comes back on restore (`decisions/2026-11-12-renderer-host-and-quality.md`).
 
-## Health (2026-11-11)
+## Health (2026-11-12)
 
 | Check | Result |
 | --- | --- |
-| `npm test` (Vitest) | 404 passed |
-| `npm run test:e2e` (Playwright) | 155 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
-| `npm run build` | Clean. 652 KB JavaScript (168 KB gzipped) |
+| `npm test` (Vitest) | 405 passed |
+| `npm run test:e2e` (Playwright) | 158 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
+| `npm run build` | Clean. 654 KB JavaScript (169 KB gzipped) |
 | CI | GitHub Actions `Tests and build` on PRs into `dev` and pushes to `dev`, about 5-7 minutes (#27). First play 758 kB of the 15 MB budget |
 | Chromebook | Not measured yet. Guide ready (#28) |
 
