@@ -1,38 +1,86 @@
-import type { Surface, SurfaceData } from './surfaces';
+/**
+ * Missions (docs/TECHNICAL_ARCHITECTURE.md section 4.7). A mission is done when its `goal` condition is met: that is
+ * worked out from the save, never stored. Only `find` missions exist today; the other kinds, `rescue` and chapters
+ * arrive with their own issues. See decisions/2026-11-12-events-conditions-progression.md (D7).
+ */
+import { validateCondition, type Condition, type ConditionContext } from './conditions';
+import type { ChapterId, MissionId, PlaceId } from './ids';
+import type { SurfaceData } from './surfaces';
 import { isRealDate, isText, words } from './text';
 
-export interface Mission {
-  worldId: string;
-  /** What Orbit asks the kid to do, for example "Find 3 things on Mars". */
+export interface MissionDef {
+  id: MissionId;
+  kind: 'find' | 'tour' | 'side' | 'rescue' | 'request';
+  /** Where it happens (for "Go" on the mission board). */
+  place?: PlaceId;
+  /** Tour steps. */
+  chapter?: ChapterId;
+  /** What Orbit asks the kid to do, for example "Find 3 things on Mars". At most 40 characters. */
   title: string;
-  /** How many of the world's dots must be found to finish the mission. */
-  findCount: number;
+  /** Done when this is met (derived, never stored). */
+  goal: Condition;
+  /** Shown only once this is met (requests, rescues). */
+  available?: Condition;
   /** What Orbit says when the mission is done. */
   done: string;
   /** A friendly cliffhanger about the next world, shown after the quiz. */
-  teaser: string;
-  teaserWorld: string;
+  teaser?: { text: string; place: PlaceId };
 }
 
 export interface MissionData {
   lastChecked: string;
-  missions: Mission[];
+  missions: MissionDef[];
 }
 
 export const MISSION_LIMITS = { titleChars: 40, doneWords: 20, teaserWords: 20 };
 
-/** Returns a list of problems in the mission data. An empty list means it is valid. */
+const MISSION_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
+
+/** What a mission may point at: the conditions' context, and the worlds a teaser may name. */
+export type MissionContext = ConditionContext & { worldIds: readonly string[] };
+
+/** The `find` mission at a place, if there is one. */
+export function findMissionAt(content: { missions: ReadonlyMap<string, MissionDef> }, place: string): MissionDef | undefined {
+  for (const m of content.missions.values()) if (m.kind === 'find' && m.place === place) return m;
+  return undefined;
+}
+
+/** How many dots a `find` mission asks for (0 for any other goal). */
+export function findCountOf(m: MissionDef): number {
+  return m.goal.type === 'dotsFound' ? m.goal.count : 0;
+}
+
+/** The name a mission's problems start with. */
+export function missionLabel(raw: unknown): string {
+  const id = (raw as Record<string, unknown> | null)?.id;
+  return typeof id === 'string' && MISSION_ID.test(id) ? id : '(mission without an id)';
+}
+
+/** Returns a list of problems in the mission data, checked against the landing pictures. An empty list means it is valid. */
 export function validateMissions(raw: unknown, surfaces: SurfaceData, worldIds: readonly string[]): string[] {
   const problems = validateMissionsFile(raw);
   const missions = (raw as Record<string, unknown> | null)?.missions;
   if (!Array.isArray(missions)) return problems;
 
+  const ctx: MissionContext = {
+    places: new Set(worldIds),
+    dotsAt: (place) => surfaces.surfaces.find((s) => s.worldId === place)?.hotspots.length,
+    quizPlaces: new Set(),
+    missionIds: new Set(missions.map(missionLabel)),
+    worldIds,
+  };
   const seen = new Set<string>();
+  const findAt = new Set<string>();
   for (const m of missions as Record<string, any>[]) {
-    const world = isText(m?.worldId) ? m.worldId : '(mission without a worldId)';
-    if (seen.has(world)) problems.push(`${world}: has a mission more than once`);
-    seen.add(world);
-    problems.push(...validateMission(m, surfaces.surfaces.find((s) => s.worldId === world), worldIds));
+    const id = missionLabel(m);
+    if (seen.has(id)) problems.push(`${id}: listed twice`);
+    seen.add(id);
+    const mine = validateMission(m, ctx);
+    problems.push(...mine);
+    if (mine.length === 0 && m.kind === 'find') {
+      if (findAt.has(m.place)) problems.push(`${id}: ${m.place} already has a find mission`);
+      findAt.add(m.place);
+    }
   }
   return problems;
 }
@@ -48,20 +96,27 @@ export function validateMissionsFile(raw: unknown): string[] {
 }
 
 /**
- * The checks on one world's mission, against that world's landing picture (`undefined` if it has none).
- * `worldIds` are the worlds its teaser may point at.
+ * The checks on one mission. Only `find` missions are accepted today: a `place` with a landing picture, a goal of
+ * `dotsFound` at that same place, and a teaser that points at a world.
  */
-export function validateMission(raw: unknown, surface: Surface | undefined, worldIds: readonly string[]): string[] {
+export function validateMission(raw: unknown, ctx: MissionContext): string[] {
   const m = raw as Record<string, any>; // typed loosely: every read allows for a missing field
+  const label = missionLabel(m);
   const problems: string[] = [];
-  const world = isText(m?.worldId) ? m.worldId : '(mission without a worldId)';
-  if (!surface) problems.push(`${world}: has a mission but no landing picture`);
-  if (!isText(m?.title) || m.title.length > MISSION_LIMITS.titleChars) problems.push(`${world}: title is required and at most ${MISSION_LIMITS.titleChars} characters`);
-  if (!Number.isInteger(m?.findCount) || m.findCount < 1 || (surface && m.findCount > surface.hotspots.length)) {
-    problems.push(`${world}: findCount must be a whole number from 1 to the number of dots on the picture${surface ? ` (${surface.hotspots.length})` : ''}`);
-  }
-  if (!isText(m?.done) || words(m.done) > MISSION_LIMITS.doneWords) problems.push(`${world}: done is required and at most ${MISSION_LIMITS.doneWords} words`);
-  if (!isText(m?.teaser) || words(m.teaser) > MISSION_LIMITS.teaserWords) problems.push(`${world}: teaser is required and at most ${MISSION_LIMITS.teaserWords} words`);
-  if (!isText(m?.teaserWorld) || !worldIds.includes(m.teaserWorld)) problems.push(`${world}: teaserWorld must be a world in planets.json`);
+  const say = (problem: string) => problems.push(`${label}: ${problem}`);
+  if (label !== m?.id) say('id is required: lowercase letters, digits and dashes, at most 40 characters');
+  if (m?.kind !== 'find') say('kind must be "find" (other kinds come with their own issues)');
+  const place = typeof m?.place === 'string' ? m.place : undefined;
+  const isWorld = place !== undefined && ctx.worldIds.includes(place);
+  if (!isWorld) say('place must be a world in planets.json');
+  else if (ctx.dotsAt(place) === undefined) say('has a mission but no landing picture');
+  if (!isText(m?.title) || m.title.length > MISSION_LIMITS.titleChars) say(`title is required and at most ${MISSION_LIMITS.titleChars} characters`);
+  if (m?.goal?.type !== 'dotsFound' || m.goal.place !== place) say("a find mission's goal must be dotsFound at its own place");
+  problems.push(...validateCondition(m?.goal, ctx, `${label}: goal`));
+  if (m?.available !== undefined) problems.push(...validateCondition(m.available, ctx, `${label}: available`));
+  if (!isText(m?.done) || words(m.done) > MISSION_LIMITS.doneWords) say(`done is required and at most ${MISSION_LIMITS.doneWords} words`);
+  const teaser = m?.teaser;
+  if (!isText(teaser?.text) || words(teaser.text) > MISSION_LIMITS.teaserWords) say(`teaser text is required and at most ${MISSION_LIMITS.teaserWords} words`);
+  if (typeof teaser?.place !== 'string' || !ctx.worldIds.includes(teaser.place)) say('teaser place must be a world in planets.json');
   return problems;
 }

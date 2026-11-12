@@ -155,14 +155,15 @@ describe('quizzes.json', () => {
 
 describe('missions.json', () => {
   const check = (m: unknown) => validateMissions(m, surfaces, WORLDS);
+  const mars = (m: any) => m.missions.find((x: any) => x.place === 'mars');
 
   it('is valid as shipped', () => {
     expect(check(missionsJson)).toEqual([]);
   });
 
-  it('has a mission for every world that has a landing picture, and a quiz to go with it', () => {
+  it('has a find mission for every world that has a landing picture, and a quiz to go with it', () => {
     for (const surface of surfaces.surfaces) {
-      expect(missionsJson.missions.some((m) => m.worldId === surface.worldId), `mission for ${surface.worldId}`).toBe(true);
+      expect(missionsJson.missions.some((m) => m.kind === 'find' && m.place === surface.worldId), `mission for ${surface.worldId}`).toBe(true);
       expect(quizzesJson.quizzes.some((q) => q.worldId === surface.worldId), `quiz for ${surface.worldId}`).toBe(true);
     }
   });
@@ -170,35 +171,83 @@ describe('missions.json', () => {
   it('asks for a number of dots the world really has', () => {
     const marsDots = surfaces.surfaces.find((s) => s.worldId === 'mars')!.hotspots.length;
     const tooMany = missions();
-    tooMany.missions.find((m: any) => m.worldId === 'mars').findCount = marsDots + 1;
-    expect(check(tooMany).join()).toMatch(/findCount/);
-    const none = missions();
-    none.missions[0].findCount = 0;
-    expect(check(none).join()).toMatch(/findCount/);
-    const half = missions();
-    half.missions[0].findCount = 1.5;
-    expect(check(half).join()).toMatch(/findCount/);
+    mars(tooMany).goal.count = marsDots + 1;
+    expect(check(tooMany)).toEqual([
+      `find-3-mars: goal: dotsFound count must be a whole number from 1 to the number of dots on the picture (${marsDots})`,
+    ]);
+    for (const count of [0, 1.5, '3']) {
+      const bad = missions();
+      mars(bad).goal.count = count;
+      expect(check(bad).join(), String(count)).toMatch(/dotsFound count/);
+    }
   });
 
-  it('only has missions for worlds with a landing picture, once each, and points its teaser at a real world', () => {
+  it('needs an id, the find kind, and a goal of dotsFound at its own place', () => {
+    const noId = missions();
+    delete mars(noId).id;
+    expect(check(noId)).toContain('(mission without an id): id is required: lowercase letters, digits and dashes, at most 40 characters');
+    const badId = missions();
+    mars(badId).id = 'Find 3 on Mars';
+    expect(check(badId).join()).toMatch(/id is required/);
+    const kind = missions();
+    mars(kind).kind = 'rescue';
+    expect(check(kind)).toEqual(['find-3-mars: kind must be "find" (other kinds come with their own issues)']);
+    const elsewhere = missions();
+    mars(elsewhere).goal = { type: 'dotsFound', place: 'earth', count: 3 };
+    expect(check(elsewhere)).toEqual(["find-3-mars: a find mission's goal must be dotsFound at its own place"]);
+    const visited = missions();
+    mars(visited).goal = { type: 'visited', place: 'mars' };
+    expect(check(visited)).toEqual(["find-3-mars: a find mission's goal must be dotsFound at its own place"]);
+    const unsupported = missions();
+    mars(unsupported).goal = { type: 'rank', atLeast: 2 };
+    expect(check(unsupported)).toEqual([
+      "find-3-mars: a find mission's goal must be dotsFound at its own place",
+      'find-3-mars: goal: "rank" is not supported yet',
+    ]);
+  });
+
+  it('checks an available condition too', () => {
+    const m = missions();
+    mars(m).available = { type: 'visited', place: 'pluto' };
+    expect(check(m)).toEqual(['find-3-mars: available: visited place must be a world in planets.json']);
+  });
+
+  it('only has missions for worlds with a landing picture, once each, one find per place, and points its teaser at a real world', () => {
     const extra = missions();
-    extra.missions.push({ ...extra.missions[0], worldId: 'moon' });
-    expect(check(extra).join()).toMatch(/moon.*no landing picture/);
+    extra.missions.push({ ...structuredClone(extra.missions[0]), id: 'find-3-moon', place: 'moon', goal: { type: 'dotsFound', place: 'moon', count: 3 } });
+    expect(check(extra).join()).toMatch(/find-3-moon: has a mission but no landing picture/);
+    const nowhere = missions();
+    mars(nowhere).place = 'pluto';
+    expect(check(nowhere)).toContain('find-3-mars: place must be a world in planets.json');
     const twice = missions();
     twice.missions.push(structuredClone(twice.missions[0]));
-    expect(check(twice).join()).toMatch(/more than once/);
+    expect(check(twice).join()).toMatch(/find-3-mars: listed twice/);
+    const second = missions();
+    second.missions.push({ ...structuredClone(mars(second)), id: 'find-2-mars' });
+    expect(check(second)).toEqual(['find-2-mars: mars already has a find mission']);
     const lost = missions();
-    lost.missions[0].teaserWorld = 'pluto';
-    expect(check(lost).join()).toMatch(/teaserWorld/);
+    mars(lost).teaser.place = 'pluto';
+    expect(check(lost)).toEqual(['find-3-mars: teaser place must be a world in planets.json']);
+    const noTeaser = missions();
+    delete mars(noTeaser).teaser;
+    expect(check(noTeaser)).toEqual([
+      'find-3-mars: teaser text is required and at most 20 words',
+      'find-3-mars: teaser place must be a world in planets.json',
+    ]);
   });
 
   it('keeps every line short and present', () => {
-    for (const field of ['title', 'done', 'teaser']) {
+    const lines: [string, (m: any, v: string) => void][] = [
+      ['title', (m, v) => (m.title = v)],
+      ['done', (m, v) => (m.done = v)],
+      ['teaser text', (m, v) => (m.teaser.text = v)],
+    ];
+    for (const [field, set] of lines) {
       const empty = missions();
-      empty.missions[0][field] = '';
+      set(mars(empty), '');
       expect(check(empty).join(), field).toMatch(new RegExp(field));
       const long = missions();
-      long.missions[0][field] = 'word '.repeat(60).trim() + '.';
+      set(mars(long), 'word '.repeat(60).trim() + '.');
       expect(check(long).join(), field).toMatch(new RegExp(field));
     }
   });

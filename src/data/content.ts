@@ -1,5 +1,6 @@
-import { WORLD_IDS, type PlaceId, type WorldId } from './ids';
-import { validateMission, validateMissionsFile, type Mission } from './missions';
+import type { ConditionContext } from './conditions';
+import { WORLD_IDS, type MissionId, type PlaceId, type WorldId } from './ids';
+import { missionLabel, validateMission, validateMissionsFile, type MissionDef } from './missions';
 import { validatePlanetsFile, validateWorld, type World } from './planets';
 import { FALLBACK_RULES, validateProgression, type ProgressionRules } from './progression';
 import { validateQuiz, validateQuizzesFile, type Quiz } from './quizzes';
@@ -17,16 +18,17 @@ export interface Place {
 /**
  * Everything loaded from public/data/, validated, indexed. Read-only after start.
  *
- * Only the parts today's content uses (section 4.2 lists the rest, which come with their own issues). The entries keep
- * today's types for now: arrivals become `ArrivalDef`, quizzes `QuestionPool` and missions `MissionDef` later.
- * See decisions/2026-11-11-content-loader-interim-types.md.
+ * Only the parts today's content uses (section 4.2 lists the rest, which come with their own issues). Arrivals and
+ * quizzes keep today's types for now: they become `ArrivalDef` and `QuestionPool` later. Missions are `MissionDef`,
+ * with only `find` missions so far. See decisions/2026-11-11-content-loader-interim-types.md and
+ * decisions/2026-11-12-events-conditions-progression.md.
  */
 export interface Content {
   places: Map<PlaceId, Place>;
   worlds: Map<WorldId, World>; // planets.json
   arrivals: Map<PlaceId, Surface>; // surfaces.json
   quizzes: Map<PlaceId, Quiz>; // quizzes.json
-  missions: Map<PlaceId, Mission>; // missions.json
+  missions: Map<MissionId, MissionDef>; // missions.json
   progression: ProgressionRules; // progression.json: the XP table and the ranks
   /** Entries left out by validation, each as "<file>.json: <why>". Logged; must be empty in tests. */
   problems: string[];
@@ -56,8 +58,8 @@ const FILES: FileName[] = ['planets', 'surfaces', 'quizzes', 'missions', 'progre
 
 /**
  * Validates the data files entry by entry and indexes what is left. A bad entry is left out, with the entries that
- * point at it (a world takes its moon, landing picture, quiz and mission; a landing picture takes its quiz and
- * mission), and the rest still loads. The first copy of anything listed twice is kept. Each file that lost something
+ * point at it (a world takes its moon, landing picture, quiz and the missions that name it; a landing picture takes
+ * its quiz and mission), and the rest still loads. The first copy of anything listed twice is kept. Each file that lost something
  * logs one console error. progression.json is checked as a whole: if it is missing or broken, no XP is given
  * (`FALLBACK_RULES`) and the rest still works. Throws only if planets.json is unusable as a whole or keeps no world at all.
  */
@@ -133,13 +135,30 @@ export function buildContent(raw: RawContent): Content {
     (q) => validateQuiz(q, arrivalFor(q)),
     (id) => `${id}: has a quiz more than once (kept the first)`,
   ) as Map<PlaceId, Quiz>;
-  const missions = keep<Mission>(
+  // Missions are checked against everything kept so far, and against each other's ids (collected first).
+  const missionList = entriesOf('missions', validateMissionsFile, 'missions');
+  const missionCtx: ConditionContext & { worldIds: readonly string[] } = {
+    places: new Set(places.keys()),
+    dotsAt: (place) => arrivals.get(place as PlaceId)?.hotspots.length,
+    quizPlaces: new Set(quizzes.keys()),
+    missionIds: new Set((missionList ?? []).map(missionLabel)),
+    worldIds,
+  };
+  const missions = keep<MissionDef>(
     'missions',
-    entriesOf('missions', validateMissionsFile, 'missions'),
-    (m) => m.worldId,
-    (m) => validateMission(m, arrivalFor(m), worldIds),
-    (id) => `${id}: has a mission more than once (kept the first)`,
-  ) as Map<PlaceId, Mission>;
+    missionList,
+    (m) => m.id,
+    (m) => validateMission(m, missionCtx),
+    (id) => `${id}: listed twice (kept the first)`,
+  ) as Map<MissionId, MissionDef>;
+  const findAt = new Set<string>();
+  for (const m of [...missions.values()]) {
+    if (m.kind !== 'find' || m.place === undefined) continue;
+    if (findAt.has(m.place)) {
+      found.missions.push(`${m.id}: ${m.place} already has a find mission (kept the first)`);
+      missions.delete(m.id);
+    } else findAt.add(m.place);
+  }
 
   // The XP table and the ranks: all or nothing.
   const rulesList = entriesOf('progression', validateProgression, 'ranks');

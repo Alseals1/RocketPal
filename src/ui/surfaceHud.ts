@@ -1,4 +1,4 @@
-import type { Mission } from '../data/missions';
+import { findCountOf, type MissionDef } from '../data/missions';
 import type { QuizQuestionData } from '../data/quizzes';
 import type { Hotspot, Surface } from '../data/surfaces';
 import type { Speaker } from '../audio/speech';
@@ -19,7 +19,7 @@ export interface SurfaceCallbacks {
 
 /** A mission and quiz for this world (left out if their data could not be loaded: the landing still works without them). */
 export interface MissionExtras {
-  mission: Mission;
+  mission: MissionDef;
   questions: QuizQuestionData[];
 }
 
@@ -123,7 +123,7 @@ export class SurfaceHud {
 
     if (extras) {
       const dotTitles = Object.fromEntries(surface.hotspots.map((h) => [h.id, h.title]));
-      this.quizPanel = new QuizPanel(this.root, extras.questions, extras.mission.teaser, dotTitles, this.speaker, {
+      this.quizPanel = new QuizPanel(this.root, extras.questions, extras.mission.teaser?.text ?? '', dotTitles, this.speaker, {
         onFinished: (perfect) => this.callbacks.onQuizFinished(perfect),
         onBackToSpace: () => this.callbacks.onBack(),
         onClosed: () => {
@@ -244,7 +244,7 @@ export class SurfaceHud {
     this.setListenLabel(false);
     this.found.add(spot.id);
     this.setMood('happy'); // a find makes Orbit happy for the rest of the visit
-    if (this.extras && !this.missionDone && this.found.size >= this.extras.mission.findCount) {
+    if (this.extras && !this.missionDone && this.found.size >= findCountOf(this.extras.mission)) {
       this.missionJustDone = true;
       this.callbacks.onMissionComplete();
     }

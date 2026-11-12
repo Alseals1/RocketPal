@@ -2,20 +2,22 @@
   "lastChecked": "2026-10-23",
   "missions": [
     {
-      "worldId": "mars",
+      "id": "find-3-mars",
+      "kind": "find",
+      "place": "mars",
       "title": "Find 3 things on Mars",
-      "findCount": 3,
+      "goal": { "type": "dotsFound", "place": "mars", "count": 3 },
       "done": "Mission complete! Ready for the quiz?",
-      "teaser": "Next stop: Jupiter, the biggest planet. It has a storm bigger than Earth!",
-      "teaserWorld": "jupiter"
+      "teaser": { "text": "Next stop: Jupiter, the biggest planet. It has a storm bigger than Earth!", "place": "jupiter" }
     },
     {
-      "worldId": "earth",
+      "id": "find-3-earth",
+      "kind": "find",
+      "place": "earth",
       "title": "Find 3 things out the window",
-      "findCount": 3,
+      "goal": { "type": "dotsFound", "place": "earth", "count": 3 },
       "done": "Mission complete! Ready for the quiz?",
-      "teaser": "Next stop: Mars! A robot explorer is waiting for you there.",
-      "teaserWorld": "mars"
+      "teaser": { "text": "Next stop: Mars! A robot explorer is waiting for you there.", "place": "mars" }
     }
   ]
 }

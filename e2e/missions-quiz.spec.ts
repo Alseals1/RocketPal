@@ -7,7 +7,7 @@ interface QuizFile {
   quizzes: { worldId: string; questions: { question: string; because: string; hotspot: string; options: { text: string; correct: boolean }[] }[] }[];
 }
 interface MissionFile {
-  missions: { worldId: string; title: string; done: string; teaser: string }[];
+  missions: { id: string; place: string; title: string; done: string; teaser: { text: string; place: string } }[];
 }
 interface SurfaceFile {
   surfaces: { worldId: string; hotspots: { id: string; title: string }[] }[];
@@ -17,7 +17,7 @@ const dotTitle = (world: string, id: string) => surfaceFile.surfaces.find((x) =>
 const quizzes = JSON.parse(readFileSync('public/data/quizzes.json', 'utf8')) as QuizFile;
 const missions = JSON.parse(readFileSync('public/data/missions.json', 'utf8')) as MissionFile;
 const quizOf = (world: string) => quizzes.quizzes.find((q) => q.worldId === world)!.questions;
-const missionOf = (world: string) => missions.missions.find((m) => m.worldId === world)!;
+const missionOf = (world: string) => missions.missions.find((m) => m.place === world)!;
 const rightIndex = (world: string, q: number) => quizOf(world)[q].options.findIndex((o) => o.correct);
 const wrongIndexes = (world: string, q: number) => [0, 1, 2].filter((i) => i !== rightIndex(world, q));
 
@@ -197,7 +197,7 @@ test.describe('the quiz', () => {
     // Some answers were wrong on question 1, so it is not perfect: mission star + finished star = 2.
     await expect(page.getByTestId('quiz-question')).toHaveText('Quiz done!');
     await expect(page.getByTestId('quiz-stars')).toHaveAttribute('aria-label', '2 of 3 stars');
-    await expect(page.getByTestId('quiz-teaser')).toHaveText(missionOf('mars').teaser);
+    await expect(page.getByTestId('quiz-teaser')).toHaveText(missionOf('mars').teaser.text);
     await expect(page.getByTestId('quiz-feedback')).toHaveText('You earned 2 stars! Play again to try for the bonus star.');
     expect(await starsText(page)).toBe('2 of 3 stars');
     expect(await stars(page, 'mars')).toBe(2);
@@ -650,9 +650,9 @@ test.describe('when the data is missing', () => {
   });
 
   test('a broken mission is left out on its own (the other world keeps its mission)', async ({ page }) => {
-    const errors = watchForErrors(page, [/Some missions were left out:\nmars/]);
-    const broken = structuredClone(missions) as { missions: Record<string, unknown>[] };
-    broken.missions.find((m) => m.worldId === 'mars')!.findCount = 99;
+    const errors = watchForErrors(page, [/Some missions were left out:\nfind-3-mars/]);
+    const broken = structuredClone(missions) as { missions: { place: string; goal: Record<string, unknown> }[] };
+    broken.missions.find((m) => m.place === 'mars')!.goal.count = 99;
     await page.route('**/data/missions.json', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(broken) }),
     );
