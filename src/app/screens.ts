@@ -10,7 +10,7 @@ import type { Speaker } from '../audio/speech';
 import type { Mission } from '../data/missions';
 import type { QuizQuestionData } from '../data/quizzes';
 import type { Surface } from '../data/surfaces';
-import type { InputController } from '../flight/input';
+import type { InputManager } from '../platform/input/inputManager';
 import type { SaveStore } from '../platform/saveStore';
 import type { Quality } from '../quality/quality';
 import type { BodyLayout } from '../scene/layout';
@@ -40,13 +40,12 @@ export interface ScreenContext {
   save: SaveStore; // 4.11
   speech: Speaker; // 4.11
   go<P>(screen: ScreenId, params: P): Promise<void>; // 4.11
+  input: InputManager; // 4.11
   // Stand-ins, each replaced when its 4.11 member arrives:
   /** Where screens add their HTML. → `overlays` (OverlayStack) */
   stage: HTMLElement;
   /** Owns the one WebGLRenderer and its canvas. → `renderer` (RendererHost, #31) */
   scene: SpaceScene;
-  /** Keyboard and touch. → `input` (InputManager, #24) */
-  controls: InputController;
   /** → `content` (Content, #38) */
   data: GameData;
   /** The quality the game draws at now. → `renderer.quality` (#31) */

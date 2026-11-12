@@ -14,11 +14,14 @@ import {
   type FlightInput,
   type ShipState,
 } from './flight/flightModel';
-import { InputController } from './flight/input';
 import { recordMission, recordQuiz, starsFor } from './core/progress';
 import type { SaveData } from './core/save/schema';
 import { createSaveStore, type SaveStore } from './platform/saveStore';
-import { browserStorage, effectiveReducedMotion, saveSettings, type Settings } from './core/settings';
+import { browserStorage, effectiveReducedMotion, type Settings } from './core/settings';
+import { createAudioManager, unlockOnFirstGesture, type AudioManager } from './platform/audio';
+import { createInputManager, type InputManager } from './platform/input/inputManager';
+import { buildTouchControls } from './platform/input/touchStickSource';
+import type { SettingsStore } from './platform/settingsStore';
 import { FrameMonitor } from './quality/monitor';
 import { chooseQuality, initialQuality, type Quality } from './quality/quality';
 import {
@@ -50,7 +53,7 @@ interface Options {
   /** 'high' or 'low' from the page address, to force a quality (and turn off the automatic chooser). */
   forcedQuality?: Quality;
   touchControls: boolean;
-  settings: Settings;
+  settings: SettingsStore;
   debug: boolean;
 }
 
@@ -60,7 +63,9 @@ export class Game {
   private readonly layouts: BodyLayout[];
   private readonly scene: SpaceScene;
   private readonly hud: Hud;
-  private readonly input: InputController;
+  private readonly input: InputManager;
+  /** Sound effects. Silent until #34 adds sounds; Howler loads on the first tap or key. */
+  private readonly audio: AudioManager;
   private readonly monitor = new FrameMonitor();
 
   private ship: ShipState = createShip(START_POSITION, 0, 0);
@@ -106,7 +111,7 @@ export class Game {
     });
     this.ship = this.startFacing('earth');
     this.quality = options.forcedQuality ?? initialQuality(readHardwareHints());
-    this.settings = options.settings;
+    this.settings = options.settings.get();
     this.reducedMotion = effectiveReducedMotion(this.settings.reducedMotion, this.systemMotion.matches);
 
     const stage = document.createElement('div');
@@ -115,11 +120,13 @@ export class Game {
     this.stage = stage;
 
     this.scene = new SpaceScene(stage, this.layouts, this.quality, this.reducedMotion, options.debug);
-    this.input = new InputController(
-      stage,
-      options.touchControls,
-      () => (this.settingsPanel?.isOpen ?? false) || (this.surfaceHud?.isCardOpen ?? false),
-    );
+    this.input = createInputManager({
+      controls: buildTouchControls(stage),
+      showTouchControls: options.touchControls,
+      isBlocked: () => (this.settingsPanel?.isOpen ?? false) || (this.surfaceHud?.isCardOpen ?? false),
+    });
+    this.audio = createAudioManager({ volumes: this.settings.volume });
+    unlockOnFirstGesture(this.audio, window);
     this.hud = new Hud(stage, this.layouts, {
       onSelect: (id) => this.pickTarget(id),
       onAutopilot: (on) => this.setAutopilot(on),
@@ -172,9 +179,9 @@ export class Game {
 
   /** Called when the player picks something in the settings panel (or the computer's motion setting changes). */
   private changeSettings(next: Settings, save = true): void {
-    this.settings = next;
-    if (save) saveSettings(next, browserStorage());
-    this.reducedMotion = applySettingsToPage(next, this.systemMotion.matches);
+    this.settings = save ? this.options.settings.set(next) : next;
+    for (const channel of ['effects', 'music', 'voice'] as const) this.audio.setVolume(channel, this.settings.volume[channel]);
+    this.reducedMotion = applySettingsToPage(this.settings, this.systemMotion.matches);
     this.scene.setReducedMotion(this.reducedMotion);
   }
 
@@ -224,7 +231,7 @@ export class Game {
     this.lastFrame = now;
 
     if (this.autopilot && this.input.isSteering()) this.setAutopilot(false);
-    const input = this.autopilot ? AUTOPILOT_INPUT : this.input.read();
+    const input = this.autopilot ? AUTOPILOT_INPUT : this.input.flight();
 
     const wasDocked = this.ship.docked;
     const targetLayout = this.targetId ? this.layout(this.targetId) : undefined;
@@ -292,7 +299,7 @@ export class Game {
   private surfaceTick(dt: number): void {
     const panorama = this.panorama!;
     const look = this.look!;
-    const input = this.input.read(); // the same keys: left and right turn, up and down tilt
+    const input = this.input.flight(); // the same keys: left and right turn, up and down tilt
     look.step(dt, { turn: input.turn, tilt: input.pitch });
     panorama.setLook(look.state);
     this.surfaceHud?.update((azimuth, elevation) => panorama.project(azimuth, elevation));
@@ -305,7 +312,7 @@ export class Game {
     this.mode = 'surface';
     this.scene.setCanvasLabel(surface.description);
     this.stage.classList.add('is-surface');
-    this.input.suspendTouchControls(true);
+    this.input.setSources(['keyboard']);
 
     this.activeSurface = surface;
     if (!this.surfaceHud || this.surfaceHudFor !== surface.worldId) {
@@ -417,7 +424,7 @@ export class Game {
     this.look = undefined;
     this.panorama?.dispose();
     this.surfaceHud?.hide();
-    this.input.suspendTouchControls(false);
+    this.input.setSources(['keyboard', 'touchStick']);
   }
 
   /** Finds the world the rocket is right next to (if any), so the picker can say "you're here". */
@@ -487,7 +494,7 @@ export class Game {
       getFps: () => this.monitor.fps(),
       getWorld: (id: string): World | undefined => this.layout(id)?.world,
       isReducedMotion: () => this.scene.isReducedMotion, // read from the scene itself, so tests cover the wiring
-      getSettings: () => this.settings,
+      getSettings: () => this.options.settings.get(),
       getMode: () => this.mode,
       getLook: () => this.look?.state,
       isLookTurning: () => this.look?.isTurning ?? false,
