@@ -116,7 +116,7 @@ Notes posted on #31: —
 | #57 | Quiz fixes: Shift+Tab stays in the quiz, no stale "Yes!", Listen reads the hint, fairer Earth answers |
 | #60 | CI: tests, build and browser tests on every PR into `dev`, sizes in the job summary; each checkout gets its own browser-test port (`E2E_PORT` overrides) |
 | #61 | Chromebook measurement guide and empty results tables (#28) |
-| PR_29 | Save v2 (#29): versioned save with upgrade from v1, unknown fields kept, a merge rule per field, a backup copy, and live updates from other windows |
+| #62 | Save v2 (#29): versioned save with upgrade from v1, unknown fields kept, a merge rule per field, a backup copy, and live updates from other windows |
 
 ## Content coverage
 
