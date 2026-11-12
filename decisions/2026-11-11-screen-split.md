@@ -10,7 +10,7 @@ Date: 2026-11-11. Decided by the Plan agent for issue #32 and approved at plan r
 5. **Enter, then leave.** `ScreenManager.go` enters the next screen while the current one keeps drawing, and leaves the old screen only once the new one has entered. That keeps today's landing: the HUD says "Landing on Mars..." over space until the picture is in. A failed `enter` leaves the new screen and keeps the old one. A screen still entering when `go` is called again (Back while loading) is left at once and never becomes active.
 6. **`resize` goes to every screen**, active or not, as today (the hidden space HUD and the kept panorama both follow the screen size).
 7. **A new debug member, `getRenderMemory()`**, returns a copy of `renderer.info.memory` (textures, geometries). It is added, not changed (section 9), for the browser test that checks a leaving screen frees what it used.
-8. **`Game` moves to `src/app/game.ts`** as a shell under 150 lines; the debug handle moves to `src/app/debugHandle.ts`.
+8. **`Game` moves to `src/app/game.ts`** as a shell under 150 lines (`tests/gameShell.test.ts` checks it). To get there, code moved out rather than being squeezed: the debug handle to `src/app/debugHandle.ts`, and the start options and content maps (`GameOptions`, `buildGameData`) to `src/app/gameData.ts`.
 
 ## Why
 - `'arrival'` is the approved 4.11 `ScreenId`, and section 10 already says "`SpaceScreen` and `ArrivalScreen`". In 2.0 the same screen also shows fly-by worlds (4.9), so "surface" would soon be too narrow.

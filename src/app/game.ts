@@ -1,34 +1,20 @@
-import { createSpeaker } from './audio/speech';
-import type { PlanetData, World } from './data/planets';
-import type { MissionData } from './data/missions';
-import type { QuizData } from './data/quizzes';
-import type { SurfaceData } from './data/surfaces';
-import { InputController } from './flight/input';
-import { starsFor } from './core/progress';
-import { createSaveStore, type SaveStore } from './platform/saveStore';
-import { browserStorage, effectiveReducedMotion, saveSettings, type Settings } from './core/settings';
-import { FrameMonitor } from './quality/monitor';
-import { chooseQuality, initialQuality, type Quality } from './quality/quality';
-import { layoutWorlds } from './scene/layout';
-import { SpaceScene } from './scene/spaceScene';
-import { SettingsPanel, applySettingsToPage } from './ui/settingsPanel';
-import type { GameData, ScreenContext } from './app/screens';
-import { ScreenManager } from './app/screenManager';
-import { SpaceScreen } from './screens/spaceScreen';
-import { ArrivalScreen } from './screens/arrivalScreen';
+import { createSpeaker } from '../audio/speech';
+import type { PlanetData } from '../data/planets';
+import { InputController } from '../flight/input';
+import { createSaveStore, type SaveStore } from '../platform/saveStore';
+import { browserStorage, effectiveReducedMotion, saveSettings, type Settings } from '../core/settings';
+import { FrameMonitor } from '../quality/monitor';
+import { chooseQuality, initialQuality, type Quality } from '../quality/quality';
+import { SpaceScene } from '../scene/spaceScene';
+import { SettingsPanel, applySettingsToPage } from '../ui/settingsPanel';
+import type { ScreenContext } from './screens';
+import { buildGameData, type GameOptions } from './gameData';
+import { ScreenManager } from './screenManager';
+import { exposeDebugHandle } from './debugHandle';
+import { SpaceScreen } from '../screens/spaceScreen';
+import { ArrivalScreen } from '../screens/arrivalScreen';
 
 const QUALITY_CHECK_EVERY_MS = 2000;
-
-interface Options {
-  /** 'high' or 'low' from the page address, to force a quality (and turn off the automatic chooser). */
-  forcedQuality?: Quality;
-  touchControls: boolean;
-  surfaces: SurfaceData;
-  missions: MissionData;
-  quizzes: QuizData;
-  settings: Settings;
-  debug: boolean;
-}
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
@@ -56,14 +42,8 @@ export class Game {
   private lastFrame = 0;
   private lastQualityCheck = 0;
 
-  constructor(root: HTMLElement, data: PlanetData, private readonly options: Options) {
-    const layouts = layoutWorlds(data.worlds);
-    const gameData: GameData = {
-      layouts,
-      surfaces: new Map(options.surfaces.surfaces.map((s) => [s.worldId, s])),
-      missions: new Map(options.missions.missions.map((m) => [m.worldId, m])),
-      quizzes: new Map(options.quizzes.quizzes.map((q) => [q.worldId, q.questions])),
-    };
+  constructor(root: HTMLElement, data: PlanetData, private readonly options: GameOptions) {
+    const gameData = buildGameData(data, options);
     this.save = createSaveStore(browserStorage(), window);
     this.quality = options.forcedQuality ?? initialQuality(readHardwareHints());
     this.settings = options.settings;
@@ -73,7 +53,7 @@ export class Game {
     stage.className = 'stage';
     root.appendChild(stage);
 
-    this.scene = new SpaceScene(stage, layouts, this.quality, this.reducedMotion, options.debug);
+    this.scene = new SpaceScene(stage, gameData.layouts, this.quality, this.reducedMotion, options.debug);
     this.input = new InputController(
       stage,
       options.touchControls,
@@ -106,7 +86,10 @@ export class Game {
     new ResizeObserver(resize).observe(stage);
     resize();
 
-    if (options.debug) this.exposeDebugHandle();
+    if (options.debug) {
+      const { scene, monitor, screens, space, arrival, save } = this;
+      exposeDebugHandle({ scene, monitor, screens, space, arrival, save, quality: () => this.quality, settings: () => this.settings });
+    }
     requestAnimationFrame((t) => this.frame(t));
   }
 
@@ -147,33 +130,6 @@ export class Game {
       this.quality = next;
       this.scene.applyQuality(next);
     }
-  }
-
-  private exposeDebugHandle(): void {
-    const { space, arrival, scene } = this;
-    (window as unknown as Record<string, unknown>).rocketPals = {
-      getShip: () => space.shipState,
-      getTargetId: () => space.target,
-      getQuality: () => this.quality,
-      isGlowVisible: () => scene.glowVisible,
-      hasShipModel: () => scene.hasShipModel,
-      getFps: () => this.monitor.fps(),
-      getWorld: (id: string): World | undefined => space.world(id),
-      isReducedMotion: () => scene.isReducedMotion, // read from the scene itself, so tests cover the wiring
-      getSettings: () => this.settings,
-      getMode: () => (this.screens.currentId === 'arrival' ? 'surface' : 'space'), // the tests' name for the arrival screen
-      getLook: () => arrival.lookState,
-      isLookTurning: () => arrival.isLookTurning,
-      getViewFov: () => arrival.viewFov(),
-      setBackdrop: (color: number) => arrival.setBackdrop(color),
-      getFound: () => arrival.foundCount,
-      getStars: (worldId: string) => starsFor(this.save.read(), worldId),
-      hasPanorama: () => arrival.hasPanorama,
-      dockAt: (id: string) => space.dockAt(id),
-      pickTarget: (id: string) => space.pickTarget(id),
-      setAutopilot: (on: boolean) => space.setAutopilot(on),
-      getRenderMemory: () => ({ ...scene.webglRenderer.info.memory }),
-    };
   }
 }
 
