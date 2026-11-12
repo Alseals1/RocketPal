@@ -1,7 +1,7 @@
 import './style.css';
 import { loadContent } from './data/content';
 import { browserStorage, loadSettings } from './core/settings';
-import { Game } from './game';
+import { Game } from './app/game';
 import { isDebugOn } from './app';
 import type { Quality } from './quality/quality';
 import { applySettingsToPage } from './ui/settingsPanel';

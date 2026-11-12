@@ -7,8 +7,7 @@
  * See decisions/2026-11-11-screen-split.md.
  */
 import type { Speaker } from '../audio/speech';
-import type { Mission } from '../data/missions';
-import type { QuizQuestionData } from '../data/quizzes';
+import type { Content } from '../data/content';
 import type { Surface } from '../data/surfaces';
 import type { InputController } from '../flight/input';
 import type { SaveStore } from '../platform/saveStore';
@@ -28,18 +27,11 @@ export interface Screen<P = unknown> {
   leave(): Promise<void>; // stop listening, release assets, remove UI
 }
 
-/** The game's content, read once at start. Stand-in for 4.11 `content` (Content, #38). */
-export interface GameData {
-  layouts: BodyLayout[];
-  surfaces: Map<string, Surface>;
-  missions: Map<string, Mission>;
-  quizzes: Map<string, QuizQuestionData[]>;
-}
-
 export interface ScreenContext {
   save: SaveStore; // 4.11
   speech: Speaker; // 4.11
   go<P>(screen: ScreenId, params: P): Promise<void>; // 4.11
+  content: Content; // 4.11 (#38)
   // Stand-ins, each replaced when its 4.11 member arrives:
   /** Where screens add their HTML. → `overlays` (OverlayStack) */
   stage: HTMLElement;
@@ -47,8 +39,8 @@ export interface ScreenContext {
   scene: SpaceScene;
   /** Keyboard and touch. → `input` (InputManager, #24) */
   controls: InputController;
-  /** → `content` (Content, #38) */
-  data: GameData;
+  /** Where each world sits in space, worked out once from `content.worlds`. → part of the space `RenderScene` (4.14) */
+  layouts: BodyLayout[];
   /** The quality the game draws at now. → `renderer.quality` (#31) */
   quality(): Quality;
   /** → `settings` (SettingsStore) */
