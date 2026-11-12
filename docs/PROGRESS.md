@@ -11,15 +11,16 @@ Last updated: 2026-11-11.
 * **Quiz bugs from the PR #14 review (#26):** fixed on a branch, waiting for review. Shift+Tab stays inside the quiz, no stale "Yes!", Listen reads the hint, fairer Earth answers.
 * **CI (#27):** draft PR #60, waiting for review. After it merges, a person requires the `Tests and build` check on `dev`.
 * **Chromebook measurement (#28):** guide ready in `docs/CHROMEBOOK_MEASUREMENT.md`; waiting for a person to measure and fill in the tables below.
+* **Quick fixes (#30):** draft PR, waiting for review. The stats card says the rocket is pretend ("19 times faster than light! Only a pretend rocket can do that.") and compares with New Horizons (about 9 and a half years to Pluto; hidden on phones, where there is no room). The Sun and the giant planets say "You are flying past …" instead of "You landed on …". The landing card keeps Tab on its button and Escape flies again. Debug mode needs `?debug=1` exactly. One bad quiz now drops only that world's quiz and logs it (`decisions/2026-11-11-quick-fixes-wording-and-quiz-loading.md`).
 * **Save v2 (#29):** draft PR, waiting for review. Progress is now saved as a versioned v2 record (`src/core/save/schema.ts`, `src/platform/saveStore.ts`): old v1 saves upgrade with every star, fields from a newer version are kept, every field merges by its own rule, and another window's stars show up without a reload. A copy under `rocketpals.progress.backup` means a tab left open from before the update cannot wipe 2.0 progress (`decisions/2026-11-11-save-v2-format.md`).
 
 ## Health (2026-11-11)
 
 | Check | Result |
 | --- | --- |
-| `npm test` (Vitest) | 336 passed |
-| `npm run test:e2e` (Playwright) | 142 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
-| `npm run build` | Clean. 646 KB JavaScript (167 KB gzipped) |
+| `npm test` (Vitest) | 353 passed |
+| `npm run test:e2e` (Playwright) | 153 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
+| `npm run build` | Clean. 652 KB JavaScript (168 KB gzipped) |
 | CI | GitHub Actions `Tests and build` on PRs into `dev` and pushes to `dev`, about 5-7 minutes (#27). First play 758 kB of the 15 MB budget |
 | Chromebook | Not measured yet. Guide ready (#28) |
 
@@ -124,7 +125,8 @@ Notes posted on #31: —
 | --- | --- | --- | --- |
 | Earth | Yes | ISS window view (6 dots) | Yes |
 | Mars | Yes | NASA 360 degree panorama (5 dots) | Yes |
-| Sun, Mercury, Venus, Moon, Jupiter, Saturn, Uranus, Neptune | Yes | Plain "You landed" card | No |
+| Mercury, Venus, Moon | Yes | Plain "You landed" card | No |
+| Sun, Jupiter, Saturn, Uranus, Neptune | Yes | Plain "You are flying past" card | No |
 
 ## Known issues and open items
 
@@ -133,6 +135,7 @@ Notes posted on #31: —
 * **Title card overlaps the buttons without Trebuchet MS** (found by CI, #27). Linux and ChromeOS have no Trebuchet MS; the wider fallback font makes the title card cover Back or Orbit at 844 x 390 with the biggest text and at 320 x 568 with normal text. Kids on Chromebooks probably see this. Four tests are marked `test.fail()` on Linux (`e2e/known-issues.ts`); follow-up issue to add.
 * **Orbit second-landing test is timing-dependent** (found by CI, #27): on a slow runner the cached photo loads before the test sees "loading". The game is fine. Skipped in CI only; follow-up issue to add.
 * **"Every dot can be found" tests flake in CI** (#27): the 5 s wait for the look to stop turning runs out under load. The ultra-wide mouse test flaked in 2 of 4 CI runs on PR #60; the 2560 x 1080 and 1920 x 700 tests flaked in 1. All passed on retry, so the check stayed green. Worth a follow-up if it keeps happening.
+* **Stats card reaches the Autopilot button on a 390 x 844 phone with the biggest text** (found while building #30). The card is narrow there (about 120 px of text), so every line wraps. It already overlapped by 7 px before #30; the "pretend rocket" line makes it about 85 px. The New Horizons line is hidden on phones and short screens to keep 420 x 900 and 844 x 390 clear. The card ignores taps, so the button still works. Needs a phone layout for the stats card; follow-up issue to add.
 * A dot drawn over the **Quiz time** button can take the tap (keyboard and the uncovered part of the button still work).
 * The Jupiter teaser at the end of a quiz leads to a world with no landing yet.
 * On a 667 x 375 landscape phone with the biggest text, the Earth title card is too tall for the screen.
