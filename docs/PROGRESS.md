@@ -19,8 +19,8 @@ Last updated: 2026-11-11.
 
 | Check | Result |
 | --- | --- |
-| `npm test` (Vitest) | 353 passed |
-| `npm run test:e2e` (Playwright) | 153 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
+| `npm test` (Vitest) | 383 passed |
+| `npm run test:e2e` (Playwright) | 155 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
 | `npm run build` | Clean. 652 KB JavaScript (168 KB gzipped) |
 | CI | GitHub Actions `Tests and build` on PRs into `dev` and pushes to `dev`, about 5-7 minutes (#27). First play 758 kB of the 15 MB budget |
 | Chromebook | Not measured yet. Guide ready (#28) |
