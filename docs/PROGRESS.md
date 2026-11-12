@@ -16,16 +16,33 @@ Last updated: 2026-11-12.
 * **One content loader (#38):** draft PR, waiting for review. `loadContent()` (`src/data/content.ts`, with the shared ids in `src/data/ids.ts`) replaces the four data loaders: it fetches the four files at once, checks each entry on its own and every cross-reference, and builds the `Content` maps that `Game` now reads. A bad world, landing picture, quiz or mission is left out with the entries that point at it, logged, and listed in `content.problems`; the rest of the game still loads. The game plays as before (`decisions/2026-11-11-content-loader-interim-types.md`).
 * **Architecture test (#37):** draft PR, waiting for review. `tests/architecture.test.ts` maps every `src/` file to a layer of `TECHNICAL_ARCHITECTURE.md` section 3, reads its imports, and fails naming the file, the import and the rule. 7 type-only imports that break a rule today sit on a commented allow-list (`data/quizzes` → `quiz`; `scale/leg`, `ui/hud` → `scene/layout`; `ui/hud`, `ui/surfaceHud` → `scene/spaceScene`; `ui/quizPanel`, `ui/surfaceHud` → `audio/speech`), each with what removes it. The list can only shrink: a stale entry fails the test. No `src/` change (`decisions/2026-11-12-architecture-import-rules.md`).
 * **Screen split (#32, M1):** parts 2 and 3 had merged into their stack branches, not `dev`; they reach `dev` through #31 part 1 (`goat/31-1-land-32`, draft PR), which also moves #38's `Content` into the split files (`ctx.content`, plus a `layouts` stand-in). `src/game.ts` is split into `SpaceScreen` (flying) and `ArrivalScreen` (standing on a world), behind the `Screen` interface from architecture 4.11, run by a small `ScreenManager` (`src/app/`). `Game` is now a shell of 139 lines in `src/app/game.ts`. Nothing the player sees, hears or saves changed. One fix came with it: leaving a world now frees the surface HUD and its keyboard listeners, which used to stay behind. New tests: `tests/screenManager.test.ts`, `tests/gameShell.test.ts`, `e2e/screens.spec.ts` (listeners and graphics memory after leaving). Scripted play-through in headless Chrome on a Mac (keyboard, touch layout, Mars with dots and quiz, Earth, Jupiter's card): same results as `dev`, 60 fps flying on both, 59 fps on Mars (58 on `dev`) (`decisions/2026-11-11-screen-split.md`).
+* **Chromebook readiness and the renderer host (#31, M1):** stack of 2 draft PRs, waiting for review; the merge waits for a person to fill in the "Before and after #31" table below on a Chromebook. Part 1 lands #32 on `dev` (see the screen split). Part 2: `WebRendererHost` (`src/render/rendererHost.ts`) owns the one renderer. Devices with 4 GB or 4 cores or less start on low (defaults until measured), and low means no antialiasing and pixel ratio 1; a run-time drop cuts the pixel ratio at once. `<html data-quality>` follows the quality. Earth's window view always uses the 2048 photo, and photos decode off the main thread (`ImageBitmapLoader`, with a fallback). A lost WebGL context pauses the game behind a kid-friendly notice with "Start again", and the picture comes back on restore (`decisions/2026-11-12-renderer-host-and-quality.md`).
 
 ## Health (2026-11-12)
 
 | Check | Result |
 | --- | --- |
-| `npm test` (Vitest) | 405 passed |
-| `npm run test:e2e` (Playwright) | 158 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
-| `npm run build` | Clean. 654 KB JavaScript (169 KB gzipped) |
+| `npm test` (Vitest) | 417 passed |
+| `npm run test:e2e` (Playwright) | 165 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
+| `npm run build` | Clean. 656 KB JavaScript (170 KB gzipped) |
 | CI | GitHub Actions `Tests and build` on PRs into `dev` and pushes to `dev`, about 5-7 minutes (#27). First play 758 kB of the 15 MB budget |
 | Chromebook | Not measured yet. Guide ready (#28) |
+
+## Before and after #31 (same Chromebook)
+
+Pending: a person fills this in on one Chromebook before #31 part 2 merges, following [CHROMEBOOK_MEASUREMENT.md](CHROMEBOOK_MEASUREMENT.md) on each build. "Before" is `dev` with #32 (after #31 part 1, `goat/31-1-land-32`); "after" is the #31 part 2 branch (`goat/31-2-renderer-host`). Never fill a cell with an estimate.
+
+| Item | Before (#31 part 1) | After (#31 part 2) |
+| --- | --- | --- |
+| Quality picked on `/` (`rocketPals.getQuality()`) | — | — |
+| Antialiasing on or off | — | — |
+| Pixel ratio used (`canvas.width / canvas.clientWidth`) | — | — |
+| Median fps on `/`: idle near Earth | — | — |
+| Median fps on `/`: boosting | — | — |
+| Median fps on `/`: autopilot to Neptune | — | — |
+| Landing freeze on `/`: Mars (ms) | — | — |
+| Landing freeze on `/`: Earth (ms) | — | — |
+| GPU memory on Earth | — | — |
 
 ## Chromebook measurements
 

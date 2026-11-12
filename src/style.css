@@ -346,6 +346,37 @@ button:focus-visible {
   margin: 0 0 16px;
 }
 
+/* ---- The 3D picture was lost (a lost WebGL context) ---- */
+
+.context-lost {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--navy);
+}
+
+.context-lost[hidden] {
+  display: none;
+}
+
+.context-lost-card {
+  max-width: 24em;
+  margin: var(--gap);
+  text-align: center;
+  background: var(--navy);
+}
+
+.context-lost-card h2 {
+  margin: 0 0 8px;
+  color: var(--sun);
+}
+
+.context-lost-card p {
+  margin: 0 0 16px;
+}
+
 /* ---- Touch controls ---- */
 
 .touch-controls[hidden] {

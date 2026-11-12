@@ -342,7 +342,7 @@ test.describe('every dot can be found, on every shape of screen', () => {
   });
 });
 
-test('low quality uses the small photo, high quality the sharp one, and nothing is downloaded before landing', async ({ page }) => {
+test('the window photo is always the 2048 one, at both qualities, and nothing is downloaded before landing (#31)', async ({ page }) => {
   const requested: string[] = [];
   page.on('request', (r) => {
     if (r.url().includes('/textures/surfaces/')) requested.push(r.url().split('/').pop()!);
@@ -357,7 +357,7 @@ test('low quality uses the small photo, high quality the sharp one, and nothing 
 
   requested.length = 0;
   await landAtEarth(page, '&quality=high');
-  expect(requested).toEqual(['earth-iss-4096.jpg']);
+  expect(requested).toEqual(['earth-iss-2048.jpg']); // a window view never needs the 4096 photo
 });
 
 test('Back to space lifts off, and Earth is then "you\'re here"', async ({ page }) => {

@@ -9,6 +9,7 @@ import type { LookState } from '../surface/geometry';
 import { windowLookLimits, viewHorizontalFov } from '../surface/geometry';
 import { PanoramaScene } from '../surface/panoramaScene';
 import { LookController } from '../surface/look';
+import { photoSize } from '../quality/quality';
 import { SPACE_VIEW_LABEL } from '../scene/spaceScene';
 import { SurfaceHud } from '../ui/surfaceHud';
 
@@ -36,7 +37,7 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
     const { ctx } = this;
     const visit = ++this.visit;
     this.visiting = true;
-    ctx.scene.setCanvasLabel(surface.description);
+    ctx.renderer.renderer.domElement.setAttribute('aria-label', surface.description);
     ctx.stage.classList.add('is-surface');
     ctx.controls.suspendTouchControls(true);
 
@@ -63,12 +64,12 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
     hud.show();
     hud.setLoading(true);
 
-    const panorama = (this.panorama ??= new PanoramaScene(ctx.scene.webglRenderer));
+    const panorama = (this.panorama ??= new PanoramaScene(ctx.renderer.renderer));
     panorama.setSize(ctx.stage.clientWidth, ctx.stage.clientHeight);
-    // Low quality, or a graphics card that cannot hold a 4096 picture, gets the small one.
-    const small = ctx.quality() === 'low' || panorama.maxTextureSize < 4096;
+    // A window view, low quality, or a graphics card that cannot hold a 4096 picture, gets the small one.
+    const size = photoSize(surface.kind, ctx.renderer.quality, panorama.maxTextureSize);
     try {
-      const url = small ? surface.images.low : surface.images.high;
+      const url = size === 'low' ? surface.images.low : surface.images.high;
       if (surface.kind === 'window') await panorama.loadWindow(url, surface.photo!);
       else await panorama.load(url);
     } catch (error) {
@@ -84,7 +85,7 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
 
     this.look = new LookController(surface.start);
     this.updateLookLimits();
-    this.look.attach(ctx.scene.canvas, () => ctx.stage.clientHeight, () => panorama.verticalFov);
+    this.look.attach(ctx.renderer.renderer.domElement, () => ctx.stage.clientHeight, () => panorama.verticalFov);
     hud.setLoading(false);
   }
 
@@ -93,7 +94,7 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
     const { ctx } = this;
     this.visit++; // any picture still loading is now out of date
     this.visiting = false;
-    ctx.scene.setCanvasLabel(SPACE_VIEW_LABEL);
+    ctx.renderer.renderer.domElement.setAttribute('aria-label', SPACE_VIEW_LABEL);
     ctx.stage.classList.remove('is-surface');
     ctx.speech.stop();
     this.look?.detach();

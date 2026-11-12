@@ -11,7 +11,7 @@ import type { Content } from '../data/content';
 import type { Surface } from '../data/surfaces';
 import type { InputController } from '../flight/input';
 import type { SaveStore } from '../platform/saveStore';
-import type { Quality } from '../quality/quality';
+import type { RendererHost } from '../render/rendererHost';
 import type { BodyLayout } from '../scene/layout';
 import type { SpaceScene } from '../scene/spaceScene';
 
@@ -32,17 +32,16 @@ export interface ScreenContext {
   speech: Speaker; // 4.11
   go<P>(screen: ScreenId, params: P): Promise<void>; // 4.11
   content: Content; // 4.11 (#38)
+  renderer: RendererHost; // 4.11 (#31): the one WebGLRenderer, its canvas, quality and a lost context
   // Stand-ins, each replaced when its 4.11 member arrives:
   /** Where screens add their HTML. → `overlays` (OverlayStack) */
   stage: HTMLElement;
-  /** Owns the one WebGLRenderer and its canvas. → `renderer` (RendererHost, #31) */
+  /** The space picture. → a `RenderScene` (4.14) when frames arrive. */
   scene: SpaceScene;
   /** Keyboard and touch. → `input` (InputManager, #24) */
   controls: InputController;
   /** Where each world sits in space, worked out once from `content.worlds`. → part of the space `RenderScene` (4.14) */
   layouts: BodyLayout[];
-  /** The quality the game draws at now. → `renderer.quality` (#31) */
-  quality(): Quality;
   /** → `settings` (SettingsStore) */
   reducedMotion(): boolean;
   /** True while a panel (settings) covers the screen, so its own dialogs leave the keys alone. → `overlays` (OverlayStack) */
