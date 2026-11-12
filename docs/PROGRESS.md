@@ -13,13 +13,14 @@ Last updated: 2026-11-11.
 * **Chromebook measurement (#28):** guide ready in `docs/CHROMEBOOK_MEASUREMENT.md`; waiting for a person to measure and fill in the tables below.
 * **Quick fixes (#30):** draft PR, waiting for review. The stats card says the rocket is pretend ("19 times faster than light! Only a pretend rocket can do that.") and compares with New Horizons (about 9 and a half years to Pluto; hidden on phones, where there is no room). The Sun and the giant planets say "You are flying past …" instead of "You landed on …". The landing card keeps Tab on its button and Escape flies again. Debug mode needs `?debug=1` exactly. One bad quiz now drops only that world's quiz and logs it (`decisions/2026-11-11-quick-fixes-wording-and-quiz-loading.md`).
 * **Save v2 (#29):** draft PR, waiting for review. Progress is now saved as a versioned v2 record (`src/core/save/schema.ts`, `src/platform/saveStore.ts`): old v1 saves upgrade with every star, fields from a newer version are kept, every field merges by its own rule, and another window's stars show up without a reload. A copy under `rocketpals.progress.backup` means a tab left open from before the update cannot wipe 2.0 progress (`decisions/2026-11-11-save-v2-format.md`).
+* **One content loader (#38):** draft PR, waiting for review. `loadContent()` (`src/data/content.ts`, with the shared ids in `src/data/ids.ts`) replaces the four data loaders: it fetches the four files at once, checks each entry on its own and every cross-reference, and builds the `Content` maps that `Game` now reads. A bad world, landing picture, quiz or mission is left out with the entries that point at it, logged, and listed in `content.problems`; the rest of the game still loads. The game plays as before (`decisions/2026-11-11-content-loader-interim-types.md`).
 
 ## Health (2026-11-11)
 
 | Check | Result |
 | --- | --- |
-| `npm test` (Vitest) | 353 passed |
-| `npm run test:e2e` (Playwright) | 153 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
+| `npm test` (Vitest) | 383 passed |
+| `npm run test:e2e` (Playwright) | 155 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
 | `npm run build` | Clean. 652 KB JavaScript (168 KB gzipped) |
 | CI | GitHub Actions `Tests and build` on PRs into `dev` and pushes to `dev`, about 5-7 minutes (#27). First play 758 kB of the 15 MB budget |
 | Chromebook | Not measured yet. Guide ready (#28) |

@@ -648,6 +648,38 @@ test.describe('when the data is missing', () => {
     await expect(page.getByTestId('orbit')).toContainText("I'm Orbit");
     expect(errors).toEqual([]);
   });
+
+  test('a broken mission is left out on its own (the other world keeps its mission)', async ({ page }) => {
+    const errors = watchForErrors(page, [/Some missions were left out:\nmars/]);
+    const broken = structuredClone(missions) as { missions: Record<string, unknown>[] };
+    broken.missions.find((m) => m.worldId === 'mars')!.findCount = 99;
+    await page.route('**/data/missions.json', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(broken) }),
+    );
+    await startAndLand(page, 'mars');
+    await expect(page.getByTestId('orbit')).toContainText("I'm Orbit");
+    await expect(page.getByTestId('mission')).toBeHidden();
+    await expect(page.getByTestId('quiz-time')).toBeHidden();
+
+    await startAndLand(page, 'earth');
+    await expect(page.getByTestId('mission')).toHaveText(`Mission: ${missionOf('earth').title}`);
+    expect(errors).toEqual([]);
+  });
+
+  test('a broken world is left out and the rest still flies and lands', async ({ page }) => {
+    const errors = watchForErrors(page, [/Some worlds were left out:\nneptune/]);
+    const planets = JSON.parse(readFileSync('public/data/planets.json', 'utf8')) as { worlds: Record<string, unknown>[] };
+    planets.worlds.find((w) => w.id === 'neptune')!.hook = '';
+    await page.route('**/data/planets.json', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(planets) }),
+    );
+    await start(page);
+    await expect(page.locator('[data-world="mars"]')).toHaveCount(1);
+    await expect(page.locator('[data-world="neptune"]')).toHaveCount(0);
+    await land(page, 'mars');
+    await expect(page.getByTestId('mission')).toHaveText(`Mission: ${missionOf('mars').title}`);
+    expect(errors).toEqual([]);
+  });
 });
 
 test.describe('on small screens with the biggest text', () => {

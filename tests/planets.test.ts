@@ -60,6 +60,12 @@ describe('validatePlanets', () => {
     expect(validatePlanets(data)).toContainEqual(expect.stringContaining('hook'));
   });
 
+  it('rejects a world that is not one of the ten', () => {
+    const data = copy();
+    data.worlds.push({ ...data.worlds[9], id: 'pluto', name: 'Pluto' });
+    expect(validatePlanets(data)).toEqual(['pluto: not one of the ten worlds']);
+  });
+
   it('rejects data that is not an object', () => {
     expect(validatePlanets(null).length).toBeGreaterThan(0);
   });
