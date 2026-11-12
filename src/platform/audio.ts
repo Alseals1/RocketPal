@@ -97,16 +97,14 @@ export function createAudioManager({ load = loadHowler, sounds = [], url = (file
 
 /** Calls `unlock()` on the first tap or key anywhere on `target`, then stops listening. Returns a cancel. */
 export function unlockOnFirstGesture(audio: Pick<AudioManager, 'unlock'>, target: EventTarget): () => void {
-  const options = { capture: true, passive: true } as const;
-  const stop = () => {
-    target.removeEventListener('pointerdown', first, options);
-    target.removeEventListener('keydown', first, options);
-  };
-  function first() {
-    stop();
+  // One signal removes both listeners together, whichever fires first.
+  const stop = new AbortController();
+  const options = { capture: true, passive: true, signal: stop.signal };
+  const first = () => {
+    stop.abort();
     audio.unlock();
-  }
+  };
   target.addEventListener('pointerdown', first, options);
   target.addEventListener('keydown', first, options);
-  return stop;
+  return () => stop.abort();
 }
