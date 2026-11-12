@@ -444,8 +444,7 @@ function listSrc(dir = 'src'): string[] {
 const realExists = (file: string) => statSync(path.join(REPO, file), { throwIfNoEntry: false })?.isFile() === true;
 
 describe('src/ follows the layer rules', () => {
-  const allFiles = listSrc();
-  const codeFiles = allFiles.filter((f) => /\.tsx?$/.test(f));
+  const codeFiles = listSrc().filter((f) => /\.tsx?$/.test(f));
   const violations = codeFiles.flatMap((file) => checkFile(file, readFileSync(path.join(REPO, file), 'utf8'), realExists));
   const isAllowed = (v: Violation) => ALLOWED_BREAKS.some((a) => a.file === v.file && a.target === v.target);
 
@@ -454,8 +453,9 @@ describe('src/ follows the layer rules', () => {
     expect(codeFiles.length).toBeGreaterThanOrEqual(20);
   });
 
-  it('gives every file under src/ a layer', () => {
-    expect(allFiles.filter((f) => layerOf(f) === undefined)).toEqual([]);
+  // Code files only: Finder writes src/.DS_Store, and other tools drop dotfiles, which are not code and need no layer.
+  it('gives every code file under src/ a layer', () => {
+    expect(codeFiles.filter((f) => layerOf(f) === undefined)).toEqual([]);
   });
 
   it('has no import that breaks a rule, other than the allow-listed ones', () => {
