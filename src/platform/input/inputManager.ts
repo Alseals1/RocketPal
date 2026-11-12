@@ -11,6 +11,7 @@ import { createTouchStickSource, type TouchControls } from './touchStickSource';
 
 export type { Action } from './actions';
 export type { InputSource, SourceKind } from './sources';
+export { buildTouchControls } from './touchStickSource';
 
 export interface InputManager {
   /** All active sources merged (as `InputController.read()` did). */

@@ -7,12 +7,11 @@
  * See decisions/2026-11-11-screen-split.md.
  */
 import type { Speaker } from '../audio/speech';
-import type { Mission } from '../data/missions';
-import type { QuizQuestionData } from '../data/quizzes';
+import type { Content } from '../data/content';
 import type { Surface } from '../data/surfaces';
 import type { InputManager } from '../platform/input/inputManager';
 import type { SaveStore } from '../platform/saveStore';
-import type { Quality } from '../quality/quality';
+import type { RendererHost } from '../render/rendererHost';
 import type { BodyLayout } from '../scene/layout';
 import type { SpaceScene } from '../scene/spaceScene';
 
@@ -28,28 +27,20 @@ export interface Screen<P = unknown> {
   leave(): Promise<void>; // stop listening, release assets, remove UI
 }
 
-/** The game's content, read once at start. Stand-in for 4.11 `content` (Content, #38). */
-export interface GameData {
-  layouts: BodyLayout[];
-  surfaces: Map<string, Surface>;
-  missions: Map<string, Mission>;
-  quizzes: Map<string, QuizQuestionData[]>;
-}
-
 export interface ScreenContext {
   save: SaveStore; // 4.11
   speech: Speaker; // 4.11
   go<P>(screen: ScreenId, params: P): Promise<void>; // 4.11
-  input: InputManager; // 4.11
+  input: InputManager; // 4.11 (#41)
+  content: Content; // 4.11 (#38)
+  renderer: RendererHost; // 4.11 (#31): the one WebGLRenderer, its canvas, quality and a lost context
   // Stand-ins, each replaced when its 4.11 member arrives:
   /** Where screens add their HTML. → `overlays` (OverlayStack) */
   stage: HTMLElement;
-  /** Owns the one WebGLRenderer and its canvas. → `renderer` (RendererHost, #31) */
+  /** The space picture. → a `RenderScene` (4.14) when frames arrive. */
   scene: SpaceScene;
-  /** → `content` (Content, #38) */
-  data: GameData;
-  /** The quality the game draws at now. → `renderer.quality` (#31) */
-  quality(): Quality;
+  /** Where each world sits in space, worked out once from `content.worlds`. → part of the space `RenderScene` (4.14) */
+  layouts: BodyLayout[];
   /** → `settings` (SettingsStore) */
   reducedMotion(): boolean;
   /** True while a panel (settings) covers the screen, so its own dialogs leave the keys alone. → `overlays` (OverlayStack) */

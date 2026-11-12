@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { WindowPhoto } from '../data/surfaces';
 import type { ScreenPoint } from '../scene/spaceScene';
 import { azElToDirection, viewHorizontalFov, windowCameraFov, type LookState } from './geometry';
+import { disposePhotoTexture, loadPhotoTexture } from './photoTexture';
 
 const SPHERE_RADIUS = 500;
 const VERTICAL_FOV = 70;
@@ -54,9 +55,9 @@ export class PanoramaScene {
   async load(url: string): Promise<void> {
     this.dispose();
     const ticket = ++this.loadTicket;
-    const texture = await new THREE.TextureLoader().loadAsync(url);
+    const texture = await loadPhotoTexture(url);
     if (ticket !== this.loadTicket) {
-      texture.dispose(); // a newer load has begun since: this picture is out of date
+      disposePhotoTexture(texture); // a newer load has begun since: this picture is out of date
       return;
     }
     this.dispose(); // never leave an older picture behind
@@ -79,9 +80,9 @@ export class PanoramaScene {
   async loadWindow(url: string, photo: WindowPhoto): Promise<void> {
     this.dispose();
     const ticket = ++this.loadTicket;
-    const texture = await new THREE.TextureLoader().loadAsync(url);
+    const texture = await loadPhotoTexture(url);
     if (ticket !== this.loadTicket) {
-      texture.dispose();
+      disposePhotoTexture(texture);
       return;
     }
     this.dispose();
@@ -148,7 +149,8 @@ export class PanoramaScene {
       (this.mesh.material as THREE.Material).dispose();
       this.mesh = undefined;
     }
-    this.texture?.dispose();
+    // The bitmap is closed only here, never earlier: after a lost graphics context, three.js uploads it again from memory.
+    if (this.texture) disposePhotoTexture(this.texture);
     this.texture = undefined;
   }
 }

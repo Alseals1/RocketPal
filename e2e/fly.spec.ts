@@ -374,14 +374,34 @@ test('switches itself to low quality on a slow computer', async ({ browser }) =>
   // Software drawing at double pixel density is slow, like a weak school laptop.
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 2 });
   const page = await context.newPage();
+  // A computer that looks strong, so it starts on high and the frame-rate check has to make the drop.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
+    Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
+  });
   await page.goto('/?debug=1');
   await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
+  // It started on high: antialiasing is only ever chosen at the start.
+  expect(
+    await page.evaluate(() => {
+      const canvas = document.querySelector('#game-canvas canvas') as HTMLCanvasElement;
+      return ((canvas.getContext('webgl2') ?? canvas.getContext('webgl')) as WebGLRenderingContext).getContextAttributes()?.antialias;
+    }),
+  ).toBe(true);
   await page.waitForFunction(
     () => (window as unknown as { rocketPals: { getQuality(): string } }).rocketPals.getQuality() === 'low',
     null,
     { timeout: 30_000 },
   );
   expect(await handle(page, (h) => h.isGlowVisible())).toBe(false);
+  // The drop also tells CSS, and draws one pixel per CSS pixel at once (#31).
+  expect(await page.evaluate(() => document.documentElement.dataset.quality)).toBe('low');
+  await expect
+    .poll(() => page.evaluate(() => {
+      const canvas = document.querySelector('#game-canvas canvas') as HTMLCanvasElement;
+      return canvas.width - Math.round(canvas.getBoundingClientRect().width);
+    }))
+    .toBe(0);
   await context.close();
 });
 

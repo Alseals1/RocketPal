@@ -2,7 +2,7 @@ import './style.css';
 import { loadContent } from './data/content';
 import { browserStorage } from './core/settings';
 import { createSettingsStore } from './platform/settingsStore';
-import { Game } from './game';
+import { Game } from './app/game';
 import { isDebugOn } from './app';
 import type { Quality } from './quality/quality';
 import { applySettingsToPage } from './ui/settingsPanel';
