@@ -4,7 +4,8 @@ import { InputController } from '../flight/input';
 import { createSaveStore, type SaveStore } from '../platform/saveStore';
 import { browserStorage, effectiveReducedMotion, saveSettings, type Settings } from '../core/settings';
 import { FrameMonitor } from '../quality/monitor';
-import { chooseQuality, initialQuality, type Quality } from '../quality/quality';
+import { chooseQuality } from '../quality/quality';
+import type { WebRendererHost } from '../render/rendererHost';
 import { layoutWorlds } from '../scene/layout';
 import { SpaceScene } from '../scene/spaceScene';
 import { SettingsPanel, applySettingsToPage } from '../ui/settingsPanel';
@@ -12,6 +13,7 @@ import type { ScreenContext } from './screens';
 import type { GameOptions } from './gameOptions';
 import { ScreenManager } from './screenManager';
 import { exposeDebugHandle } from './debugHandle';
+import { createRendererHost, watchContextLoss } from './rendering';
 import { SpaceScreen } from '../screens/spaceScreen';
 import { ArrivalScreen } from '../screens/arrivalScreen';
 
@@ -20,10 +22,11 @@ const QUALITY_CHECK_EVERY_MS = 2000;
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 /**
- * The shell around the screens. It owns what every screen shares: the renderer (through `SpaceScene`, until #31),
- * the frame loop, quality, settings, the save store and speech. Each frame goes to the active screen.
+ * The shell around the screens. It owns what every screen shares: the renderer host, the frame loop, quality,
+ * settings, the save store and speech. Each frame goes to the active screen.
  */
 export class Game {
+  private readonly host: WebRendererHost;
   private readonly scene: SpaceScene;
   private readonly input: InputController;
   private readonly monitor = new FrameMonitor();
@@ -31,7 +34,8 @@ export class Game {
   private readonly space: SpaceScreen;
   private readonly arrival: ArrivalScreen;
 
-  private quality: Quality;
+  /** The graphics card dropped the picture: screens wait until it is back. */
+  private paused = false;
   private reportedError = false;
   private settingsPanel?: SettingsPanel;
   /** Stars and missions done so far, remembered in this browser only. */
@@ -47,7 +51,6 @@ export class Game {
   constructor(root: HTMLElement, content: Content, private readonly options: GameOptions) {
     const layouts = layoutWorlds([...content.worlds.values()]);
     this.save = createSaveStore(browserStorage(), window);
-    this.quality = options.forcedQuality ?? initialQuality(readHardwareHints());
     this.settings = options.settings;
     this.reducedMotion = effectiveReducedMotion(this.settings.reducedMotion, this.systemMotion.matches);
 
@@ -55,7 +58,8 @@ export class Game {
     stage.className = 'stage';
     root.appendChild(stage);
 
-    this.scene = new SpaceScene(stage, layouts, this.quality, this.reducedMotion, options.debug);
+    const host = (this.host = createRendererHost(stage, options));
+    this.scene = new SpaceScene(host, layouts, host.quality, this.reducedMotion);
     this.input = new InputController(
       stage,
       options.touchControls,
@@ -66,11 +70,11 @@ export class Game {
       speech: this.speaker,
       go: (id, params) => this.screens.go(id, params),
       stage,
+      renderer: host,
       scene: this.scene,
       controls: this.input,
       content,
       layouts,
-      quality: () => this.quality,
       reducedMotion: () => this.reducedMotion,
       isCovered: () => this.settingsPanel?.isOpen ?? false,
     };
@@ -82,7 +86,13 @@ export class Game {
     // "Same as my computer" keeps following the computer if it changes while we are playing.
     this.systemMotion.addEventListener('change', () => this.changeSettings(this.settings, false));
 
+    watchContextLoss(host, stage, (lost) => {
+      this.paused = lost;
+      this.lastFrame = 0; // the wait is neither a slow frame nor a long step
+    });
+
     const resize = () => {
+      host.resize(stage.clientWidth, stage.clientHeight);
       this.scene.setSize(stage.clientWidth, stage.clientHeight);
       this.screens.resize(stage.clientWidth, stage.clientHeight);
     };
@@ -91,7 +101,7 @@ export class Game {
 
     if (options.debug) {
       const { scene, monitor, screens, space, arrival, save } = this;
-      exposeDebugHandle({ scene, monitor, screens, space, arrival, save, quality: () => this.quality, settings: () => this.settings });
+      exposeDebugHandle({ host, scene, monitor, screens, space, arrival, save, settings: () => this.settings });
     }
     requestAnimationFrame((t) => this.frame(t));
   }
@@ -118,6 +128,7 @@ export class Game {
   }
 
   private tick(now: number): void {
+    if (this.paused) return;
     const dt = this.lastFrame ? Math.min((now - this.lastFrame) / 1000, 0.1) : 1 / 60;
     if (this.lastFrame) this.monitor.add(now - this.lastFrame);
     this.lastFrame = now;
@@ -128,15 +139,10 @@ export class Game {
   private qualityCheck(now: number): void {
     if (this.options.forcedQuality || now - this.lastQualityCheck <= QUALITY_CHECK_EVERY_MS) return;
     this.lastQualityCheck = now;
-    const next = chooseQuality(this.monitor.samples(), this.quality);
-    if (next !== this.quality) {
-      this.quality = next;
+    const next = chooseQuality(this.monitor.samples(), this.host.quality);
+    if (next !== this.host.quality) {
+      this.host.setQuality(next);
       this.scene.applyQuality(next);
     }
   }
-}
-
-function readHardwareHints() {
-  const nav = navigator as Navigator & { deviceMemory?: number };
-  return { deviceMemory: nav.deviceMemory, hardwareConcurrency: nav.hardwareConcurrency };
 }

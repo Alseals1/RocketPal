@@ -3,20 +3,20 @@ import type { Settings } from '../core/settings';
 import type { World } from '../data/planets';
 import type { SaveStore } from '../platform/saveStore';
 import type { FrameMonitor } from '../quality/monitor';
-import type { Quality } from '../quality/quality';
+import type { RendererHost } from '../render/rendererHost';
 import type { SpaceScene } from '../scene/spaceScene';
 import type { ArrivalScreen } from '../screens/arrivalScreen';
 import type { SpaceScreen } from '../screens/spaceScreen';
 import type { ScreenManager } from './screenManager';
 
 export interface DebugSources {
+  host: RendererHost;
   scene: SpaceScene;
   monitor: FrameMonitor;
   screens: ScreenManager;
   space: SpaceScreen;
   arrival: ArrivalScreen;
   save: SaveStore;
-  quality(): Quality;
   settings(): Settings;
 }
 
@@ -24,11 +24,11 @@ export interface DebugSources {
  * `window.rocketPals`, for the browser tests only (page address has ?debug=1). Members are only ever added
  * (docs/TECHNICAL_ARCHITECTURE.md section 9): the tests rely on every name and what it means.
  */
-export function exposeDebugHandle({ scene, monitor, screens, space, arrival, save, quality, settings }: DebugSources): void {
+export function exposeDebugHandle({ host, scene, monitor, screens, space, arrival, save, settings }: DebugSources): void {
   (window as unknown as Record<string, unknown>).rocketPals = {
     getShip: () => space.shipState,
     getTargetId: () => space.target,
-    getQuality: () => quality(),
+    getQuality: () => host.quality,
     isGlowVisible: () => scene.glowVisible,
     hasShipModel: () => scene.hasShipModel,
     getFps: () => monitor.fps(),
@@ -47,6 +47,6 @@ export function exposeDebugHandle({ scene, monitor, screens, space, arrival, sav
     pickTarget: (id: string) => space.pickTarget(id),
     setAutopilot: (on: boolean) => space.setAutopilot(on),
     /** What is on the graphics card now (textures, geometries), to check a leaving screen frees its own. */
-    getRenderMemory: () => ({ ...scene.webglRenderer.info.memory }),
+    getRenderMemory: () => ({ ...host.renderer.info.memory }),
   };
 }

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { DEFAULT_FLIGHT, forwardVector, type ShipState, type Vec3 } from '../flight/flightModel';
 import { qualitySettings, type Quality } from '../quality/quality';
+import type { RendererHost } from '../render/rendererHost';
 import type { BodyLayout } from './layout';
 import type { ShipModel } from './shipModel';
 import { makeGlowTexture, makeWorldTexture } from './textures';
@@ -32,9 +33,8 @@ function seeded(seed: number) {
   };
 }
 
+/** Space: the Sun, the worlds, the stars and the rocket. It draws with the host's renderer and never sizes it. */
 export class SpaceScene {
-  readonly canvas: HTMLCanvasElement;
-  private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(60, 1, 0.3, 30_000);
   private readonly stars: THREE.Points;
@@ -53,22 +53,11 @@ export class SpaceScene {
   private height = 1;
 
   constructor(
-    parent: HTMLElement,
+    private readonly host: RendererHost,
     layouts: BodyLayout[],
     quality: Quality,
     private reducedMotion: boolean,
-    /** Keeps the picture readable after it is drawn. Only for the browser tests, which check the pixels. */
-    keepPicture = false,
   ) {
-    const settings = qualitySettings(quality);
-
-    this.renderer = new THREE.WebGLRenderer({ antialias: quality === 'high', powerPreference: 'high-performance', preserveDrawingBuffer: keepPicture });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatioCap));
-    this.canvas = this.renderer.domElement;
-    this.canvas.setAttribute('role', 'img');
-    this.canvas.setAttribute('aria-label', SPACE_VIEW_LABEL);
-    parent.appendChild(this.canvas);
-
     this.scene.background = new THREE.Color(0x03040c);
 
     // The Sun lights everything; a soft ambient light keeps the night sides readable.
@@ -113,16 +102,6 @@ export class SpaceScene {
     return this.modelLoaded;
   }
 
-  /** What the picture is, for people who cannot see it. */
-  setCanvasLabel(text: string): void {
-    this.canvas.setAttribute('aria-label', text);
-  }
-
-  /** The game's one WebGL renderer, shared with the surface scenes. */
-  get webglRenderer(): THREE.WebGLRenderer {
-    return this.renderer;
-  }
-
   get isReducedMotion(): boolean {
     return this.reducedMotion;
   }
@@ -130,20 +109,15 @@ export class SpaceScene {
   setSize(width: number, height: number): void {
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
-    this.renderer.setSize(this.width, this.height, false);
-    this.canvas.style.width = '100%';
-    this.canvas.style.height = '100%';
     this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
   }
 
-  /** Low quality: no glow, fewer stars, lower pixel ratio. */
+  /** Low quality: no glow, fewer stars. (The host lowers the pixel ratio.) */
   applyQuality(quality: Quality): void {
     const settings = qualitySettings(quality);
     for (const glow of this.glows) glow.visible = settings.glow;
     this.stars.geometry.setDrawRange(0, settings.starCount);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatioCap));
-    if (this.width > 1) this.setSize(this.width, this.height);
   }
 
   get glowVisible(): boolean {
@@ -182,7 +156,7 @@ export class SpaceScene {
   }
 
   render(): void {
-    this.renderer.render(this.scene, this.camera);
+    this.host.renderer.render(this.scene, this.camera);
   }
 
   /** Where a point in space shows up on screen. Call after `update`. */
