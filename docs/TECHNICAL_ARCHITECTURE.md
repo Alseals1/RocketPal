@@ -404,25 +404,36 @@ export interface CourseDef {
 export function buildCourse(def: CourseDef): { rocks: Body[]; crystals: Vec3[]; start: ShipState; finish: Body };
 ```
 
-### 4.13 Flight with events (`src/flight/flightModel.ts`, extended)
+### 4.13 Flight with events (`src/flight/flightModel.ts`, extended; `src/flight/obstacleIndex.ts`)
 
 ```ts
-export interface Contact { body: number; normal: Vec3 }         // index into context.obstacles
-export interface FlightStep { state: ShipState; contacts: Contact[]; passed: number[] } // passed: checkpoint indexes
+export interface Contact { body: number; normal: Vec3 }  // index into context.obstacles (or index.bodies); unit normal from the body's centre to the ship
+export interface FlightStep { state: ShipState; contacts: Contact[]; passed: number[] }
+// contacts: each obstacle touched this step, once, in the order first touched
+// passed: checkpoints ENTERED this step (the ship started the step outside), ascending; the caller keeps what is collected
 
+export interface Bounce { restitution: number; speedAfter: number }  // restitution clamped to 0..1; speedAfter caps speed in units per second
 export interface FlightContext {
   target?: Body;
   obstacles?: Body[] | ObstacleIndex;   // a plain list as today, or a spatial grid for courses
   checkpoints?: Body[];                 // capsules, crystals, gates: pass through, no collision
-  bounce?: { restitution: number; speedAfter: number };  // challenges: bounce instead of slide
+  bounce?: Bounce;                      // challenges: bounce instead of slide
 }
 
 /** New. Same physics as stepFlight, plus what happened this step. */
-export function stepFlightWithEvents(s: ShipState, i: FlightInput, dt: number, ctx: FlightContext, cfg?: FlightConfig): FlightStep;
-/** Unchanged signature, so every existing test and caller keeps working. */
-export function stepFlight(s: ShipState, i: FlightInput, dt: number, ctx: FlightContext, cfg?: FlightConfig): ShipState;
-export interface ObstacleIndex { near(p: Vec3, radius: number): number[] }   // uniform grid, built once per course
+export function stepFlightWithEvents(s: ShipState, i: FlightInput, dt: number, ctx?: FlightContext, cfg?: FlightConfig): FlightStep;
+/** Unchanged signature (ctx stays optional, as today), so every existing test and caller keeps working. */
+export function stepFlight(s: ShipState, i: FlightInput, dt: number, ctx?: FlightContext, cfg?: FlightConfig): ShipState;
+
+/** Uniform grid, built once per course. `bodies` must not change after it is built. */
+export interface ObstacleIndex {
+  readonly bodies: readonly Body[];
+  near(p: Vec3, radius: number): number[];   // every body with distance(p, centre) <= radius + body.radius, ascending
+}
+export function createObstacleIndex(bodies: readonly Body[], cellSize?: number): ObstacleIndex;  // src/flight/obstacleIndex.ts
 ```
+
+A bounce mirrors the ship's velocity off the contact normal (with `restitution`), points the nose along the result, caps the speed at `speedAfter` and stops the turning. With `bounce` set, each sub-step finds where its path first meets a shell, so the bump happens at the same point at any frame rate. Without it the ship slides as before. With an `ObstacleIndex`, sub-steps are sized from the rocks near the ship only. The details and the alternatives are in `decisions/2026-11-12-flight-events.md`.
 
 ### 4.14 Rendering (`src/render/`)
 
