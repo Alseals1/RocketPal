@@ -149,6 +149,8 @@ export function isMet(c: Condition, save: SaveData, content: Content): boolean;
 export function progressOf(c: Condition, save: SaveData, content: Content): { done: number; of: number };
 ```
 
+The `Condition` type itself is in `src/data/conditions.ts` (with `validateCondition`), because mission data holds conditions and Content may import only Content. `src/core/conditions.ts` re-exports it (`decisions/2026-11-12-events-conditions-progression.md`).
+
 ### 4.4 Events (`src/core/events.ts`)
 
 Everything that happens in play is one typed event. Screens publish; the progression recorder, audio cues, toasts and the debug log subscribe.
@@ -244,6 +246,8 @@ export interface RewardDiff {
 }
 export function diffProgression(before: ProgressionView, after: ProgressionView): RewardDiff;
 ```
+
+`ProgressionRules` and `XpSource` are in `src/data/progression.ts` (with `validateProgression`), because `Content.progression` holds them. `src/core/progression/` re-exports them (`decisions/2026-11-12-events-conditions-progression.md`).
 
 ### 4.7 Missions and chapters (`src/data/missions.ts`, extended)
 

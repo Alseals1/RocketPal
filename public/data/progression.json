@@ -1,0 +1,26 @@
+{
+  "xp": {
+    "dot": { "first": 5, "again": 1 },
+    "capsule": { "first": 3, "again": 1 },
+    "mission": { "first": 20, "again": 5 },
+    "quiz": { "first": 20, "again": 5 },
+    "perfectQuiz": { "first": 10, "again": 0 },
+    "course": { "first": 30, "again": 5 },
+    "courseStar": { "first": 10, "again": 0 },
+    "personalBest": { "first": 0, "again": 5 },
+    "sideMission": { "first": 20, "again": 0 },
+    "chapter": { "first": 50, "again": 0 },
+    "activity": { "first": 10, "again": 2 }
+  },
+  "repeatCap": 10,
+  "ranks": [
+    { "rank": 1, "name": "Cadet", "xp": 0 },
+    { "rank": 2, "name": "Junior Pilot", "xp": 60 },
+    { "rank": 3, "name": "Pilot", "xp": 160 },
+    { "rank": 4, "name": "Navigator", "xp": 300 },
+    { "rank": 5, "name": "Explorer", "xp": 480 },
+    { "rank": 6, "name": "Senior Explorer", "xp": 700 },
+    { "rank": 7, "name": "Commander", "xp": 960 },
+    { "rank": 8, "name": "Star Captain", "xp": 1260 }
+  ]
+}
