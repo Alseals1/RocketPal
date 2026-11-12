@@ -11,14 +11,14 @@ Last updated: 2026-11-11.
 * **Quiz bugs from the PR #14 review (#26):** fixed on a branch, waiting for review. Shift+Tab stays inside the quiz, no stale "Yes!", Listen reads the hint, fairer Earth answers.
 * **CI (#27):** draft PR #60, waiting for review. After it merges, a person requires the `Tests and build` check on `dev`.
 * **Chromebook measurement (#28):** guide ready in `docs/CHROMEBOOK_MEASUREMENT.md`; waiting for a person to measure and fill in the tables below.
-* **Next:** #29 (safe saves).
+* **Save v2 (#29):** draft PR, waiting for review. Progress is now saved as a versioned v2 record (`src/core/save/schema.ts`, `src/platform/saveStore.ts`): old v1 saves upgrade with every star, fields from a newer version are kept, every field merges by its own rule, and another window's stars show up without a reload. A copy under `rocketpals.progress.backup` means a tab left open from before the update cannot wipe 2.0 progress (`decisions/2026-11-11-save-v2-format.md`).
 
 ## Health (2026-11-11)
 
 | Check | Result |
 | --- | --- |
-| `npm test` (Vitest) | 303 passed |
-| `npm run test:e2e` (Playwright) | 140 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
+| `npm test` (Vitest) | 336 passed |
+| `npm run test:e2e` (Playwright) | 142 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
 | `npm run build` | Clean. 646 KB JavaScript (167 KB gzipped) |
 | CI | GitHub Actions `Tests and build` on PRs into `dev` and pushes to `dev`, about 5-7 minutes (#27). First play 758 kB of the 15 MB budget |
 | Chromebook | Not measured yet. Guide ready (#28) |
@@ -115,6 +115,8 @@ Notes posted on #31: —
 | #15 | `docs/`: roadmap, progress, design docs, the 2.0 rules, and the project audit |
 | #57 | Quiz fixes: Shift+Tab stays in the quiz, no stale "Yes!", Listen reads the hint, fairer Earth answers |
 | #60 | CI: tests, build and browser tests on every PR into `dev`, sizes in the job summary; each checkout gets its own browser-test port (`E2E_PORT` overrides) |
+| #61 | Chromebook measurement guide and empty results tables (#28) |
+| PR_29 | Save v2 (#29): versioned save with upgrade from v1, unknown fields kept, a merge rule per field, a backup copy, and live updates from other windows |
 
 ## Content coverage
 
