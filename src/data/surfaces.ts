@@ -136,3 +136,17 @@ export async function loadSurfaces(worldIds: string[], url = '/data/surfaces.jso
   if (problems.length > 0) throw new Error(`Bad surface data:\n${problems.join('\n')}`);
   return raw as SurfaceData;
 }
+
+/** What the arrival words say. The same literals as `ArrivalDef.wording` (docs/TECHNICAL_ARCHITECTURE.md section 4.9). */
+export type ArrivalWording = 'landed' | 'flyingPast';
+
+/**
+ * Worlds with no solid ground to land on: the Sun and the giant planets (NASA: they have no true surface).
+ * GAME_DESIGN.md: the words say "flying past", never "landed", on these. This list moves into the arrival data
+ * (`ArrivalDef.wording`) when that data is built.
+ */
+const NO_SOLID_GROUND = new Set(['sun', 'jupiter', 'saturn', 'uranus', 'neptune']);
+
+export function arrivalWording(worldId: string): ArrivalWording {
+  return NO_SOLID_GROUND.has(worldId) ? 'flyingPast' : 'landed';
+}

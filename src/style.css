@@ -109,6 +109,14 @@ body {
   color: var(--sky);
 }
 
+/* On a phone the card is narrow and every line wraps, so the New Horizons line would push the card into the
+   Autopilot button. The "pretend rocket" line stays: it is the part that keeps the lesson true. */
+@media (max-width: 600px), (max-height: 520px) {
+  .stats-compare {
+    display: none;
+  }
+}
+
 /* ---- Buttons: big targets, high contrast ---- */
 
 button {

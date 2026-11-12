@@ -1,17 +1,22 @@
 import type { BodyLayout } from '../scene/layout';
 import type { ScreenPoint } from '../scene/spaceScene';
-import { focusGameArea } from './focus';
+import type { ArrivalWording } from '../data/surfaces';
+import { focusGameArea, keepTabInside } from './focus';
 
 export interface HudCallbacks {
   onSelect(worldId: string): void;
   onAutopilot(on: boolean): void;
   onFlyAgain(): void;
+  /** True while another panel (settings) is open on top of the HUD: the landing card then leaves the keys to it. */
+  isCovered?(): boolean;
 }
 
 export interface HudStats {
   title: string;
-  /** Shows the "real rockets are slower" note under the pretend speed. */
-  showNote: boolean;
+  /** The line under the pretend speed that says the rocket is pretend. Empty hides it. */
+  speedNote: string;
+  /** A real spacecraft to compare with. Empty hides it. */
+  comparison: string;
   distance: string;
   light: string;
   speed: string;
@@ -57,7 +62,8 @@ export class Hud {
         <p class="stats-line" data-el="distance">Tap "Where to?" and pick a world.</p>
         <p class="stats-line" data-el="light"></p>
         <p class="stats-line" data-el="speed"></p>
-        <p class="stats-note" data-el="note" hidden>Real rockets are much slower!</p>
+        <p class="stats-note" data-el="note" hidden></p>
+        <p class="stats-note stats-compare" data-el="compare" hidden></p>
       </section>
       <button class="big-button where-button" data-testid="where-button" type="button" aria-expanded="false">Where to?</button>
       <div class="card picker" data-el="picker" hidden>
@@ -70,7 +76,7 @@ export class Hud {
       <div class="landed" data-el="landed" data-testid="landed" hidden>
         <div class="card landed-card" role="dialog" aria-labelledby="landed-title">
           <h2 id="landed-title" data-el="landed-title">You landed!</h2>
-          <p>Great flying! Fact cards and missions are coming soon.</p>
+          <p data-el="landed-text">Great flying! Fact cards and missions are coming soon.</p>
           <button class="big-button" data-testid="fly-again" data-el="fly-again" type="button">Fly again</button>
         </div>
       </div>`;
@@ -84,6 +90,12 @@ export class Hud {
     this.onPress(this.els.autopilot, () => this.callbacks.onAutopilot(this.els.autopilot.getAttribute('aria-pressed') !== 'true'));
     this.onPress(this.els['fly-again'], () => this.callbacks.onFlyAgain());
     window.addEventListener('keydown', (e) => {
+      // The landing card is a dialog: Tab stays on it and Escape does what "Fly again" does. Not while settings is on top.
+      if (!this.els.landed.hidden && !this.callbacks.isCovered?.()) {
+        if (e.code === 'Escape') this.callbacks.onFlyAgain();
+        else if (e.key === 'Tab') keepTabInside(this.els.landed, e);
+        return;
+      }
       if (e.code === 'Escape' && !this.els.picker.hidden) this.closePicker();
     });
 
@@ -146,7 +158,10 @@ export class Hud {
     this.els.distance.textContent = stats.distance;
     this.els.light.textContent = stats.light;
     this.els.speed.textContent = stats.speed;
-    this.els.note.hidden = !stats.showNote;
+    this.els.note.textContent = stats.speedNote;
+    this.els.note.hidden = stats.speedNote === '';
+    this.els.compare.textContent = stats.comparison;
+    this.els.compare.hidden = stats.comparison === '';
     // Screen readers hear when the destination changes, not every number that ticks by.
     if (stats.title !== this.lastTitle) {
       this.lastTitle = stats.title;
@@ -154,15 +169,29 @@ export class Hud {
     }
   }
 
-  showLanded(worldName: string): void {
-    this.els['landed-title'].textContent = `You landed on ${worldName}!`;
+  /** The Sun and the giant planets have no ground, so there the card says "flying past" instead of "landed". */
+  showLanded(worldName: string, wording: ArrivalWording): void {
+    const flyingPast = wording === 'flyingPast';
+    this.els['landed-title'].textContent = flyingPast ? `You are flying past ${worldName}!` : `You landed on ${worldName}!`;
+    this.els['landed-text'].textContent = flyingPast
+      ? 'There is no solid ground to land on here. Fact cards and missions are coming soon.'
+      : 'Great flying! Fact cards and missions are coming soon.';
+    // The picker must not stay open under the card. Focus is not moved here: the card takes it just below.
+    if (!this.els.picker.hidden) {
+      this.els.picker.hidden = true;
+      this.whereButton.setAttribute('aria-expanded', 'false');
+    }
     this.els.landed.hidden = false;
     this.els.autopilot.hidden = true;
-    this.els['fly-again'].focus();
+    // With settings open on top, focus stays in settings: the card is reached once settings closes.
+    if (!this.callbacks.isCovered?.()) this.els['fly-again'].focus();
   }
 
   hideLanded(): void {
+    const hadFocus = this.els.landed.contains(document.activeElement);
     this.els.landed.hidden = true;
+    // Like the other panels: focus goes to the game area, so Space boosts and the next Tab starts at the top.
+    if (hadFocus) focusGameArea(this.root);
   }
 
   /** Moves the name tags and the off-screen pointer. Called every frame. */

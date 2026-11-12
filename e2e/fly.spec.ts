@@ -114,7 +114,11 @@ test('tap-only: pick Earth, tap Autopilot, and land', async ({ page }) => {
   await expect(lines.nth(0)).toHaveText(/^[\d.,]+ million km to go$/);
   await expect(lines.nth(1)).toHaveText(/^Light needs \d+ (seconds?|minutes?|hours?) to get there$/);
   await expect(lines.nth(2)).toHaveText(/^Pretend speed: [\d.,]+( million| billion)? km per second$/);
-  await expect(page.locator('.stats-note')).toHaveText('Real rockets are much slower!');
+  // The pretend speed is faster than light, so the card says plainly that the rocket is pretend, and compares with a real one.
+  await expect(page.locator('.stats-note').first()).toHaveText(
+    /^([\d,]+ times faster than light|Faster than light)! Only a pretend rocket can do that\.$|^Our rocket is pretend\.$/,
+  );
+  await expect(page.locator('.stats-compare')).toHaveText('Real rockets are much slower: New Horizons took about 9 and a half years to reach Pluto.');
 
   // Starting near the Sun and facing Earth: the real Sun-to-Earth gap is 149.6 million km, and the rocket has already set off a little.
   const atStart = await distanceShown(page);
@@ -185,6 +189,7 @@ test.describe('on a touch screen', () => {
     await page.addInitScript(() =>
       localStorage.setItem('rocketpals.settings', JSON.stringify({ version: 1, textSize: 'huge', reducedMotion: 'system' })),
     );
+    // Not 390 x 844: there the narrow card already reached the Autopilot button before the speed lesson (a known issue in docs/PROGRESS.md).
     for (const size of [
       { width: 420, height: 900 },
       { width: 844, height: 390 },
@@ -192,6 +197,9 @@ test.describe('on a touch screen', () => {
       await page.setViewportSize(size);
       await start(page, '&touch=1');
       await page.evaluate(() => (window as unknown as { rocketPals: { pickTarget(id: string): void } }).rocketPals.pickTarget('mars'));
+      // The "pretend rocket" line is showing. The New Horizons line is left out on a phone: there is no room for it.
+      await expect(page.locator('.stats-note').first()).toBeVisible();
+      await expect(page.locator('.stats-compare')).toBeHidden();
       const box = async (selector: string) => (await page.locator(selector).boundingBox())!;
       const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>
         a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
@@ -199,6 +207,8 @@ test.describe('on a touch screen', () => {
       expect(overlaps(autopilot, await box('[data-testid="stick"]')), `autopilot over the stick at ${size.width}`).toBe(false);
       expect(overlaps(autopilot, await box('[data-testid="boost-button"]')), `autopilot over BOOST at ${size.width}`).toBe(false);
       expect(overlaps(await box('.stats'), autopilot), `stats over autopilot at ${size.width}`).toBe(false);
+      const stats = await box('.stats');
+      expect(stats.y + stats.height, `stats card fits on the screen at ${size.width}`).toBeLessThanOrEqual(size.height);
       // The BOOST label fits inside its button.
       const fits = await page.evaluate(() => {
         const b = document.querySelector('[data-testid="boost-button"]') as HTMLElement;
@@ -220,6 +230,25 @@ test.describe('on a touch screen', () => {
     await page.getByRole('button', { name: 'Earth' }).click();
     expect((await page.getByTestId('autopilot-button').boundingBox())!.height).toBeGreaterThanOrEqual(56);
   });
+});
+
+test('on a Chromebook-sized screen with the biggest text, the speed lesson stays clear of the buttons', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.addInitScript(() =>
+    localStorage.setItem('rocketpals.settings', JSON.stringify({ version: 1, textSize: 'huge', reducedMotion: 'system' })),
+  );
+  const errors = watchForErrors(page);
+  await start(page);
+  await page.evaluate(() => (window as unknown as { rocketPals: { pickTarget(id: string): void } }).rocketPals.pickTarget('saturn'));
+  await expect(page.locator('.stats-compare')).toBeVisible();
+  const box = async (selector: string) => (await page.locator(selector).boundingBox())!;
+  const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>
+    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  const stats = await box('.stats');
+  expect(overlaps(stats, await box('[data-testid="autopilot-button"]'))).toBe(false);
+  expect(overlaps(stats, await box('[data-testid="where-button"]'))).toBe(false);
+  expect(stats.y + stats.height).toBeLessThanOrEqual(768);
+  expect(errors).toEqual([]);
 });
 
 test('low quality mode turns glow off; high quality has it on', async ({ page }) => {

@@ -637,8 +637,9 @@ test.describe('when the data is missing', () => {
     expect(errors).toEqual([]);
   });
 
-  test('a quiz file with a broken question is not used (and the game carries on)', async ({ page }) => {
-    const errors = watchForErrors(page, [/Bad quiz data|Failed to load/]);
+  test('a broken quiz is left out on its own (and the game carries on)', async ({ page }) => {
+    // The game logs which quiz it left out: that one message is expected here.
+    const errors = watchForErrors(page, [/Some quizzes were left out:\nmars|Failed to load/]);
     await page.route('**/data/quizzes.json', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: '{"lastChecked":"2026-10-23","quizzes":[{"worldId":"mars","questions":[]}]}' }),
     );
