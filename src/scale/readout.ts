@@ -56,3 +56,26 @@ export function realSpeedKmPerSec(sceneSpeed: number, legKm: number, sceneLeg: n
 export function formatSpeed(kmPerSec: number): string {
   return `${formatDistanceKm(kmPerSec)} per second`;
 }
+
+/** How many times the speed of light this speed is. */
+export function timesLightSpeed(kmPerSec: number): number {
+  return kmPerSec / SPEED_OF_LIGHT_KM_PER_SEC;
+}
+
+/**
+ * The line under the pretend speed. The pretend rocket is almost always faster than light, which nothing real
+ * can be, so the game says so plainly instead of letting the number look like a real speed.
+ * Below 1.5 times light speed "1 times faster" would read oddly, so it just says "Faster than light!".
+ */
+export function pretendSpeedNote(kmPerSec: number): string {
+  const ratio = timesLightSpeed(kmPerSec);
+  if (ratio >= 1.5) return `${Math.round(ratio).toLocaleString('en-US')} times faster than light! Only a pretend rocket can do that.`;
+  if (ratio > 1) return 'Faster than light! Only a pretend rocket can do that.';
+  return 'Our rocket is pretend.';
+}
+
+/**
+ * A real trip to compare with. New Horizons launched on 19 January 2006 and flew past Pluto on 14 July 2015:
+ * 9.49 years. Source: https://science.nasa.gov/mission/new-horizons/ (checked 2026-11-11).
+ */
+export const REAL_ROCKET_COMPARISON = 'Real rockets are much slower: New Horizons took about 9 and a half years to reach Pluto.';

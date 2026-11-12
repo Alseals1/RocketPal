@@ -326,6 +326,108 @@ test('other worlds without a photo yet still get the plain landing card', async 
   expect(await debug(page, (h) => h.getMode())).toBe('space');
 });
 
+test('the Sun and the giant planets say "flying past", never "landed"', async ({ page }) => {
+  const errors = watchForErrors(page);
+  for (const [id, name] of [
+    ['jupiter', 'Jupiter'],
+    ['sun', 'The Sun'],
+  ]) {
+    await start(page);
+    await page.evaluate((world) => (window as unknown as { rocketPals: DebugHandle }).rocketPals.dockAt(world), id);
+    await expect(page.getByTestId('landed')).toBeVisible();
+    await expect(page.locator('#landed-title')).toHaveText(`You are flying past ${name}!`);
+    await expect(page.getByTestId('landed')).toContainText('There is no solid ground to land on here.');
+    await expect(page.getByTestId('landed')).not.toContainText('landed');
+    await expect(page.locator('.stats-line').first()).toHaveText('Great flying!');
+  }
+  expect(errors).toEqual([]);
+});
+
+test('the landing card is a proper dialog: Tab stays on it, Escape flies again, and focus goes back to the game', async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors = watchForErrors(page);
+  await start(page);
+  await debug(page, (h) => h.dockAt('moon'));
+  const flyAgain = page.getByTestId('fly-again');
+  await expect(flyAgain).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(flyAgain).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(flyAgain).toBeFocused();
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('landed')).toBeHidden();
+  expect((await debug(page, (h) => h.getShip())).docked).toBe(false);
+  await expect(page.locator('.stats-title')).toHaveText('Where to, pilot?'); // the target is cleared
+
+  // Space boosts (it does not press a button), and the next Tab starts at the top of the page.
+  const speed = () => page.evaluate(() => (window as unknown as { rocketPals: { getShip(): { speed: number } } }).rocketPals.getShip().speed);
+  const before = await speed();
+  await page.keyboard.down('Space');
+  await expect.poll(speed, { timeout: 20_000 }).toBeGreaterThan(before + 20);
+  await page.keyboard.up('Space');
+  await expect(page.getByTestId('landed')).toBeHidden();
+  await page.keyboard.press('Tab');
+  await expect(page.getByTestId('where-button')).toBeFocused();
+  expect(errors).toEqual([]);
+});
+
+test('a keyboard "Fly again" also hands focus back to the game', async ({ page }) => {
+  await start(page);
+  await debug(page, (h) => h.dockAt('moon'));
+  await expect(page.getByTestId('fly-again')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('landed')).toBeHidden();
+  await page.keyboard.press('Tab');
+  await expect(page.getByTestId('where-button')).toBeFocused();
+});
+
+test('with settings open when the rocket arrives, Escape closes only settings, and the card waits underneath', async ({ page }) => {
+  const errors = watchForErrors(page);
+  await start(page);
+  await page.getByTestId('settings-button').click();
+  await expect(page.getByTestId('settings-panel')).toBeVisible();
+  await debug(page, (h) => h.dockAt('moon'));
+  await expect(page.getByTestId('landed')).toBeVisible();
+  await expect(page.getByTestId('fly-again')).not.toBeFocused(); // settings keeps the focus
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('settings-panel')).toBeHidden();
+  await expect(page.getByTestId('landed')).toBeVisible();
+  expect((await debug(page, (h) => h.getShip())).docked).toBe(true);
+
+  // Now the card has the keys.
+  await page.keyboard.press('Tab');
+  await expect(page.getByTestId('fly-again')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('landed')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('arriving closes the destination picker', async ({ page }) => {
+  await start(page);
+  await page.getByTestId('where-button').click();
+  await expect(page.locator('.picker')).toBeVisible();
+  await debug(page, (h) => h.dockAt('moon'));
+  await expect(page.getByTestId('landed')).toBeVisible();
+  await expect(page.locator('.picker')).toBeHidden();
+  await expect(page.getByTestId('where-button')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByTestId('fly-again')).toBeFocused();
+});
+
+test.describe('the landing card on a touch screen', () => {
+  test.use({ viewport: { width: 844, height: 390 }, hasTouch: true });
+
+  test('tapping "Fly again" still lifts off', async ({ page }) => {
+    await start(page, '&quality=high&touch=1');
+    await debug(page, (h) => h.dockAt('saturn'));
+    await expect(page.locator('#landed-title')).toHaveText('You are flying past Saturn!');
+    await page.getByTestId('fly-again').tap();
+    await expect(page.getByTestId('landed')).toBeHidden();
+    expect((await debug(page, (h) => h.getShip())).docked).toBe(false);
+  });
+});
+
 test('low quality uses the small picture and high quality the sharp one', async ({ page }) => {
   const requested: string[] = [];
   page.on('request', (r) => {

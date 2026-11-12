@@ -9,6 +9,9 @@ import {
   realDistanceRemainingKm,
   realSpeedKmPerSec,
   formatSpeed,
+  pretendSpeedNote,
+  timesLightSpeed,
+  REAL_ROCKET_COMPARISON,
 } from '../src/scale/readout';
 
 const worlds = planetsJson.worlds as World[];
@@ -118,5 +121,36 @@ describe('real numbers for a compressed trip', () => {
 
   it('writes a speed with its unit', () => {
     expect(formatSpeed(87_308_000)).toBe('87.3 million km per second');
+  });
+});
+
+describe('the pretend speed lesson', () => {
+  const C = 299_792.458;
+
+  it('says how many times faster than light the pretend rocket goes', () => {
+    expect(timesLightSpeed(C * 2)).toBeCloseTo(2);
+    // About what the stats show on the way to Saturn.
+    expect(pretendSpeedNote(5_800_000)).toBe('19 times faster than light! Only a pretend rocket can do that.');
+  });
+
+  it('writes big numbers with a thousands comma', () => {
+    expect(pretendSpeedNote(C * 1000)).toBe('1,000 times faster than light! Only a pretend rocket can do that.');
+  });
+
+  it('does not say "1 times" when it is only a little faster than light', () => {
+    expect(pretendSpeedNote(C * 1.2)).toBe('Faster than light! Only a pretend rocket can do that.');
+    expect(pretendSpeedNote(C * 1.5)).toBe('2 times faster than light! Only a pretend rocket can do that.');
+  });
+
+  it('never says faster than light when it is not', () => {
+    expect(pretendSpeedNote(C)).toBe('Our rocket is pretend.');
+    expect(pretendSpeedNote(100)).toBe('Our rocket is pretend.');
+    expect(pretendSpeedNote(0)).toBe('Our rocket is pretend.');
+  });
+
+  it('compares with a real spacecraft, in a short sentence', () => {
+    expect(REAL_ROCKET_COMPARISON).toContain('New Horizons');
+    expect(REAL_ROCKET_COMPARISON).toContain('Pluto');
+    expect(REAL_ROCKET_COMPARISON.split(/\s+/).length).toBeLessThanOrEqual(20);
   });
 });

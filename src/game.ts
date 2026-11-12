@@ -2,7 +2,7 @@ import { createSpeaker } from './audio/speech';
 import type { PlanetData, World } from './data/planets';
 import type { Mission, MissionData } from './data/missions';
 import type { QuizData, QuizQuestionData } from './data/quizzes';
-import type { Surface, SurfaceData } from './data/surfaces';
+import { arrivalWording, type Surface, type SurfaceData } from './data/surfaces';
 import {
   DEFAULT_FLIGHT,
   createShip,
@@ -24,8 +24,10 @@ import {
   formatDuration,
   formatSpeed,
   lightTravelSeconds,
+  pretendSpeedNote,
   realDistanceRemainingKm,
   realSpeedKmPerSec,
+  REAL_ROCKET_COMPARISON,
 } from './scale/readout';
 import { planLeg } from './scale/leg';
 import { layoutWorlds, type BodyLayout } from './scene/layout';
@@ -124,6 +126,7 @@ export class Game {
       onSelect: (id) => this.pickTarget(id),
       onAutopilot: (on) => this.setAutopilot(on),
       onFlyAgain: () => this.flyAgain(),
+      isCovered: () => this.settingsPanel?.isOpen ?? false,
     });
     this.refreshHere();
     this.hud.setAutopilot(false);
@@ -260,7 +263,7 @@ export class Game {
     this.hud.setAutopilot(false);
     const surface = this.surfaces.get(layout.world.id);
     if (surface) void this.enterSurface(layout, surface);
-    else this.hud.showLanded(layout.world.name);
+    else this.hud.showLanded(layout.world.name, arrivalWording(layout.world.id));
   }
 
   /** For the browser tests only (page address has ?debug=1): dock at a world straight away, through the normal landing path. */
@@ -344,7 +347,7 @@ export class Game {
       if (visit !== this.visit) return; // the player has already left: nothing to fall back from
       console.error(error);
       this.leaveSurfaceScreen();
-      this.hud.showLanded(layout.world.name); // fall back to the plain "You landed" card
+      this.hud.showLanded(layout.world.name, arrivalWording(layout.world.id)); // fall back to the plain landing card
       return;
     }
     if (visit !== this.visit) {
@@ -437,11 +440,12 @@ export class Game {
   private updateStats(): void {
     const layout = this.targetId ? this.layout(this.targetId) : undefined;
     if (!layout) {
-      this.hud.setStats({ title: 'Where to, pilot?', distance: 'Tap "Where to?" and pick a world.', light: '', speed: '', showNote: false });
+      this.hud.setStats({ title: 'Where to, pilot?', distance: 'Tap "Where to?" and pick a world.', light: '', speed: '', speedNote: '', comparison: '' });
       return;
     }
     if (this.ship.docked) {
-      this.hud.setStats({ title: `You are at ${layout.world.name}`, distance: 'Great landing!', light: '', speed: '', showNote: false });
+      const distance = arrivalWording(layout.world.id) === 'flyingPast' ? 'Great flying!' : 'Great landing!';
+      this.hud.setStats({ title: `You are at ${layout.world.name}`, distance, light: '', speed: '', speedNote: '', comparison: '' });
       return;
     }
     const sceneRemaining = Math.max(0, distance(this.ship.position, layout.position) - dockDistance(this.body(layout)));
@@ -449,7 +453,8 @@ export class Game {
     const pretendSpeed = realSpeedKmPerSec(this.ship.speed, this.legKm, this.sceneLeg);
     this.hud.setStats({
       title: `Flying to ${layout.world.name}`,
-      showNote: true,
+      speedNote: pretendSpeedNote(pretendSpeed),
+      comparison: REAL_ROCKET_COMPARISON,
       distance: `${formatDistanceKm(km)} to go`,
       light: km > 0 ? `Light needs ${formatDuration(lightTravelSeconds(km))} to get there` : 'You are here!',
       speed: `Pretend speed: ${formatSpeed(pretendSpeed)}`,

@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import surfacesJson from '../public/data/surfaces.json';
-import { validateSurfaces } from '../src/data/surfaces';
+import { arrivalWording, validateSurfaces } from '../src/data/surfaces';
+import { WORLD_IDS } from '../src/data/planets';
 import {
   cylindricalPhotoToAzEl,
   directionOnScreen,
@@ -275,5 +276,22 @@ describe('validateSurfaces', () => {
     const b = copy();
     b.surfaces[0].hotspots = [];
     expect(validateSurfaces(b, WORLDS)).toContainEqual(expect.stringContaining('hotspots'));
+  });
+});
+
+describe('arrivalWording', () => {
+  // GAME_DESIGN.md: "flying past", never "landed", on the Sun and the giant planets.
+  const FLYING_PAST = ['sun', 'jupiter', 'saturn', 'uranus', 'neptune'];
+
+  it('says "flying past" for the Sun and the giant planets, which have no solid ground', () => {
+    for (const id of FLYING_PAST) expect(arrivalWording(id), id).toBe('flyingPast');
+  });
+
+  it('says "landed" for every world with solid ground', () => {
+    for (const id of WORLD_IDS.filter((w) => !FLYING_PAST.includes(w))) expect(arrivalWording(id), id).toBe('landed');
+  });
+
+  it('only names real worlds', () => {
+    for (const id of FLYING_PAST) expect(WORLD_IDS).toContain(id);
   });
 });
