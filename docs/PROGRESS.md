@@ -17,13 +17,13 @@ Last updated: 2026-11-12.
 * **Architecture test (#37):** draft PR, waiting for review. `tests/architecture.test.ts` maps every `src/` file to a layer of `TECHNICAL_ARCHITECTURE.md` section 3, reads its imports, and fails naming the file, the import and the rule. 7 type-only imports that break a rule today sit on a commented allow-list (`data/quizzes` → `quiz`; `scale/leg`, `ui/hud` → `scene/layout`; `ui/hud`, `ui/surfaceHud` → `scene/spaceScene`; `ui/quizPanel`, `ui/surfaceHud` → `audio/speech`), each with what removes it. The list can only shrink: a stale entry fails the test. No `src/` change (`decisions/2026-11-12-architecture-import-rules.md`).
 * **Screen split (#32, M1):** parts 2 and 3 had merged into their stack branches, not `dev`; they reach `dev` through #31 part 1 (`goat/31-1-land-32`, draft PR), which also moves #38's `Content` into the split files (`ctx.content`, plus a `layouts` stand-in). `src/game.ts` is split into `SpaceScreen` (flying) and `ArrivalScreen` (standing on a world), behind the `Screen` interface from architecture 4.11, run by a small `ScreenManager` (`src/app/`). `Game` is now a shell of 139 lines in `src/app/game.ts`. Nothing the player sees, hears or saves changed. One fix came with it: leaving a world now frees the surface HUD and its keyboard listeners, which used to stay behind. New tests: `tests/screenManager.test.ts`, `tests/gameShell.test.ts`, `e2e/screens.spec.ts` (listeners and graphics memory after leaving). Scripted play-through in headless Chrome on a Mac (keyboard, touch layout, Mars with dots and quiz, Earth, Jupiter's card): same results as `dev`, 60 fps flying on both, 59 fps on Mars (58 on `dev`) (`decisions/2026-11-11-screen-split.md`).
 
-## Health (2026-11-11)
+## Health (2026-11-12)
 
 | Check | Result |
 | --- | --- |
-| `npm test` (Vitest) | 404 passed |
-| `npm run test:e2e` (Playwright) | 155 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
-| `npm run build` | Clean. 652 KB JavaScript (168 KB gzipped) |
+| `npm test` (Vitest) | 405 passed |
+| `npm run test:e2e` (Playwright) | 158 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
+| `npm run build` | Clean. 654 KB JavaScript (169 KB gzipped) |
 | CI | GitHub Actions `Tests and build` on PRs into `dev` and pushes to `dev`, about 5-7 minutes (#27). First play 758 kB of the 15 MB budget |
 | Chromebook | Not measured yet. Guide ready (#28) |
 
