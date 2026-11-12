@@ -5,6 +5,7 @@ import { loadQuizzes } from './data/quizzes';
 import { loadSurfaces } from './data/surfaces';
 import { browserStorage, loadSettings } from './core/settings';
 import { Game } from './game';
+import { isDebugOn } from './app';
 import type { Quality } from './quality/quality';
 import { applySettingsToPage } from './ui/settingsPanel';
 
@@ -47,6 +48,7 @@ function start(): void {
         return { lastChecked: '', surfaces: [] };
       });
       // Missions and quizzes are extras: if their data cannot be loaded, the game still flies and lands without them.
+      // (One bad quiz leaves out only that world's quiz; loadQuizzes logs it. Only a file that is unusable as a whole lands here.)
       const worldIds = data.worlds.map((w) => w.id);
       const [missions, quizzes] = await Promise.all([
         loadMissions(surfaces, worldIds).catch((error) => {
@@ -65,7 +67,7 @@ function start(): void {
         forcedQuality: forced === 'low' || forced === 'high' ? (forced as Quality) : undefined,
         touchControls: params.has('touch') || matchMedia('(pointer: coarse)').matches,
         settings,
-        debug: params.has('debug'),
+        debug: isDebugOn(params),
       });
     })
     .catch((error) => {
