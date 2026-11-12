@@ -1,6 +1,6 @@
 # Platform services: settings store, audio manager skeleton, input manager
 
-Date: 2026-11-12. Decided by the Plan agent for issue #41 and built by the Implement agent. Items 9 and 10 were small changes made during the build. A person can overrule any line at PR review. The code is in `src/core/settings.ts`, `src/platform/settingsStore.ts`, `src/platform/audio.ts` and `src/platform/input/`. The interfaces are in `docs/TECHNICAL_ARCHITECTURE.md` section 4.15.
+Date: 2026-11-12. Decided by the Plan agent for issue #41 and built by the Implement agent. Items 9, 10, 12 and 13 were small changes made during the build. A person can overrule any line at PR review. The code is in `src/core/settings.ts`, `src/platform/settingsStore.ts`, `src/platform/audio.ts` and `src/platform/input/`. The interfaces are in `docs/TECHNICAL_ARCHITECTURE.md` section 4.15.
 
 ## What was decided
 1. **`Settings` stays in Logic, the store goes in Platform.** The type, the defaults, `loadSettings`, `saveSettings` and the new `normaliseSettings` stay in `src/core/settings.ts`. `createSettingsStore` (the 4.15 `SettingsStore`) is in `src/platform/settingsStore.ts`, which re-exports `Settings`. This is because `ui/settingsPanel.ts` reads `Settings`, and UI may not import Platform. It is the same split as `SaveData` (core) and `SaveStore` (platform).
@@ -26,6 +26,8 @@ Date: 2026-11-12. Decided by the Plan agent for issue #41 and built by the Imple
 9. **The manager owns the release on blur and hidden tab (build change).** The plan put this in the keyboard source, but the old code also let go of the stick and BOOST then. Putting it in the manager keeps that.
 10. **`createInputManager` takes the touch elements, not a parent (build change).** `buildTouchControls(stage)` makes the same HTML as before (same classes and test ids), and the manager takes the result. The unit tests can then pass fake elements built on Node's `EventTarget`, so no DOM test library (a new dependency) is needed.
 11. **`ScreenContext.controls: InputController` becomes `input: InputManager`,** the 4.11 name. `src/flight/input.ts` is deleted, and its `LAYERS` entry is removed from the architecture test.
+12. **After #31 part 1 landed (build change).** The wiring moved with the screen split: `src/app/game.ts`, `src/app/gameOptions.ts` (`settings: SettingsStore`), `src/screens/spaceScreen.ts` and `src/screens/arrivalScreen.ts`. `Game` no longer keeps its own copy of the settings, because the store is the one source. This also keeps the shell under the 150-line guard in `tests/gameShell.test.ts`.
+13. **The unlock listeners use an abort signal (build change).** One `AbortController` removes the `pointerdown` and `keydown` listeners together, so a listener that removes itself is not counted as a leak by `e2e/screens.spec.ts`.
 
 ## Why
 - The 2.0 screens (Star Map, Mission Control, sounds, new controls) need these services behind small interfaces. Today's flying, settings and read-aloud must not change. The old rules (keyboard over stick on each axis, the dead zone, one finger per control, modifiers left alone, Space on a button, blocked while a panel is open, release on blur) were moved rather than rewritten. Each one has a unit test, and the existing browser tests pass unchanged.
