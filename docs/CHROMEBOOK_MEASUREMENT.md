@@ -88,11 +88,13 @@ Open `/?debug=1`, fly around for 30 seconds (include some boosting), then run:
 rocketPals.getQuality()
 ```
 
-Write the answer ("high" or "low") under the frame rate table. The game starts on "high" unless the device has 2 GB of memory or less, or 2 or fewer CPU cores. It then drops to "low" when the middle frame time stays under 40 fps, and never goes back up. Do not use this page's frame rate: `?debug` keeps an extra copy of each picture (see step 5).
+Also run `document.documentElement.dataset.quality`: it must give the same answer.
+
+Write the answer ("high" or "low") under the frame rate table. Since #31 the game starts on "low" when the device has 4 GB of memory or less, or 4 or fewer CPU cores (before #31: 2 GB or 2 cores), and otherwise on "high". It then drops to "low" when the middle frame time stays under 40 fps, and never goes back up. Do not use this page's frame rate: `?debug` keeps an extra copy of each picture (see step 5).
 
 ## 7. Landing freeze
 
-This is how long the game stops when a landing photo appears. Do it on `/?quality=high` (the 4096 photos) and on `/?quality=low` (the 2048 photos). Reload each page first, so the photos are not already saved in the browser. (A second landing in the same world, without a reload, uses a saved photo and is not a fair test.)
+This is how long the game stops when a landing photo appears. Do it on `/?quality=high` (the 4096 photos) and on `/?quality=low` (the 2048 photos). Since #31 Earth's window view uses the 2048 photo at both qualities, so after #31 the Earth row's 4096 column measures the 2048 photo. Reload each page first, so the photos are not already saved in the browser. (A second landing in the same world, without a reload, uses a saved photo and is not a fair test.)
 
 On each page:
 
