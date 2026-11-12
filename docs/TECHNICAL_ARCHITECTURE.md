@@ -172,28 +172,36 @@ export interface EventBus {
 
 ### 4.5 Save data (`src/core/save/schema.ts`)
 
-One versioned record under `rocketpals.progress` (the key used today). Every field declares how two copies merge, so a second open window can never lose anything (#29).
+One versioned record under `rocketpals.progress` (the key used today). Every field declares how two copies merge, so a second open window can never lose anything (#29). The `SaveStore` also writes a copy of the same record to `rocketpals.progress.backup`, so a tab still running the v1 code cannot wipe 2.0 fields (see `decisions/2026-11-11-save-v2-format.md`).
 
 ```ts
-export interface SaveData {
+// Every entry type keeps fields from a newer version: [unknown: string]: unknown.
+export interface WorldSave { missionDone: boolean; quizDone: boolean; perfectQuiz: boolean; [unknown: string]: unknown }
+export interface QuizSave { done: boolean; perfect: boolean; [unknown: string]: unknown }
+export interface CourseSave { finish: boolean; crystals: boolean; smooth: boolean; bestMs?: number; [unknown: string]: unknown }
+export interface Stamped<T> { value: T; at: number }
+
+export interface SaveFields {                // the known fields, so SAVE_SCHEMA is type-checked against them
   version: 2;
-  worlds: Record<string, { missionDone: boolean; quizDone: boolean; perfectQuiz: boolean }>; // v1, kept
-  visited: string[];                         // PlaceIds                       merge: union
-  dots: string[];                            // DotIds found                   merge: union
-  capsules: string[];                        // CapsuleIds                     merge: union
-  quizzes: Record<string, { done: boolean; perfect: boolean }>;  // per place   merge: OR per flag
-  courses: Record<string, { finish: boolean; crystals: boolean; smooth: boolean; bestMs?: number }>; // OR flags, min time
-  activities: string[];                      // `${ActivityId}:${key}` done     merge: union
-  rescues: string[];                         // MissionIds                     merge: union
+  worlds: Record<string, WorldSave>;         // v1, kept                        merge: OR per flag
+  visited: string[];                         // PlaceIds                       merge: union (sorted)
+  dots: string[];                            // DotIds found                   merge: union (sorted)
+  capsules: string[];                        // CapsuleIds                     merge: union (sorted)
+  quizzes: Record<string, QuizSave>;         // per place                      merge: OR per flag
+  courses: Record<string, CourseSave>;       //                                merge: OR flags, min time
+  activities: string[];                      // `${ActivityId}:${key}` done     merge: union (sorted)
+  rescues: string[];                         // MissionIds                     merge: union (sorted)
   repeats: Record<string, number>;           // replay counters for XP          merge: max
   patchDates: Record<string, string>;        // PatchId → first date seen       merge: earliest
   equipped: Record<string, { item: string; at: number }>;  // slot → item     merge: newest `at`
-  pilot: { callSign?: { value: string; at: number } };     //                  merge: newest `at`
+  pilot: { callSign?: Stamped<string> };     //                                merge: newest `at`
+}
+export interface SaveData extends SaveFields {
   [unknown: string]: unknown;                // fields from a newer version are kept, never dropped
 }
 
 export type MergeRule = 'union' | 'or' | 'max' | 'min' | 'earliest' | 'newest' | 'keep';
-export const SAVE_SCHEMA: Record<keyof Omit<SaveData, 'version'>, MergeRule | Record<string, MergeRule>>;
+export const SAVE_SCHEMA: Record<Exclude<keyof SaveFields, 'version'>, MergeRule | Record<string, MergeRule>>;
 
 export function migrate(raw: unknown): SaveData;           // no version → v1 → v2; garbage → empty, per field
 export function merge(a: SaveData, b: SaveData): SaveData; // driven by SAVE_SCHEMA; unknown fields: keep from either
@@ -589,6 +597,7 @@ For each: what it does, what exists today, what changes, the data, and the tests
   * merges every field by its declared rule, and writes after every recorded event;
   * listens for the `storage` event, so another window's progress shows up here too (it is loaded only once today);
   * never throws, and works in memory when storage is blocked, as today.
+  * writes the record to `rocketpals.progress` and to `rocketpals.progress.backup`, and merges both on every read, so a tab still running the v1 code never wipes 2.0 fields (`decisions/2026-11-11-save-v2-format.md`).
 * **Kept from today:** the `localStorage` keys, the "stars only go up" guarantee, and no backend (section 1).
 * **Tests:** v1 fixtures from today's real saves load with every star; a merge property test with random pairs (never loses a found dot, a flag or a patch date); a two-window browser test, as today; a "newer version" fixture keeps its unknown fields.
 
