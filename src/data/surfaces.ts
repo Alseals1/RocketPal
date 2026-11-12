@@ -54,87 +54,99 @@ export const LIMITS = { titleChars: 40, textWords: 45, textSentences: 3, hintWor
 
 const isNumberIn = (n: unknown, lo: number, hi: number): n is number => typeof n === 'number' && Number.isFinite(n) && n >= lo && n <= hi;
 
-/** Returns a list of problems in the surface data. An empty list means it is valid. */
-export function validateSurfaces(raw: unknown, worldIds: string[]): string[] {
+/** The checks on the surfaces file as a whole (not on its pictures). An empty list means the file can be read. */
+export function validateSurfacesFile(raw: unknown): string[] {
   if (typeof raw !== 'object' || raw === null) return ['surface data must be an object'];
-  const data = raw as Record<string, any>;
+  const data = raw as Record<string, unknown>;
   const problems: string[] = [];
   if (!isRealDate(data.lastChecked)) problems.push('lastChecked must be a real date like 2026-10-23');
-  if (!Array.isArray(data.surfaces)) return [...problems, 'surfaces must be a list'];
+  if (!Array.isArray(data.surfaces)) problems.push('surfaces must be a list');
+  return problems;
+}
+
+/** Returns a list of problems in the surface data. An empty list means it is valid. */
+export function validateSurfaces(raw: unknown, worldIds: readonly string[]): string[] {
+  const problems = validateSurfacesFile(raw);
+  const surfaces = (raw as Record<string, unknown> | null)?.surfaces;
+  if (!Array.isArray(surfaces)) return problems;
 
   const seenWorlds = new Set<string>();
-  for (const surface of data.surfaces as Record<string, any>[]) {
+  for (const surface of surfaces as Record<string, any>[]) {
     const id = isText(surface?.worldId) ? surface.worldId : '(surface without a worldId)';
-    if (!worldIds.includes(id)) problems.push(`${id}: not a world in planets.json`);
     if (seenWorlds.has(id)) problems.push(`${id}: listed twice`);
     seenWorlds.add(id);
-
-    if (surface?.kind !== 'panorama' && surface?.kind !== 'window') problems.push(`${id}: kind must be "panorama" or "window"`);
-    if (surface?.kind === 'window') {
-      const p = surface.photo;
-      const sensible = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && n > 10 && n < 170;
-      if (!p || !sensible(p.horizontalFov) || !sensible(p.verticalFov) || !isNumberIn(p.aspect, 0.2, 5)) {
-        problems.push(`${id}: photo needs horizontalFov and verticalFov (between 10 and 170 degrees) and an aspect`);
-      }
-    }
-    if (!isText(surface?.title)) problems.push(`${id}: title is required`);
-    if (!isText(surface?.description) || words(surface.description) > 45) {
-      problems.push(`${id}: description is required (what the picture is, for people who cannot see it) and at most 45 words`);
-    }
-    if (!isText(surface?.images?.high) || !isText(surface?.images?.low)) problems.push(`${id}: images needs a high and a low file`);
-    if (!isText(surface?.credit)) problems.push(`${id}: credit is required (say who took the picture)`);
-    if (!isText(surface?.creditNote)) problems.push(`${id}: creditNote is required`);
-    if (!/^https:\/\//.test(surface?.sourceUrl ?? '')) problems.push(`${id}: sourceUrl must be an https link`);
-    if (!isNumberIn(surface?.start?.azimuth, 0, 360) || surface.start.azimuth === 360 || !isNumberIn(surface?.start?.elevation, -90, 90)) {
-      problems.push(`${id}: start needs an azimuth from 0 to under 360 and an elevation from -90 to 90`);
-    }
-    if (!isText(surface?.orbitHint) || words(surface.orbitHint) > LIMITS.hintWords) {
-      problems.push(`${id}: orbitHint is required and must be ${LIMITS.hintWords} words or fewer`);
-    }
-
-    const spots = surface?.hotspots;
-    if (!Array.isArray(spots) || spots.length < 1 || spots.length > LIMITS.maxHotspots) {
-      problems.push(`${id}: hotspots must be a list of 1 to ${LIMITS.maxHotspots}`);
-      continue;
-    }
-    const spotIds = new Set<string>();
-    for (const spot of spots as Record<string, any>[]) {
-      const label = `${id}/${isText(spot?.id) ? spot.id : '(hotspot without an id)'}`;
-      if (!isText(spot?.id)) problems.push(`${label}: id is required`);
-      else if (spotIds.has(spot.id)) problems.push(`${label}: duplicate id`);
-      else spotIds.add(spot.id);
-      if (!isText(spot?.label)) problems.push(`${label}: label is required`);
-      if (!isNumberIn(spot?.azimuth, 0, 360) || spot.azimuth === 360) problems.push(`${label}: azimuth must be from 0 to under 360`);
-      if (!isNumberIn(spot?.elevation, -90, 90)) problems.push(`${label}: elevation must be from -90 to 90`);
-      if (surface.kind === 'window' && surface.photo && isNumberIn(spot?.azimuth, 0, 360) && isNumberIn(spot?.elevation, -90, 90)) {
-        // In a window view the photo is the only picture: a dot beside it would float in the black.
-        const fromMiddle = ((spot.azimuth + 540) % 360) - 180;
-        if (Math.abs(fromMiddle) > surface.photo.horizontalFov / 2 || Math.abs(spot.elevation) > surface.photo.verticalFov / 2) {
-          problems.push(`${label}: sits outside the photo`);
-        }
-      }
-      if (!isText(spot?.title) || spot.title.length > LIMITS.titleChars) problems.push(`${label}: title is required and at most ${LIMITS.titleChars} characters`);
-      if (!isText(spot?.text)) problems.push(`${label}: text is required`);
-      else {
-        if (words(spot.text) > LIMITS.textWords) problems.push(`${label}: text has too many words (at most ${LIMITS.textWords})`);
-        if (sentences(spot.text) > LIMITS.textSentences) problems.push(`${label}: text has too many sentences (at most ${LIMITS.textSentences})`);
-      }
-      if (!Array.isArray(spot?.sources) || spot.sources.length < 1 || !spot.sources.every((u: unknown) => typeof u === 'string' && /^https:\/\//.test(u))) {
-        problems.push(`${label}: sources must be a list of one or more https links to the pages the fact was checked against`);
-      }
-      if (!isRealDate(spot?.lastChecked)) problems.push(`${label}: lastChecked must be a real date`);
-    }
+    problems.push(...validateSurface(surface, worldIds));
   }
   return problems;
 }
 
-export async function loadSurfaces(worldIds: string[], url = '/data/surfaces.json'): Promise<SurfaceData> {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Could not load ${url} (${response.status})`);
-  const raw: unknown = await response.json();
-  const problems = validateSurfaces(raw, worldIds);
-  if (problems.length > 0) throw new Error(`Bad surface data:\n${problems.join('\n')}`);
-  return raw as SurfaceData;
+/**
+ * The checks on one landing picture and its dots. `worldIds` are the worlds it may belong to. One bad dot makes the
+ * whole picture bad: dropping single dots comes with question pools.
+ */
+export function validateSurface(raw: unknown, worldIds: readonly string[]): string[] {
+  // Typed loosely on purpose: every read below allows for a missing field (or a missing picture).
+  const surface = raw as Record<string, any>;
+  const problems: string[] = [];
+  const id = isText(surface?.worldId) ? surface.worldId : '(surface without a worldId)';
+  if (!worldIds.includes(id)) problems.push(`${id}: not a world in planets.json`);
+
+  if (surface?.kind !== 'panorama' && surface?.kind !== 'window') problems.push(`${id}: kind must be "panorama" or "window"`);
+  if (surface?.kind === 'window') {
+    const p = surface.photo;
+    const sensible = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && n > 10 && n < 170;
+    if (!p || !sensible(p.horizontalFov) || !sensible(p.verticalFov) || !isNumberIn(p.aspect, 0.2, 5)) {
+      problems.push(`${id}: photo needs horizontalFov and verticalFov (between 10 and 170 degrees) and an aspect`);
+    }
+  }
+  if (!isText(surface?.title)) problems.push(`${id}: title is required`);
+  if (!isText(surface?.description) || words(surface.description) > 45) {
+    problems.push(`${id}: description is required (what the picture is, for people who cannot see it) and at most 45 words`);
+  }
+  if (!isText(surface?.images?.high) || !isText(surface?.images?.low)) problems.push(`${id}: images needs a high and a low file`);
+  if (!isText(surface?.credit)) problems.push(`${id}: credit is required (say who took the picture)`);
+  if (!isText(surface?.creditNote)) problems.push(`${id}: creditNote is required`);
+  if (!/^https:\/\//.test(surface?.sourceUrl ?? '')) problems.push(`${id}: sourceUrl must be an https link`);
+  if (!isNumberIn(surface?.start?.azimuth, 0, 360) || surface.start.azimuth === 360 || !isNumberIn(surface?.start?.elevation, -90, 90)) {
+    problems.push(`${id}: start needs an azimuth from 0 to under 360 and an elevation from -90 to 90`);
+  }
+  if (!isText(surface?.orbitHint) || words(surface.orbitHint) > LIMITS.hintWords) {
+    problems.push(`${id}: orbitHint is required and must be ${LIMITS.hintWords} words or fewer`);
+  }
+
+  const spots = surface?.hotspots;
+  if (!Array.isArray(spots) || spots.length < 1 || spots.length > LIMITS.maxHotspots) {
+    problems.push(`${id}: hotspots must be a list of 1 to ${LIMITS.maxHotspots}`);
+    return problems;
+  }
+  const spotIds = new Set<string>();
+  for (const spot of spots as Record<string, any>[]) {
+    const label = `${id}/${isText(spot?.id) ? spot.id : '(hotspot without an id)'}`;
+    if (!isText(spot?.id)) problems.push(`${label}: id is required`);
+    else if (spotIds.has(spot.id)) problems.push(`${label}: duplicate id`);
+    else spotIds.add(spot.id);
+    if (!isText(spot?.label)) problems.push(`${label}: label is required`);
+    if (!isNumberIn(spot?.azimuth, 0, 360) || spot.azimuth === 360) problems.push(`${label}: azimuth must be from 0 to under 360`);
+    if (!isNumberIn(spot?.elevation, -90, 90)) problems.push(`${label}: elevation must be from -90 to 90`);
+    if (surface.kind === 'window' && surface.photo && isNumberIn(spot?.azimuth, 0, 360) && isNumberIn(spot?.elevation, -90, 90)) {
+      // In a window view the photo is the only picture: a dot beside it would float in the black.
+      const fromMiddle = ((spot.azimuth + 540) % 360) - 180;
+      if (Math.abs(fromMiddle) > surface.photo.horizontalFov / 2 || Math.abs(spot.elevation) > surface.photo.verticalFov / 2) {
+        problems.push(`${label}: sits outside the photo`);
+      }
+    }
+    if (!isText(spot?.title) || spot.title.length > LIMITS.titleChars) problems.push(`${label}: title is required and at most ${LIMITS.titleChars} characters`);
+    if (!isText(spot?.text)) problems.push(`${label}: text is required`);
+    else {
+      if (words(spot.text) > LIMITS.textWords) problems.push(`${label}: text has too many words (at most ${LIMITS.textWords})`);
+      if (sentences(spot.text) > LIMITS.textSentences) problems.push(`${label}: text has too many sentences (at most ${LIMITS.textSentences})`);
+    }
+    if (!Array.isArray(spot?.sources) || spot.sources.length < 1 || !spot.sources.every((u: unknown) => typeof u === 'string' && /^https:\/\//.test(u))) {
+      problems.push(`${label}: sources must be a list of one or more https links to the pages the fact was checked against`);
+    }
+    if (!isRealDate(spot?.lastChecked)) problems.push(`${label}: lastChecked must be a real date`);
+  }
+  return problems;
 }
 
 /** What the arrival words say. The same literals as `ArrivalDef.wording` (docs/TECHNICAL_ARCHITECTURE.md section 4.9). */

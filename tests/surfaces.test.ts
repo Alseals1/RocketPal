@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import surfacesJson from '../public/data/surfaces.json';
 import { arrivalWording, validateSurfaces } from '../src/data/surfaces';
-import { WORLD_IDS } from '../src/data/planets';
+import { WORLD_IDS } from '../src/data/ids';
 import {
   cylindricalPhotoToAzEl,
   directionOnScreen,

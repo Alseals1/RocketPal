@@ -1,8 +1,5 @@
 import './style.css';
-import { loadMissions } from './data/missions';
-import { loadPlanets } from './data/planets';
-import { loadQuizzes } from './data/quizzes';
-import { loadSurfaces } from './data/surfaces';
+import { loadContent } from './data/content';
 import { browserStorage, loadSettings } from './core/settings';
 import { Game } from './game';
 import { isDebugOn } from './app';
@@ -40,30 +37,11 @@ function start(): void {
   // Apply saved text size and motion choice before anything is drawn, so nothing jumps.
   const settings = loadSettings(browserStorage());
   applySettingsToPage(settings, matchMedia('(prefers-reduced-motion: reduce)').matches);
-  loadPlanets()
-    .then(async (data) => {
-      // If the landing pictures' data cannot be loaded, the game still flies and lands: worlds just show the plain card.
-      const surfaces = await loadSurfaces(data.worlds.map((w) => w.id)).catch((error) => {
-        console.error(error);
-        return { lastChecked: '', surfaces: [] };
-      });
-      // Missions and quizzes are extras: if their data cannot be loaded, the game still flies and lands without them.
-      // (One bad quiz leaves out only that world's quiz; loadQuizzes logs it. Only a file that is unusable as a whole lands here.)
-      const worldIds = data.worlds.map((w) => w.id);
-      const [missions, quizzes] = await Promise.all([
-        loadMissions(surfaces, worldIds).catch((error) => {
-          console.error(error);
-          return { lastChecked: '', missions: [] };
-        }),
-        loadQuizzes(surfaces).catch((error) => {
-          console.error(error);
-          return { lastChecked: '', quizzes: [] };
-        }),
-      ]);
-      new Game(root, data, {
-        surfaces,
-        missions,
-        quizzes,
+  // One loader for every data file. A broken entry, or a file other than planets.json that cannot be loaded, is left
+  // out (and logged) and the game still flies and lands. Only unusable planet data stops it, below.
+  loadContent()
+    .then((content) => {
+      new Game(root, content, {
         forcedQuality: forced === 'low' || forced === 'high' ? (forced as Quality) : undefined,
         touchControls: params.has('touch') || matchMedia('(pointer: coarse)').matches,
         settings,

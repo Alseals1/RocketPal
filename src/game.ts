@@ -1,8 +1,10 @@
 import { createSpeaker } from './audio/speech';
-import type { PlanetData, World } from './data/planets';
-import type { Mission, MissionData } from './data/missions';
-import type { QuizData, QuizQuestionData } from './data/quizzes';
-import { arrivalWording, type Surface, type SurfaceData } from './data/surfaces';
+import type { Content } from './data/content';
+import type { WorldId } from './data/ids';
+import type { World } from './data/planets';
+import type { Mission } from './data/missions';
+import type { QuizQuestionData } from './data/quizzes';
+import { arrivalWording, type Surface } from './data/surfaces';
 import {
   DEFAULT_FLIGHT,
   createShip,
@@ -48,9 +50,6 @@ interface Options {
   /** 'high' or 'low' from the page address, to force a quality (and turn off the automatic chooser). */
   forcedQuality?: Quality;
   touchControls: boolean;
-  surfaces: SurfaceData;
-  missions: MissionData;
-  quizzes: QuizData;
   settings: Settings;
   debug: boolean;
 }
@@ -72,9 +71,6 @@ export class Game {
   private reportedError = false;
   private settingsPanel?: SettingsPanel;
   private readonly stage: HTMLElement;
-  private readonly surfaces: Map<string, Surface>;
-  private readonly missions: Map<string, Mission>;
-  private readonly quizzes: Map<string, QuizQuestionData[]>;
   /** Stars and missions done so far, remembered in this browser only. */
   private readonly save: SaveStore;
   private readonly speaker = createSpeaker();
@@ -96,11 +92,13 @@ export class Game {
   private sceneLeg = 1;
   private legKm = 0;
 
-  constructor(root: HTMLElement, data: PlanetData, private readonly options: Options) {
-    this.layouts = layoutWorlds(data.worlds);
-    this.surfaces = new Map(options.surfaces.surfaces.map((s) => [s.worldId, s]));
-    this.missions = new Map(options.missions.missions.map((m) => [m.worldId, m]));
-    this.quizzes = new Map(options.quizzes.quizzes.map((q) => [q.worldId, q.questions]));
+  constructor(
+    root: HTMLElement,
+    /** Everything from public/data/, already checked. Worlds are in file order, which the layout spreads them by. */
+    private readonly content: Content,
+    private readonly options: Options,
+  ) {
+    this.layouts = layoutWorlds([...content.worlds.values()]);
     this.save = createSaveStore(browserStorage(), window);
     // Another window of the game earned something: show it here too, without a reload.
     this.save.onChange(() => {
@@ -261,7 +259,7 @@ export class Game {
   private onDocked(layout: BodyLayout): void {
     this.autopilot = false;
     this.hud.setAutopilot(false);
-    const surface = this.surfaces.get(layout.world.id);
+    const surface = this.content.arrivals.get(layout.world.id as WorldId);
     if (surface) void this.enterSurface(layout, surface);
     else this.hud.showLanded(layout.world.name, arrivalWording(layout.world.id));
   }
@@ -365,8 +363,8 @@ export class Game {
 
   /** The mission and quiz for a world, if both exist. A world without them just has no mission. */
   private missionExtras(worldId: string): { mission: Mission; questions: QuizQuestionData[] } | undefined {
-    const mission = this.missions.get(worldId);
-    const questions = this.quizzes.get(worldId);
+    const mission = this.content.missions.get(worldId as WorldId);
+    const questions = this.content.quizzes.get(worldId as WorldId)?.questions;
     return mission && questions ? { mission, questions } : undefined;
   }
 
