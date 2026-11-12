@@ -22,7 +22,7 @@
 
 ## 2. Today, in one page
 
-* `src/main.ts` checks WebGL, applies settings, loads `planets.json`, `surfaces.json`, `missions.json` and `quizzes.json` (each optional file fails soft), and creates `Game`.
+* `src/main.ts` checks WebGL, applies settings, calls `loadContent()` (`src/data/content.ts`: fetches `planets.json`, `surfaces.json`, `missions.json` and `quizzes.json` at once, leaves out each bad entry, and fails soft on each optional file), and creates `Game` with the `Content`.
 * `src/game.ts` (504 lines) owns the frame loop, the `'space' | 'surface'` mode, the ship, the target and autopilot, quality, landing, progress, settings and the debug handle.
 * **Pure and tested:** `flight/flightModel.ts`, `scale/`, `quality/`, `quiz/quiz.ts`, `core/progress.ts`, `core/settings.ts`, `data/*.ts` validators, `surface/geometry.ts`.
 * **Rendering:** `scene/spaceScene.ts` (owns the one `WebGLRenderer`), `surface/panoramaScene.ts` (borrows it), `scene/shipModel.ts` (lazy GLB load).
