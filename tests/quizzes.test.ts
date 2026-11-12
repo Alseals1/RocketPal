@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import missionsJson from '../public/data/missions.json';
 import planetsJson from '../public/data/planets.json';
 import quizzesJson from '../public/data/quizzes.json';
 import surfacesJson from '../public/data/surfaces.json';
 import { validateMissions } from '../src/data/missions';
-import { validateQuizzes } from '../src/data/quizzes';
+import { keepValidQuizzes, loadQuizzes, validateQuizzes } from '../src/data/quizzes';
 import type { SurfaceData } from '../src/data/surfaces';
 
 const surfaces = surfacesJson as unknown as SurfaceData;
@@ -206,5 +206,79 @@ describe('missions.json', () => {
   it('is rejected when it is not the right kind of thing', () => {
     expect(check(null)).not.toEqual([]);
     expect(check({ missions: {} })).not.toEqual([]);
+  });
+});
+
+describe('keepValidQuizzes', () => {
+  const worldsOf = (data: { quizzes: { worldId: string }[] }) => data.quizzes.map((q) => q.worldId);
+  const breakMars = (q: any) => {
+    marsQuiz(q).questions.pop(); // two questions instead of three
+    return q;
+  };
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('keeps every quiz of the shipped file, with no problems', () => {
+    const { data, problems } = keepValidQuizzes(quizzes(), surfaces);
+    expect(problems).toEqual([]);
+    expect(worldsOf(data)).toEqual(worldsOf(quizzesJson));
+    expect(data.lastChecked).toBe(quizzesJson.lastChecked);
+  });
+
+  it('leaves out only the broken quiz, and says what was wrong with it', () => {
+    const { data, problems } = keepValidQuizzes(breakMars(quizzes()), surfaces);
+    expect(worldsOf(data)).toEqual(['earth']);
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.every((p) => p.startsWith('mars'))).toBe(true);
+  });
+
+  it('leaves out a quiz for a world with no landing picture', () => {
+    const q = quizzes();
+    q.quizzes.push({ ...structuredClone(marsQuiz(q)), worldId: 'jupiter' });
+    const { data, problems } = keepValidQuizzes(q, surfaces);
+    expect(worldsOf(data)).toEqual(worldsOf(quizzesJson));
+    expect(problems).toContainEqual(expect.stringContaining('jupiter: has a quiz but no landing picture'));
+  });
+
+  it('keeps the first quiz when a world has two', () => {
+    const q = quizzes();
+    const earth = q.quizzes.find((x: any) => x.worldId === 'earth');
+    q.quizzes.push(structuredClone(earth));
+    const { data, problems } = keepValidQuizzes(q, surfaces);
+    expect(worldsOf(data)).toEqual(worldsOf(quizzesJson));
+    expect(data.quizzes.find((x) => x.worldId === 'earth')).toBe(earth);
+    expect(problems).toEqual(['earth: has a quiz more than once (kept the first)']);
+  });
+
+  it('still gives up on a file that is unusable as a whole', () => {
+    expect(() => keepValidQuizzes(null, surfaces)).toThrow(/Bad quiz data/);
+    expect(() => keepValidQuizzes([], surfaces)).toThrow(/Bad quiz data/);
+    expect(() => keepValidQuizzes({ ...quizzes(), lastChecked: 'soon' }, surfaces)).toThrow(/lastChecked/);
+    expect(() => keepValidQuizzes({ ...quizzes(), quizzes: 'x' }, surfaces)).toThrow(/quizzes must be a list/);
+  });
+
+  it('is used by loadQuizzes, which logs the left-out quizzes once and keeps the rest', async () => {
+    const broken = breakMars(quizzes());
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(broken))));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const data = await loadQuizzes(surfaces);
+      expect(worldsOf(data)).toEqual(['earth']);
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(String(error.mock.calls[0][0])).toMatch(/^Some quizzes were left out:\nmars/);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it('loadQuizzes logs nothing for the shipped file', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(quizzesJson))));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(worldsOf(await loadQuizzes(surfaces))).toEqual(worldsOf(quizzesJson));
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
   });
 });

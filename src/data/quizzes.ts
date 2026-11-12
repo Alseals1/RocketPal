@@ -128,11 +128,39 @@ export function validateQuizzes(raw: unknown, surfaces: SurfaceData): string[] {
   return problems;
 }
 
+/**
+ * Keeps each quiz that is valid on its own and leaves out the rest, so one broken quiz does not take every world's
+ * quiz with it. A second quiz for the same world is left out too (the first is kept). Returns what was left out and why.
+ * A file that is unusable as a whole (not an object, no real lastChecked, quizzes not a list) still throws.
+ */
+export function keepValidQuizzes(raw: unknown, surfaces: SurfaceData): { data: QuizData; problems: string[] } {
+  // Whole-file checks first: the file's own fields, with the quizzes themselves left for one at a time below.
+  const file = typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
+  const whole = file ? validateQuizzes({ lastChecked: file.lastChecked, quizzes: Array.isArray(file.quizzes) ? [] : file.quizzes }, surfaces) : validateQuizzes(raw, surfaces);
+  if (whole.length > 0) throw new Error(`Bad quiz data:\n${whole.join('\n')}`);
+  const { lastChecked, quizzes } = raw as { lastChecked: string; quizzes: unknown[] };
+  const kept: Quiz[] = [];
+  const problems: string[] = [];
+  for (const entry of quizzes) {
+    const own = validateQuizzes({ lastChecked, quizzes: [entry] }, surfaces);
+    if (own.length > 0) {
+      problems.push(...own);
+      continue;
+    }
+    const quiz = entry as Quiz;
+    if (kept.some((q) => q.worldId === quiz.worldId)) {
+      problems.push(`${quiz.worldId}: has a quiz more than once (kept the first)`);
+      continue;
+    }
+    kept.push(quiz);
+  }
+  return { data: { lastChecked, quizzes: kept }, problems };
+}
+
 export async function loadQuizzes(surfaces: SurfaceData, url = '/data/quizzes.json'): Promise<QuizData> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Could not load ${url} (${response.status})`);
-  const raw: unknown = await response.json();
-  const problems = validateQuizzes(raw, surfaces);
-  if (problems.length > 0) throw new Error(`Bad quiz data:\n${problems.join('\n')}`);
-  return raw as QuizData;
+  const { data, problems } = keepValidQuizzes(await response.json(), surfaces);
+  if (problems.length > 0) console.error(`Some quizzes were left out:\n${problems.join('\n')}`);
+  return data;
 }
