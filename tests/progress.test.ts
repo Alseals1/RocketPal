@@ -1,27 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import {
-  PROGRESS_KEY,
-  emptyProgress,
-  loadProgress,
-  mergeProgress,
-  recordMission,
-  recordQuiz,
-  saveProgress,
-  starsFor,
-} from '../src/core/progress';
+import { emptyProgress, recordMission, recordQuiz, starsFor } from '../src/core/progress';
+import { emptySave, migrate } from '../src/core/save/schema';
+import { V3_FROM_THE_FUTURE } from './fixtures/saves';
 
-/** A pretend browser storage. */
-function fakeStorage(initial: Record<string, string> = {}) {
-  const data = { ...initial };
-  return {
-    data,
-    getItem: (k: string) => (k in data ? data[k] : null),
-    setItem: (k: string, v: string) => {
-      data[k] = v;
-    },
-  };
-}
-const withSaved = (value: unknown) => fakeStorage({ [PROGRESS_KEY]: typeof value === 'string' ? value : JSON.stringify(value) });
+// Loading, saving, garbage, odd names and two windows are tested on the save format and the store:
+// tests/saveSchema.test.ts and tests/saveStore.test.ts.
 
 describe('stars', () => {
   it('a new player has no stars anywhere', () => {
@@ -71,78 +54,6 @@ describe('stars', () => {
     recordQuiz(before, 'mars', true);
     expect(JSON.stringify(before)).toBe(snapshot);
   });
-});
-
-describe('saving and loading', () => {
-  it('saves only the three yes/no flags per world, under one key, and nothing else', () => {
-    const storage = fakeStorage();
-    const p = recordQuiz(recordMission(emptyProgress(), 'mars'), 'mars', false);
-    expect(saveProgress(p, storage)).toBe(true);
-    expect(Object.keys(storage.data)).toEqual(['rocketpals.progress']);
-    expect(JSON.parse(storage.data[PROGRESS_KEY])).toEqual({
-      version: 1,
-      worlds: { mars: { missionDone: true, quizDone: true, perfectQuiz: false } },
-    });
-  });
-
-  it('gets back what was saved', () => {
-    const storage = fakeStorage();
-    let p = recordMission(emptyProgress(), 'earth');
-    p = recordQuiz(recordMission(p, 'mars'), 'mars', true);
-    saveProgress(p, storage);
-    const loaded = loadProgress(storage);
-    expect(starsFor(loaded, 'earth')).toBe(1);
-    expect(starsFor(loaded, 'mars')).toBe(3);
-    expect(starsFor(loaded, 'moon')).toBe(0);
-  });
-
-  it('starts empty when nothing was saved or there is no storage at all', () => {
-    expect(starsFor(loadProgress(fakeStorage()), 'mars')).toBe(0);
-    expect(starsFor(loadProgress(null), 'mars')).toBe(0);
-  });
-
-  it('starts empty, without crashing, when the saved text is garbage', () => {
-    for (const bad of ['', 'not json {', 'null', '42', '"hi"', '[]', '{"worlds": 7}', '{"worlds": []}', '{"worlds": null}']) {
-      const loaded = loadProgress(withSaved(bad));
-      expect(starsFor(loaded, 'mars'), bad).toBe(0);
-    }
-  });
-
-  it('keeps what is good one field at a time and falls back to "not done" for the rest', () => {
-    const loaded = loadProgress(
-      withSaved({
-        worlds: {
-          mars: { missionDone: true, quizDone: 'yes', perfectQuiz: 1 },
-          earth: { quizDone: true, perfectQuiz: true, missionDone: false },
-          moon: 'nope',
-          venus: null,
-        },
-      }),
-    );
-    expect(starsFor(loaded, 'mars')).toBe(1); // only the mission flag was a real yes
-    expect(starsFor(loaded, 'earth')).toBe(2); // quiz and perfect, mission not done
-    expect(starsFor(loaded, 'moon')).toBe(0);
-    expect(starsFor(loaded, 'venus')).toBe(0);
-  });
-
-  it('drops anything it does not know about, so odd keys never get saved back', () => {
-    const storage = withSaved({ worlds: { mars: { missionDone: true, name: 'Sam', score: 99 } }, email: 'x@y.z' });
-    const loaded = loadProgress(storage);
-    saveProgress(loaded, storage);
-    expect(JSON.parse(storage.data[PROGRESS_KEY])).toEqual({
-      version: 1,
-      worlds: { mars: { missionDone: true, quizDone: false, perfectQuiz: false } },
-    });
-  });
-
-  it('ignores world names that could be mischief, such as __proto__', () => {
-    const loaded = loadProgress(withSaved('{"worlds":{"__proto__":{"missionDone":true},"Mars!":{"missionDone":true},"has space":{"missionDone":true}}}'));
-    expect(starsFor(loaded, '__proto__')).toBe(0);
-    expect(starsFor(loaded, 'Mars!')).toBe(0);
-    expect(starsFor(loaded, 'has space')).toBe(0);
-    expect(Object.keys(loaded.worlds)).toEqual([]);
-    expect(({} as Record<string, unknown>).missionDone).toBeUndefined(); // the shared Object prototype is untouched
-  });
 
   it('is not fooled by built-in property names: a world called "constructor" or "toString" has no stars until it earns them', () => {
     const p = emptyProgress();
@@ -151,57 +62,23 @@ describe('saving and loading', () => {
     expect(starsFor(earned, 'constructor')).toBe(1);
     expect(starsFor(earned, 'toString')).toBe(0);
   });
-
-  it('does not crash if the browser refuses to read or write, and says so', () => {
-    const angry = {
-      getItem: () => {
-        throw new Error('blocked');
-      },
-      setItem: () => {
-        throw new Error('full');
-      },
-    };
-    expect(starsFor(loadProgress(angry), 'mars')).toBe(0);
-    expect(saveProgress(recordMission(emptyProgress(), 'mars'), angry)).toBe(false);
-    expect(saveProgress(recordMission(emptyProgress(), 'mars'), null)).toBe(false);
-  });
 });
 
-describe('two windows open at once', () => {
-  it('merges two copies of the progress by keeping every flag either one has turned on', () => {
-    const a = recordMission(emptyProgress(), 'earth');
-    const b = recordQuiz(recordMission(emptyProgress(), 'mars'), 'mars', true);
-    const merged = mergeProgress(a, b);
-    expect(starsFor(merged, 'earth')).toBe(1);
-    expect(starsFor(merged, 'mars')).toBe(3);
-    // The same result whichever way round they are given.
-    expect(mergeProgress(b, a)).toEqual(merged);
-  });
-
-  it('never loses a flag: merging with an empty copy changes nothing', () => {
-    const p = recordQuiz(recordMission(emptyProgress(), 'mars'), 'mars', true);
-    expect(mergeProgress(p, emptyProgress())).toEqual(p);
-    expect(mergeProgress(emptyProgress(), p)).toEqual(p);
-  });
-
-  it('does not change what it was given', () => {
-    const a = recordMission(emptyProgress(), 'earth');
-    const b = recordMission(emptyProgress(), 'mars');
-    const snapshot = JSON.stringify([a, b]);
-    mergeProgress(a, b);
-    expect(JSON.stringify([a, b])).toBe(snapshot);
-  });
-
-  it('keeps stars from going down when a second window saves an older copy (the two-tab case, through storage)', () => {
-    const storage = fakeStorage();
-    // Window A starts out knowing nothing. Window B then earns three stars on Mars and saves.
-    const windowA = loadProgress(storage);
-    saveProgress(recordQuiz(recordMission(loadProgress(storage), 'mars'), 'mars', true), storage);
-    // Window A now earns the Earth mission. It must read what is saved, merge, then save: Mars keeps its three stars.
-    const earned = recordMission(mergeProgress(loadProgress(storage), windowA), 'earth');
-    saveProgress(earned, storage);
-    const after = loadProgress(storage);
-    expect(starsFor(after, 'mars')).toBe(3);
+describe('recording on a whole save', () => {
+  it('keeps every other field, other worlds, and fields from a newer version', () => {
+    const future = migrate(V3_FROM_THE_FUTURE);
+    const after = recordQuiz(recordMission(future, 'earth'), 'mars', true);
     expect(starsFor(after, 'earth')).toBe(1);
+    expect(after.worlds.mars).toEqual({ missionDone: true, quizDone: true, perfectQuiz: true, rings: 2 });
+    expect(after.pets).toEqual(future.pets);
+    expect(after.courses).toBe(future.courses);
+    expect(after.version).toBe(2);
+  });
+
+  it('works on an empty v2 save and does not change it', () => {
+    const before = emptySave();
+    const snapshot = JSON.stringify(before);
+    expect(starsFor(recordMission(before, 'venus'), 'venus')).toBe(1);
+    expect(JSON.stringify(before)).toBe(snapshot);
   });
 });

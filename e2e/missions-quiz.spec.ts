@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
 import { noTrebuchetMs, TITLE_OVERLAP_WITHOUT_TREBUCHET } from './known-issues.ts';
+import { oldWindowEarnsMission } from './old-save-path.ts';
 
 interface QuizFile {
   quizzes: { worldId: string; questions: { question: string; because: string; hotspot: string; options: { text: string; correct: boolean }[] }[] }[];
@@ -102,6 +103,21 @@ async function takeQuizPerfectly(page: Page, world: string) {
 }
 
 const starsText = (page: Page) => page.getByTestId('stars').getAttribute('aria-label');
+
+/** Every field a v2 save adds, empty (as in `emptySave()`). */
+const EMPTY_V2_FIELDS = {
+  visited: [],
+  dots: [],
+  capsules: [],
+  quizzes: {},
+  courses: {},
+  activities: [],
+  rescues: [],
+  repeats: {},
+  patchDates: {},
+  equipped: {},
+  pilot: {},
+};
 
 test.describe('the mission', () => {
   test('starts as a goal, finishes on the third find, and Orbit says so', async ({ page }) => {
@@ -439,13 +455,87 @@ test.describe('remembering', () => {
     await expect(page.getByTestId('found')).toHaveText('Found 0 of 5'); // dots start fresh each visit
   });
 
-  test('saves only the yes/no flags, under one key, and nothing else', async ({ page }) => {
+  test('saves the v2 record, under the progress key and its backup, and nothing else', async ({ page }) => {
     await startAndLand(page, 'earth');
     await finishMission(page, 'earth');
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('rocketpals.progress')!));
-    expect(saved).toEqual({ version: 1, worlds: { earth: { missionDone: true, quizDone: false, perfectQuiz: false } } });
+    const [main, backup] = await page.evaluate(() => [localStorage.getItem('rocketpals.progress'), localStorage.getItem('rocketpals.progress.backup')]);
+    expect(backup).toBe(main);
+    expect(JSON.parse(main!)).toEqual({
+      version: 2,
+      worlds: { earth: { missionDone: true, quizDone: false, perfectQuiz: false } },
+      ...EMPTY_V2_FIELDS,
+    });
     const keys = await page.evaluate(() => Object.keys(localStorage));
-    expect(keys.filter((k) => k.startsWith('rocketpals.'))).toEqual(['rocketpals.progress']);
+    expect(keys.filter((k) => k.startsWith('rocketpals.')).sort()).toEqual(['rocketpals.progress', 'rocketpals.progress.backup']);
+  });
+
+  test('a window still running the old save code never wipes 2.0 progress, even with no new window open', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1000, height: 700 } });
+    await context.addInitScript(WORKING_VOICE);
+    const seeded = {
+      version: 2,
+      ...EMPTY_V2_FIELDS,
+      worlds: { mars: { missionDone: true, quizDone: true, perfectQuiz: true, futureFlag: true } },
+      dots: ['mars:rim', 'mars:sky'],
+      patchDates: { 'first-landing': '2026-11-01' },
+      equipped: { trim: { item: 'stripes', at: 1_700_000_000_000 } },
+      pilot: { callSign: { value: 'Comet', at: 1_700_000_000_500 } },
+      fromTheFuture: { pets: ['Zip'] },
+    };
+    // Window B is an old tab: a page of the game's own site that runs none of the new code.
+    const b = await context.newPage();
+    await b.goto('/data/missions.json');
+    await b.evaluate((text) => {
+      localStorage.setItem('rocketpals.progress', text);
+      localStorage.setItem('rocketpals.progress.backup', text);
+    }, JSON.stringify(seeded));
+    await b.evaluate(oldWindowEarnsMission, 'venus'); // no game window is open while it saves
+    const overwritten = await b.evaluate(() => JSON.parse(localStorage.getItem('rocketpals.progress')!));
+    expect(Object.keys(overwritten)).toEqual(['version', 'worlds']); // the old code really did drop the 2.0 fields there
+    await b.close();
+
+    // Window A opens the game: nothing is lost.
+    const a = await context.newPage();
+    const errors = watchForErrors(a);
+    await start(a);
+    expect(await stars(a, 'mars')).toBe(3);
+    expect(await stars(a, 'venus')).toBe(1);
+    await land(a, 'earth');
+    await finishMission(a, 'earth');
+
+    const [main, backup] = await a.evaluate(() => [localStorage.getItem('rocketpals.progress'), localStorage.getItem('rocketpals.progress.backup')]);
+    expect(backup).toBe(main);
+    expect(JSON.parse(main!)).toEqual({
+      ...seeded,
+      worlds: {
+        mars: seeded.worlds.mars,
+        venus: { missionDone: true, quizDone: false, perfectQuiz: false },
+        earth: { missionDone: true, quizDone: false, perfectQuiz: false },
+      },
+    });
+    expect(errors).toEqual([]);
+    await context.close();
+  });
+
+  test('another window\'s stars show up without a reload', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1000, height: 700 } });
+    await context.addInitScript(WORKING_VOICE);
+    const a = await context.newPage();
+    const b = await context.newPage();
+    const errorsA = watchForErrors(a);
+    const errorsB = watchForErrors(b);
+    await start(a); // window A waits in space
+    await startAndLand(b, 'mars'); // window B earns three stars on Mars
+    await finishMission(b, 'mars');
+    await b.getByTestId('quiz-time').click();
+    await takeQuizPerfectly(b, 'mars');
+
+    await expect.poll(() => stars(a, 'mars')).toBe(3); // A hears about it, with no reload
+    await land(a, 'mars');
+    expect(await starsText(a)).toBe('3 of 3 stars');
+    await expect(a.getByTestId('quiz-time')).toBeVisible();
+    expect([...errorsA, ...errorsB]).toEqual([]);
+    await context.close();
   });
 
   test('two windows of the game open at once: the second one saving never undoes the first one\'s stars', async ({ browser }) => {
