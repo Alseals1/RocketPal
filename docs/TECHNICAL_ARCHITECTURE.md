@@ -523,6 +523,7 @@ For each: what it does, what exists today, what changes, the data, and the tests
 
 ### 5.1 Three.js scene architecture
 * **Today:** `SpaceScene` creates the renderer and draws space; `PanoramaScene` borrows the renderer; `Game.tick` decides which one renders.
+* **Since #31:** `WebRendererHost` (`src/render/rendererHost.ts`) owns the renderer, the canvas, resizing, the pixel ratio, quality (`<html data-quality>`) and context loss. `SpaceScene` and `PanoramaScene` draw with `host.renderer` and never size it. `RenderScene` frames are still to come.
 * **Change:** a `RendererHost` (section 4.14) takes ownership of the renderer, the canvas, resizing, the pixel ratio, quality and context loss. Each scene implements `RenderScene` and gets a plain-data frame. The screen that is active asks its scene to render. Only one scene draws a frame, so there is one WebGL context and no hidden drawing.
 * **New scenes:** `HangarScene` for the turntable. The asteroid course is drawn by `SpaceScene` with rocks as one `InstancedMesh`, not a new scene, so the rocket, lighting and effects are shared.
 * **Look:** tone mapping, the environment map, atmospheres, the ring and the nebula live in `SpaceScene`, switched by quality (VISUAL_DESIGN.md section 5).

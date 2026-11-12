@@ -46,7 +46,6 @@ const LAYERS: ReadonlyArray<readonly [prefix: string, layer: Layer]> = [
   ['src/app/', 'App'],
   ['src/app.ts', 'App'],
   ['src/main.ts', 'App'],
-  ['src/game.ts', 'App'],
   ['src/style.css', 'App'],
 ];
 
