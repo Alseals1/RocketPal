@@ -69,6 +69,8 @@ The good news from the audit: the rules are already pure, the content is already
 
 **These rules are enforced by a unit test** (`tests/architecture.test.ts`) that reads every file's `import` lines and fails if a layer imports something it may not. It needs no extra tools.
 
+The test reads the table as a closed list: a layer may import only what its row names, with `data/` (the shared types of section 4) open to every layer. Type-only imports count like any other. The DOM rule cannot be seen from import lines, so it is checked in review. Files that break a rule today sit on a commented allow-list in the test that later issues shrink to empty. The full reading is in `decisions/2026-11-12-architecture-import-rules.md`; no rule in the table changed.
+
 Existing folders keep their names. New folders are added; old files move only when they are next changed (section 10).
 
 ## 4. Shared types
