@@ -16,14 +16,15 @@ Last updated: 2026-11-12.
 * **One content loader (#38):** draft PR, waiting for review. `loadContent()` (`src/data/content.ts`, with the shared ids in `src/data/ids.ts`) replaces the four data loaders: it fetches the four files at once, checks each entry on its own and every cross-reference, and builds the `Content` maps that `Game` now reads. A bad world, landing picture, quiz or mission is left out with the entries that point at it, logged, and listed in `content.problems`; the rest of the game still loads. The game plays as before (`decisions/2026-11-11-content-loader-interim-types.md`).
 * **Architecture test (#37):** draft PR, waiting for review. `tests/architecture.test.ts` maps every `src/` file to a layer of `TECHNICAL_ARCHITECTURE.md` section 3, reads its imports, and fails naming the file, the import and the rule. 7 type-only imports that break a rule today sit on a commented allow-list (`data/quizzes` → `quiz`; `scale/leg`, `ui/hud` → `scene/layout`; `ui/hud`, `ui/surfaceHud` → `scene/spaceScene`; `ui/quizPanel`, `ui/surfaceHud` → `audio/speech`), each with what removes it. The list can only shrink: a stale entry fails the test. No `src/` change (`decisions/2026-11-12-architecture-import-rules.md`).
 * **Flight events (#49):** draft PR, waiting for review. `stepFlightWithEvents` (`src/flight/flightModel.ts`) reports each step's bumps (`contacts`) and the checkpoints the ship entered (`passed`). `FlightContext` gains `checkpoints` (pass through) and `bounce` (mirror off the rock, speed capped, the bump point the same at any frame rate), and `createObstacleIndex` (`src/flight/obstacleIndex.ts`) keeps a 200-rock course at about 5-26 µs a step. `stepFlight` flies exactly as before; a frozen copy of the old code checks that step by step. Nothing in the game uses it yet: #51 builds the courses (`decisions/2026-11-12-flight-events.md`).
+* **Platform services (#41):** draft PR, waiting for review. Settings are now a `SettingsStore` (`src/platform/settingsStore.ts`) over the same `rocketpals.settings` key, saved as version 2 with `volume`, `assist` and `boost`; old settings load unchanged. `createAudioManager` (`src/platform/audio.ts`) has the three channels and loads Howler as its own chunk only on the first tap or key (no sounds yet, #34). `createInputManager` (`src/platform/input/`) replaces `src/flight/input.ts`: the keyboard and touch stick are `InputSource`s, `setSources` replaces the touch suspend, and the action table (M, Escape, Enter, Space) is ready with nothing subscribed. Flying, settings and read-aloud work as before (`decisions/2026-11-12-platform-services.md`).
 
 ## Health (2026-11-11)
 
 | Check | Result |
 | --- | --- |
-| `npm test` (Vitest) | 459 passed (2026-11-12, #49) |
-| `npm run test:e2e` (Playwright) | 155 tests: all pass on macOS; in CI 4 are expected failures (Linux font) and 1 is skipped |
-| `npm run build` | Clean. 652 KB JavaScript (168 KB gzipped) |
+| `npm test` (Vitest) | 530 passed (2026-11-12, #41) |
+| `npm run test:e2e` (Playwright) | 158 tests: all pass on macOS (2026-11-12, #41); in CI 4 are expected failures (Linux font) and 1 is skipped |
+| `npm run build` | Clean. 658 KB first-load JavaScript (171 KB gzipped); Howler is a separate 36 KB chunk loaded on the first tap or key (#41) |
 | CI | GitHub Actions `Tests and build` on PRs into `dev` and pushes to `dev`, about 5-7 minutes (#27). First play 758 kB of the 15 MB budget |
 | Chromebook | Not measured yet. Guide ready (#28) |
 
