@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SAVE_SCHEMA, emptySave, merge, migrate, sameSave, type SaveData } from '../src/core/save/schema';
-import { starsFor } from '../src/core/progress';
+import { starsFor } from './fixtures/worldFlags';
 import { NO_VERSION, V1_EARTH_MISSION, V1_MARS_3_EARTH_2, V2_FULL, V3_FROM_THE_FUTURE } from './fixtures/saves';
 
 const EMPTY_V2_FIELDS = {

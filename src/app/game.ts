@@ -15,11 +15,11 @@ import type { GameOptions } from './gameOptions';
 import { ScreenManager } from './screenManager';
 import { exposeDebugHandle } from './debugHandle';
 import { createRendererHost, watchContextLoss } from './rendering';
+import { connectProgression } from './progression';
 import { SpaceScreen } from '../screens/spaceScreen';
 import { ArrivalScreen } from '../screens/arrivalScreen';
 
 const QUALITY_CHECK_EVERY_MS = 2000;
-
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 /**
@@ -40,8 +40,7 @@ export class Game {
   private paused = false;
   private reportedError = false;
   private settingsPanel?: SettingsPanel;
-  /** Stars and missions done so far, remembered in this browser only. */
-  private readonly save: SaveStore;
+  private readonly save: SaveStore; // what the kid has done, remembered in this browser only
   private readonly speaker = createSpeaker();
   private reducedMotion: boolean;
   private readonly systemMotion = matchMedia(REDUCED_MOTION_QUERY);
@@ -65,8 +64,10 @@ export class Game {
     this.input = createInputManager({ controls: buildTouchControls(stage), showTouchControls: options.touchControls, isBlocked });
     this.audio = createAudioManager({ volumes: settings.volume });
     unlockOnFirstGesture(this.audio, window);
+    const { events, progression } = connectProgression(this.save, content);
     const ctx: ScreenContext = {
       save: this.save,
+      events, progression, // the recorder is already listening (src/app/progression.ts)
       speech: this.speaker,
       go: (id, params) => this.screens.go(id, params),
       stage,
@@ -100,8 +101,8 @@ export class Game {
     resize();
 
     if (options.debug) {
-      const { scene, monitor, screens, space, arrival, save } = this;
-      exposeDebugHandle({ host, scene, monitor, screens, space, arrival, save, settings: () => this.options.settings.get() });
+      const { scene, monitor, screens, space, arrival } = this;
+      exposeDebugHandle({ host, scene, monitor, screens, space, arrival, progression, settings: () => this.options.settings.get() });
     }
     requestAnimationFrame((t) => this.frame(t));
   }

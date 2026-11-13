@@ -173,6 +173,7 @@ export class SpaceScreen implements Screen<SpaceParams> {
 
   /** The rocket has docked: stand on the world if it has a real photograph, or show the plain landing card. */
   private onDocked(layout: BodyLayout): void {
+    this.ctx.events.emit({ type: 'arrived', place: layout.world.id as WorldId });
     this.autopilot = false;
     this.hud.setAutopilot(false);
     const surface = this.ctx.content.arrivals.get(layout.world.id as WorldId);

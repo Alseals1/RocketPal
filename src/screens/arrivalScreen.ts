@@ -1,10 +1,9 @@
 import type { ArrivalParams, Screen, ScreenContext, SpaceParams } from '../app/screens';
 import { findMissionAt, type MissionDef } from '../data/missions';
 import type { QuizQuestionData } from '../data/quizzes';
-import type { WorldId } from '../data/ids';
+import type { DotId, WorldId } from '../data/ids';
 import type { Surface } from '../data/surfaces';
-import { recordMission, recordQuiz, starsFor } from '../core/progress';
-import type { SaveData } from '../core/save/schema';
+import { diffProgression } from '../core/progression';
 import type { LookState } from '../surface/geometry';
 import { windowLookLimits, viewHorizontalFov } from '../surface/geometry';
 import { PanoramaScene } from '../surface/panoramaScene';
@@ -51,8 +50,8 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
           const view = this.panorama?.viewFov();
           if (view) this.look?.turnToShow(az, el, view, ctx.reducedMotion());
         },
-        onMissionComplete: () => this.earn(surface.worldId, (p) => recordMission(p, surface.worldId)),
-        onQuizFinished: (perfect) => this.earn(surface.worldId, (p) => recordQuiz(p, surface.worldId, perfect)),
+        onDotFound: (id) => this.dotFound(surface.worldId, id),
+        onQuizFinished: (perfect) => this.quizFinished(surface.worldId, perfect),
       },
       ctx.speech,
       this.missionExtras(surface.worldId),
@@ -164,18 +163,29 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
     return mission && questions ? { mission, questions } : undefined;
   }
 
+  /** The world's mission and stars, worked out from the save. */
   private progressView(worldId: string) {
-    const save = this.ctx.save.read();
-    const world = Object.hasOwn(save.worlds, worldId) ? save.worlds[worldId] : undefined;
-    return { missionDone: world?.missionDone ?? false, stars: starsFor(save, worldId) };
+    const view = this.ctx.progression();
+    const mission = findMissionAt(this.ctx.content, worldId);
+    return { missionDone: (mission && view.missions.get(mission.id)?.done) ?? false, stars: view.stars.byPlace.get(worldId as WorldId) ?? 0 };
   }
 
-  /** Records something the kid earned, remembers it (if the browser allows) and shows the new stars. Returns the stars on this world. */
-  private earn(worldId: string, change: (save: SaveData) => SaveData): number {
-    // The store reads what other windows saved first, so saving never undoes it.
-    const save = this.ctx.save.update(change);
+  /** A dot found for the first time this visit: record it and show the progress. True when it finished the mission. */
+  private dotFound(worldId: string, id: string): boolean {
+    const before = this.ctx.progression();
+    this.ctx.events.emit({ type: 'dotFound', dot: `${worldId}/${id}` as DotId }); // the recorder saves it before emit returns
+    const diff = diffProgression(before, this.ctx.progression());
     this.surfaceHud?.setProgress(this.progressView(worldId));
-    return starsFor(save, worldId);
+    const mission = findMissionAt(this.ctx.content, worldId);
+    return mission !== undefined && diff.missionsDone.includes(mission.id);
+  }
+
+  /** The quiz was finished: record it and show the new stars. Returns the stars on this world. */
+  private quizFinished(worldId: string, perfect: boolean): number {
+    this.ctx.events.emit({ type: 'quizFinished', place: worldId as WorldId, firstTryAll: perfect });
+    const progress = this.progressView(worldId);
+    this.surfaceHud?.setProgress(progress);
+    return progress.stars;
   }
 
   /** In a window view you can only look as far as the photo reaches past the screen; a 360 degree picture has no limit. */

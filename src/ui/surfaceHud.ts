@@ -1,4 +1,4 @@
-import { findCountOf, type MissionDef } from '../data/missions';
+import type { MissionDef } from '../data/missions';
 import type { QuizQuestionData } from '../data/quizzes';
 import type { Hotspot, Surface } from '../data/surfaces';
 import type { Speaker } from '../audio/speech';
@@ -11,8 +11,11 @@ export interface SurfaceCallbacks {
   onBack(): void;
   /** A dot that is off the screen got keyboard focus: swing the view round to it. */
   onTurnTo(azimuth: number, elevation: number): void;
-  /** The kid found enough dots to finish the mission. The game saves it and calls `setProgress`. */
-  onMissionComplete(): void;
+  /**
+   * The kid found a dot for the first time on this visit. The game records it and calls `setProgress`.
+   * Returns true when this find finished the mission.
+   */
+  onDotFound(id: string): boolean;
   /** The kid finished the quiz. The game saves it and returns the stars they now have on this world. */
   onQuizFinished(perfect: boolean): number;
 }
@@ -52,7 +55,6 @@ export class SurfaceHud {
   private listenButton!: HTMLButtonElement;
   private readonly onKeyDown: (e: KeyboardEvent) => void;
   private readonly quizPanel?: QuizPanel;
-  private missionDone = false;
   /** The mission was finished by the card that is open right now: Orbit says so when it closes. */
   private missionJustDone = false;
   private quizOpenedByKeyboard = false;
@@ -203,7 +205,6 @@ export class SurfaceHud {
   /** Shows what the kid has earned on this world: the mission, the Quiz time button and the stars. */
   setProgress({ missionDone, stars }: WorldProgressView): void {
     if (!this.extras) return;
-    this.missionDone = missionDone;
     this.els.mission.textContent = missionDone ? `\u2713 ${this.extras.mission.title}` : `Mission: ${this.extras.mission.title}`;
     this.els.quizButton.hidden = !missionDone;
     setStars(this.els.stars, stars);
@@ -242,11 +243,10 @@ export class SurfaceHud {
     this.els.overlay.hidden = false;
     this.speaker.reset(); // one false alarm earlier must not hide Listen on every later card
     this.setListenLabel(false);
-    this.found.add(spot.id);
     this.setMood('happy'); // a find makes Orbit happy for the rest of the visit
-    if (this.extras && !this.missionDone && this.found.size >= findCountOf(this.extras.mission)) {
-      this.missionJustDone = true;
-      this.callbacks.onMissionComplete();
+    if (!this.found.has(spot.id)) {
+      this.found.add(spot.id);
+      if (this.callbacks.onDotFound(spot.id) && this.extras) this.missionJustDone = true;
     }
     button.classList.add('is-found');
     button.setAttribute('aria-label', `${spot.label}: found. Tap to read again`);
