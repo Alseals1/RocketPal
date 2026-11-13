@@ -1,3 +1,4 @@
+import type { Group } from 'three';
 import type { ArrivalParams, Screen, ScreenContext, SpaceParams } from '../app/screens';
 import type { WorldId } from '../data/ids';
 import type { World } from '../data/planets';
@@ -14,12 +15,15 @@ import {
   REAL_ROCKET_COMPARISON,
 } from '../scale/readout';
 import { planLeg } from '../scale/leg';
+import { AssetLoadError } from '../platform/assets';
 import type { BodyLayout } from '../scene/layout';
+import { toShipModel } from '../scene/shipModel';
 import { Hud } from '../ui/hud';
 
 const START_POSITION = { x: 0, y: 40, z: 330 }; // near the Sun, facing it
 const STATS_EVERY_MS = 250;
 const AUTOPILOT_INPUT: FlightInput = { turn: 0, pitch: 0, boost: true };
+const SHIP_MODEL_ID = 'model/ship';
 
 /**
  * Flying the rocket between the worlds. The ship, the target and the space HUD last for the whole run: during a visit
@@ -50,14 +54,25 @@ export class SpaceScreen implements Screen<SpaceParams> {
     this.refreshHere();
     this.hud.setAutopilot(false);
 
-    // The Blender rocket (and the code that reads it) loads after the first frame.
+    // The Blender rocket loads after the first frame and is held for the whole run.
     // If it cannot load, the simple rocket stays and the game carries on.
-    requestAnimationFrame(() => {
-      import('../scene/shipModel')
-        .then(({ loadShipModel }) => loadShipModel())
-        .then((ship) => ctx.scene.useShipModel(ship))
-        .catch((error) => console.warn('Rocket model not loaded, keeping the simple rocket.', error));
-    });
+    requestAnimationFrame(() => void this.loadShipModel());
+  }
+
+  private async loadShipModel(): Promise<void> {
+    const { ctx } = this;
+    try {
+      const group = await ctx.assets.acquire<Group>(SHIP_MODEL_ID);
+      try {
+        ctx.scene.useShipModel(toShipModel(group));
+      } catch (error) {
+        ctx.assets.release(SHIP_MODEL_ID); // not a usable rocket: nothing will draw it
+        throw error;
+      }
+    } catch (error) {
+      // The asset manager has already said why a file could not be loaded.
+      if (!(error instanceof AssetLoadError)) console.warn('Rocket model not loaded, keeping the simple rocket.', error);
+    }
   }
 
   /** `liftOff`: after landing, lift off again. On start there is nothing to do. */
@@ -183,7 +198,7 @@ export class SpaceScreen implements Screen<SpaceParams> {
       return;
     }
     this.ctx.go<ArrivalParams>('arrival', { surface }).catch((error) => {
-      console.error(error);
+      if (!(error instanceof AssetLoadError)) console.error(error); // the asset manager has already logged a missing picture
       showLanded(); // the picture could not be loaded: fall back to the plain landing card
     });
   }

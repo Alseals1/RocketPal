@@ -14,7 +14,7 @@ import type { ScreenContext } from './screens';
 import type { GameOptions } from './gameOptions';
 import { ScreenManager } from './screenManager';
 import { exposeDebugHandle } from './debugHandle';
-import { createRendererHost, watchContextLoss } from './rendering';
+import { createGameAssets, createRendererHost, watchContextLoss } from './rendering';
 import { connectProgression } from './progression';
 import { SpaceScreen } from '../screens/spaceScreen';
 import { ArrivalScreen } from '../screens/arrivalScreen';
@@ -54,11 +54,10 @@ export class Game {
     const settings = options.settings.get();
     this.reducedMotion = effectiveReducedMotion(settings.reducedMotion, this.systemMotion.matches);
 
-    const stage = document.createElement('div');
-    stage.className = 'stage';
-    root.appendChild(stage);
+    const stage = root.appendChild(Object.assign(document.createElement('div'), { className: 'stage' }));
 
     const host = (this.host = createRendererHost(stage, options));
+    const assets = createGameAssets(host); // every texture and model goes through it (src/assets/manifest.ts)
     this.scene = new SpaceScene(host, layouts, host.quality, this.reducedMotion);
     const isBlocked = () => (this.settingsPanel?.isOpen ?? false) || this.arrival.isCardOpen;
     this.input = createInputManager({ controls: buildTouchControls(stage), showTouchControls: options.touchControls, isBlocked });
@@ -67,7 +66,7 @@ export class Game {
     const { events, progression } = connectProgression(this.save, content);
     const ctx: ScreenContext = {
       save: this.save,
-      events, progression, // the recorder is already listening (src/app/progression.ts)
+      events, progression, assets, // the recorder is already listening (src/app/progression.ts)
       speech: this.speaker,
       go: (id, params) => this.screens.go(id, params),
       stage,
@@ -102,7 +101,7 @@ export class Game {
 
     if (options.debug) {
       const { scene, monitor, screens, space, arrival } = this;
-      exposeDebugHandle({ host, scene, monitor, screens, space, arrival, progression, settings: () => this.options.settings.get() });
+      exposeDebugHandle({ host, scene, monitor, screens, space, arrival, progression, assets, settings: () => this.options.settings.get() });
     }
     requestAnimationFrame((t) => this.frame(t));
   }
