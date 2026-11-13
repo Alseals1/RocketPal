@@ -168,6 +168,19 @@ test.describe('keyboard', () => {
     await expect(dialog).toBeHidden();
     await expect(opener).toBeFocused();
 
+    // A click on the body text moves focus off every button (to <body> in Chromium). Tab and Escape still work.
+    await page.keyboard.press('Enter');
+    await expect(dialog).toBeVisible();
+    const text = dialog.locator('.rp-dialog__body p').first();
+    await text.click();
+    expect(await inside()).toBe(false);
+    await page.keyboard.press('Tab');
+    expect(await inside()).toBe(true);
+    await text.click();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(opener).toBeFocused();
+
     // An action that closes it also gives focus back.
     await page.keyboard.press('Enter');
     await expect(dialog).toBeVisible();
