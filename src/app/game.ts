@@ -1,8 +1,9 @@
 import { createSpeaker } from '../audio/speech';
 import type { Content } from '../data/content';
-import { InputController } from '../flight/input';
 import { createSaveStore, type SaveStore } from '../platform/saveStore';
-import { browserStorage, effectiveReducedMotion, saveSettings, type Settings } from '../core/settings';
+import { browserStorage, effectiveReducedMotion, type Settings } from '../core/settings';
+import { createAudioManager, unlockOnFirstGesture, type AudioManager } from '../platform/audio';
+import { buildTouchControls, createInputManager, type InputManager } from '../platform/input/inputManager';
 import { FrameMonitor } from '../quality/monitor';
 import { chooseQuality } from '../quality/quality';
 import type { WebRendererHost } from '../render/rendererHost';
@@ -28,7 +29,8 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 export class Game {
   private readonly host: WebRendererHost;
   private readonly scene: SpaceScene;
-  private readonly input: InputController;
+  private readonly input: InputManager;
+  private readonly audio: AudioManager; // silent until #34 adds sounds; Howler loads on the first tap or key
   private readonly monitor = new FrameMonitor();
   private readonly screens: ScreenManager;
   private readonly space: SpaceScreen;
@@ -41,7 +43,6 @@ export class Game {
   /** Stars and missions done so far, remembered in this browser only. */
   private readonly save: SaveStore;
   private readonly speaker = createSpeaker();
-  private settings: Settings;
   private reducedMotion: boolean;
   private readonly systemMotion = matchMedia(REDUCED_MOTION_QUERY);
   private lastFrame = 0;
@@ -51,8 +52,8 @@ export class Game {
   constructor(root: HTMLElement, content: Content, private readonly options: GameOptions) {
     const layouts = layoutWorlds([...content.worlds.values()]);
     this.save = createSaveStore(browserStorage(), window);
-    this.settings = options.settings;
-    this.reducedMotion = effectiveReducedMotion(this.settings.reducedMotion, this.systemMotion.matches);
+    const settings = options.settings.get();
+    this.reducedMotion = effectiveReducedMotion(settings.reducedMotion, this.systemMotion.matches);
 
     const stage = document.createElement('div');
     stage.className = 'stage';
@@ -60,11 +61,10 @@ export class Game {
 
     const host = (this.host = createRendererHost(stage, options));
     this.scene = new SpaceScene(host, layouts, host.quality, this.reducedMotion);
-    this.input = new InputController(
-      stage,
-      options.touchControls,
-      () => (this.settingsPanel?.isOpen ?? false) || this.arrival.isCardOpen,
-    );
+    const isBlocked = () => (this.settingsPanel?.isOpen ?? false) || this.arrival.isCardOpen;
+    this.input = createInputManager({ controls: buildTouchControls(stage), showTouchControls: options.touchControls, isBlocked });
+    this.audio = createAudioManager({ volumes: settings.volume });
+    unlockOnFirstGesture(this.audio, window);
     const ctx: ScreenContext = {
       save: this.save,
       speech: this.speaker,
@@ -72,7 +72,7 @@ export class Game {
       stage,
       renderer: host,
       scene: this.scene,
-      controls: this.input,
+      input: this.input,
       content,
       layouts,
       reducedMotion: () => this.reducedMotion,
@@ -82,9 +82,9 @@ export class Game {
     this.arrival = new ArrivalScreen(ctx);
     this.screens = new ScreenManager([this.space, this.arrival], 'space');
 
-    this.settingsPanel = new SettingsPanel(stage, this.settings, (next) => this.changeSettings(next));
+    this.settingsPanel = new SettingsPanel(stage, settings, (next) => this.changeSettings(next));
     // "Same as my computer" keeps following the computer if it changes while we are playing.
-    this.systemMotion.addEventListener('change', () => this.changeSettings(this.settings, false));
+    this.systemMotion.addEventListener('change', () => this.changeSettings(options.settings.get(), false));
 
     watchContextLoss(host, stage, (lost) => {
       this.paused = lost;
@@ -101,16 +101,16 @@ export class Game {
 
     if (options.debug) {
       const { scene, monitor, screens, space, arrival, save } = this;
-      exposeDebugHandle({ host, scene, monitor, screens, space, arrival, save, settings: () => this.settings });
+      exposeDebugHandle({ host, scene, monitor, screens, space, arrival, save, settings: () => this.options.settings.get() });
     }
     requestAnimationFrame((t) => this.frame(t));
   }
 
   /** Called when the player picks something in the settings panel (or the computer's motion setting changes). */
   private changeSettings(next: Settings, save = true): void {
-    this.settings = next;
-    if (save) saveSettings(next, browserStorage());
-    this.reducedMotion = applySettingsToPage(next, this.systemMotion.matches);
+    const settings = save ? this.options.settings.set(next) : next;
+    for (const channel of ['effects', 'music', 'voice'] as const) this.audio.setVolume(channel, settings.volume[channel]);
+    this.reducedMotion = applySettingsToPage(settings, this.systemMotion.matches);
     this.scene.setReducedMotion(this.reducedMotion);
   }
 

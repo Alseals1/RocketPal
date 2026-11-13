@@ -9,7 +9,7 @@
 import type { Speaker } from '../audio/speech';
 import type { Content } from '../data/content';
 import type { Surface } from '../data/surfaces';
-import type { InputController } from '../flight/input';
+import type { InputManager } from '../platform/input/inputManager';
 import type { SaveStore } from '../platform/saveStore';
 import type { RendererHost } from '../render/rendererHost';
 import type { BodyLayout } from '../scene/layout';
@@ -31,6 +31,7 @@ export interface ScreenContext {
   save: SaveStore; // 4.11
   speech: Speaker; // 4.11
   go<P>(screen: ScreenId, params: P): Promise<void>; // 4.11
+  input: InputManager; // 4.11 (#41)
   content: Content; // 4.11 (#38)
   renderer: RendererHost; // 4.11 (#31): the one WebGLRenderer, its canvas, quality and a lost context
   // Stand-ins, each replaced when its 4.11 member arrives:
@@ -38,8 +39,6 @@ export interface ScreenContext {
   stage: HTMLElement;
   /** The space picture. → a `RenderScene` (4.14) when frames arrive. */
   scene: SpaceScene;
-  /** Keyboard and touch. → `input` (InputManager, #24) */
-  controls: InputController;
   /** Where each world sits in space, worked out once from `content.worlds`. → part of the space `RenderScene` (4.14) */
   layouts: BodyLayout[];
   /** → `settings` (SettingsStore) */
