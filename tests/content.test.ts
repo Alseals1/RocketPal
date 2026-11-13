@@ -31,7 +31,7 @@ describe('buildContent with the shipped files', () => {
     expect(content.places.size).toBe(10);
     expect(keys(content.arrivals).sort()).toEqual(['earth', 'mars']);
     expect(keys(content.quizzes).sort()).toEqual(['earth', 'mars']);
-    expect(keys(content.missions).sort()).toEqual(['earth', 'mars']);
+    expect(keys(content.missions)).toEqual(['find-3-mars', 'find-3-earth']);
   });
 
   it('keeps the worlds in file order, which is the journey order the planets are laid out by', () => {
@@ -50,7 +50,7 @@ describe('buildContent with the shipped files', () => {
     const built = buildContent(files);
     expect(built.arrivals.get('mars')).toBe(entry(files.surfaces.surfaces, 'mars'));
     expect(built.quizzes.get('earth')).toBe(entry(files.quizzes.quizzes, 'earth'));
-    expect(built.missions.get('mars')).toBe(entry(files.missions.missions, 'mars'));
+    expect(built.missions.get('find-3-mars')).toBe(entry(files.missions.missions, 'find-3-mars'));
     expect(built.worlds.get('moon')).toBe(entry(files.planets.worlds, 'moon'));
   });
 });
@@ -77,7 +77,7 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
     expect(content.worlds.has('moon')).toBe(false);
     expect(keys(content.arrivals)).toEqual(['mars']);
     expect(keys(content.quizzes)).toEqual(['mars']);
-    expect(keys(content.missions)).toEqual(['mars']);
+    expect(keys(content.missions)).toEqual(['find-3-mars']);
     expect(content.problems).toEqual(
       expect.arrayContaining([
         'planets.json: earth: diameterKm must be a positive number',
@@ -86,7 +86,7 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
         'planets.json: moon: world is missing',
         'surfaces.json: earth: not a world in planets.json',
         'quizzes.json: earth: has a quiz but no landing picture',
-        'missions.json: earth: has a mission but no landing picture',
+        'missions.json: find-3-earth: place must be a world in planets.json',
       ]),
     );
   });
@@ -97,7 +97,7 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
     const content = buildContent(files);
     expect(keys(content.arrivals)).toEqual(['earth']);
     expect(keys(content.quizzes)).toEqual(['earth']);
-    expect(keys(content.missions)).toEqual(['earth']);
+    expect(keys(content.missions)).toEqual(['find-3-earth']);
     expect(content.worlds.size).toBe(10);
     expect(content.problems).toContain('surfaces.json: mars: credit is required (say who took the picture)');
   });
@@ -122,35 +122,79 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
 
   it('a broken mission: only that mission is missing', () => {
     const files = realFiles();
-    entry(files.missions.missions, 'mars').findCount = 99;
+    entry(files.missions.missions, 'find-3-mars').goal.count = 99;
     const content = buildContent(files);
     expect(content.problems).toEqual([
-      'missions.json: mars: findCount must be a whole number from 1 to the number of dots on the picture (5)',
+      'missions.json: find-3-mars: goal: dotsFound count must be a whole number from 1 to the number of dots on the picture (5)',
     ]);
-    expect(keys(content.missions)).toEqual(['earth']);
+    expect(keys(content.missions)).toEqual(['find-3-earth']);
     expect(content.quizzes.size).toBe(2);
+  });
+
+  it('rejects a mission of another kind, with a goal elsewhere, or with no teaser', () => {
+    const files = realFiles();
+    entry(files.missions.missions, 'find-3-mars').kind = 'tour';
+    entry(files.missions.missions, 'find-3-earth').goal.place = 'mars';
+    const content = buildContent(files);
+    expect(content.missions.size).toBe(0);
+    expect(content.problems).toEqual([
+      'missions.json: find-3-mars: kind must be "find" (other kinds come with their own issues)',
+      "missions.json: find-3-earth: a find mission's goal must be dotsFound at its own place",
+    ]);
+    const noTeaser = realFiles();
+    delete entry(noTeaser.missions.missions, 'find-3-mars').teaser;
+    expect(buildContent(noTeaser).problems).toEqual([
+      'missions.json: find-3-mars: teaser text is required and at most 20 words',
+      'missions.json: find-3-mars: teaser place must be a world in planets.json',
+    ]);
   });
 
   it('a mission whose teaser points at a left-out world is left out too', () => {
     const files = realFiles();
     entry(files.planets.worlds, 'jupiter').color = 'orange';
     const content = buildContent(files);
-    expect(keys(content.missions)).toEqual(['earth']);
-    expect(content.problems).toContain('missions.json: mars: teaserWorld must be a world in planets.json');
+    expect(keys(content.missions)).toEqual(['find-3-earth']);
+    expect(content.problems).toContain('missions.json: find-3-mars: teaser place must be a world in planets.json');
   });
 
-  it('keeps the first copy of a quiz or mission that is listed twice', () => {
+  it('a mission whose goal points at a left-out landing picture is left out too', () => {
+    const files = realFiles();
+    entry(files.missions.missions, 'find-3-earth').place = 'mars'; // its own place is fine, but the goal is at Earth
+    entry(files.surfaces.surfaces, 'earth').credit = '';
+    const content = buildContent(files);
+    expect(content.problems).toEqual(
+      expect.arrayContaining([
+        'missions.json: find-3-earth: a find mission\'s goal must be dotsFound at its own place',
+        'missions.json: find-3-earth: goal: dotsFound place must be a world with a landing picture',
+      ]),
+    );
+    expect(keys(content.missions)).toEqual(['find-3-mars']);
+  });
+
+  it('a goal that names another mission must name one in the file', () => {
+    const files = realFiles();
+    entry(files.missions.missions, 'find-3-mars').available = { type: 'missionDone', mission: 'find-3-earth' };
+    entry(files.missions.missions, 'find-3-earth').available = { type: 'missionDone', mission: 'find-3-venus' };
+    const content = buildContent(files);
+    expect(content.problems).toEqual(['missions.json: find-3-earth: available: missionDone mission must be a mission in missions.json']);
+    expect(keys(content.missions)).toEqual(['find-3-mars']);
+  });
+
+  it('keeps the first copy of a quiz or mission that is listed twice, and the first find mission at a place', () => {
     const files = realFiles();
     const marsQuiz = entry(files.quizzes.quizzes, 'mars');
-    const marsMission = entry(files.missions.missions, 'mars');
+    const marsMission = entry(files.missions.missions, 'find-3-mars');
     files.quizzes.quizzes.push(structuredClone(marsQuiz));
     files.missions.missions.push({ ...structuredClone(marsMission), title: 'A second Mars mission' });
+    files.missions.missions.push({ ...structuredClone(marsMission), id: 'find-2-mars' });
     const content = buildContent(files);
     expect(content.quizzes.get('mars')).toBe(marsQuiz);
-    expect(content.missions.get('mars')).toBe(marsMission);
+    expect(content.missions.get('find-3-mars')).toBe(marsMission);
+    expect(keys(content.missions)).toEqual(['find-3-mars', 'find-3-earth']);
     expect(content.problems).toEqual([
       'quizzes.json: mars: has a quiz more than once (kept the first)',
-      'missions.json: mars: has a mission more than once (kept the first)',
+      'missions.json: find-3-mars: listed twice (kept the first)',
+      'missions.json: find-2-mars: mars already has a find mission (kept the first)',
     ]);
   });
 
@@ -285,7 +329,7 @@ describe('buildContent tells the console what it left out', () => {
     const messages = error.mock.calls.map((c) => String(c[0]));
     expect(messages[0]).toMatch(/^Some landing pictures were left out:\nmars: credit/);
     expect(messages).toContainEqual(expect.stringMatching(/^Some quizzes were left out:\nmars: has a quiz but no landing picture/));
-    expect(messages).toContainEqual(expect.stringMatching(/^Some missions were left out:\nmars: has a mission but no landing picture/));
+    expect(messages).toContainEqual(expect.stringMatching(/^Some missions were left out:\nfind-3-mars: has a mission but no landing picture/));
   });
 });
 

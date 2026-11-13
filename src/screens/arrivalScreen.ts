@@ -1,5 +1,5 @@
 import type { ArrivalParams, Screen, ScreenContext, SpaceParams } from '../app/screens';
-import type { Mission } from '../data/missions';
+import { findMissionAt, type MissionDef } from '../data/missions';
 import type { QuizQuestionData } from '../data/quizzes';
 import type { WorldId } from '../data/ids';
 import type { Surface } from '../data/surfaces';
@@ -158,8 +158,8 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
   }
 
   /** The mission and quiz for a world, if both exist. A world without them just has no mission. */
-  private missionExtras(worldId: string): { mission: Mission; questions: QuizQuestionData[] } | undefined {
-    const mission = this.ctx.content.missions.get(worldId as WorldId);
+  private missionExtras(worldId: string): { mission: MissionDef; questions: QuizQuestionData[] } | undefined {
+    const mission = findMissionAt(this.ctx.content, worldId);
     const questions = this.ctx.content.quizzes.get(worldId as WorldId)?.questions;
     return mission && questions ? { mission, questions } : undefined;
   }
