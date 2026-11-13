@@ -109,7 +109,7 @@ const placeOf = (pool: unknown) => {
 /**
  * The checks on one world's pool, against that world's landing picture (`undefined` if it has none). Returns the pool
  * with only its good questions (in file order), or no pool when it cannot be used: not an object, no landing picture,
- * a bad format, no question list, or too few good questions at levels 1 and 2 to fill a draw. The other problems are
+ * a bad format, no question list, or good questions at levels 1 and 2 on too few dots to fill a draw. The other problems are
  * reported and the pool is still kept.
  */
 export function checkPool(raw: unknown, surface: Surface | undefined): { pool?: QuestionPool; problems: string[] } {
@@ -161,9 +161,11 @@ export function checkPool(raw: unknown, surface: Surface | undefined): { pool?: 
   if (rightIsLongest > Math.floor(authored.length / 3)) {
     problems.push(`${place}: the right answer is the longest option in more than a third of the questions, which gives it away`);
   }
-  const easy = kept.filter((q) => q.level !== 3).length;
-  if (easy < rules.draw) {
-    problems.push(`${place}: needs at least ${rules.draw} good questions at level 1 or 2 to make a ${format} (has ${easy})`);
+  // A draw never asks two questions on one dot, so it is the dots that must be enough, not the questions.
+  const easyDots = new Set(kept.filter((q) => q.level !== 3).map((q) => q.hotspot)).size;
+  if (easyDots < rules.draw) {
+    const dots = rules.draw === 1 ? '1 dot' : `${rules.draw} different dots`;
+    problems.push(`${place}: needs good questions on at least ${dots} at level 1 or 2 to make a ${format} (has ${easyDots})`);
     return { problems };
   }
   return { pool: { place: place as PlaceId, format, questions: kept }, problems };
@@ -234,7 +236,8 @@ export function checkQuestion(raw: unknown, place: string, surface: Surface | un
 }
 
 /**
- * Picks one go's questions from a pool: 3 for a quiz, 1 for a postcard, never the same question twice. Ranks below
+ * Picks one go's questions from a pool: 3 for a quiz, 1 for a postcard, never the same question twice, and never two
+ * questions on the same dot (one could give the other's answer away, so the bonus star would not be earned). Ranks below
  * `POOL_RULES.level3FromRank` get only levels 1 and 2. From that rank a quiz has exactly one level-3 question (when the
  * pool has one) and a postcard draws from every level. The questions and each question's answers come in a shuffled
  * order. Pure: the same pool, rank and seed always give the same draw, and the pool is never changed.
@@ -246,12 +249,24 @@ export function drawQuestions(pool: QuestionPool, rank: number, seed: number): Q
   const hard = pool.questions.filter((q) => q.level === 3);
   const high = rank >= POOL_RULES.level3FromRank;
 
-  let picked: PoolQuestion[];
-  if (high && pool.format === 'quiz' && hard.length > 0) picked = [...shuffled(hard, rand).slice(0, 1), ...shuffled(base, rand).slice(0, draw - 1)];
-  else if (high && pool.format === 'postcard') picked = shuffled(pool.questions, rand).slice(0, draw);
-  else picked = shuffled(base, rand).slice(0, draw);
-  // Only a pool that skipped validation can come up short: top it up from what is left, never repeating one.
-  if (picked.length < draw) picked.push(...shuffled(pool.questions.filter((q) => !picked.includes(q)), rand).slice(0, draw - picked.length));
+  const picked: PoolQuestion[] = [];
+  /** Adds up to `count` questions from `from` in a random order, never one twice, and only on a new dot unless `sameDot`. */
+  const take = (from: readonly PoolQuestion[], count: number, sameDot = false) => {
+    if (count <= 0) return;
+    for (const q of shuffled(from, rand)) {
+      if (picked.length >= draw || count <= 0) return;
+      if (picked.includes(q) || (!sameDot && picked.some((p) => p.hotspot === q.hotspot))) continue;
+      picked.push(q);
+      count--;
+    }
+  };
+  const levels = high && pool.format === 'postcard' ? pool.questions : base;
+  if (high && pool.format === 'quiz' && hard.length > 0) take(hard, 1);
+  take(levels, draw - picked.length);
+  // A valid pool always fills its draw above (checkPool asks for enough dots). Only a pool that skipped validation can
+  // come up short: top it up with a second question on a dot, then from any level, never repeating a question.
+  take(levels, draw - picked.length, true);
+  take(pool.questions, draw - picked.length, true);
 
   return shuffled(picked, rand).map((q) => ({
     id: q.id,

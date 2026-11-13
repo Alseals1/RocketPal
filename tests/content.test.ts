@@ -118,7 +118,7 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
     const content = buildContent(files);
     expect(content.problems).toEqual([
       'quizzes.json: mars: needs 6 to 9 questions (has 0)',
-      'quizzes.json: mars: needs at least 3 good questions at level 1 or 2 to make a quiz (has 0)',
+      'quizzes.json: mars: needs good questions on at least 3 different dots at level 1 or 2 to make a quiz (has 0)',
     ]);
     expect(keys(content.quizzes)).toEqual(['earth']);
     expect(content.missions.size).toBe(2);
@@ -336,7 +336,7 @@ describe('buildContent tells the console what it left out', () => {
     const messages = error.mock.calls.map((c) => String(c[0]));
     expect(messages).toEqual([
       'Some worlds were left out:\nneptune: hook is required\nneptune: world is missing',
-      'Some quizzes were left out:\nmars: needs 6 to 9 questions (has 0)\nmars: needs at least 3 good questions at level 1 or 2 to make a quiz (has 0)',
+      'Some quizzes were left out:\nmars: needs 6 to 9 questions (has 0)\nmars: needs good questions on at least 3 different dots at level 1 or 2 to make a quiz (has 0)',
     ]);
   });
 

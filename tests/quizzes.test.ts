@@ -124,17 +124,26 @@ describe('quizzes.json', () => {
     expect(checkPool(postcard('mars-rover').pools[0], marsSurface).pool?.questions).toHaveLength(1);
   });
 
+  it('drops a pool whose good questions at levels 1 and 2 sit on too few dots to fill a draw', () => {
+    // Four good easy questions, but only on two dots (rim and sky): a draw asks one question per dot, so it cannot fill.
+    const q = quizzes();
+    for (const id of ['mars-rover', 'mars-photos']) marsQ(q, id).hotspot = 'no-such-dot';
+    const { pool, problems } = checkPool(marsPool(q), marsSurface);
+    expect(pool).toBeUndefined();
+    expect(problems.at(-1)).toBe('mars: needs good questions on at least 3 different dots at level 1 or 2 to make a quiz (has 2)');
+  });
+
   it('drops a pool that has too few good questions at levels 1 and 2 to fill a draw', () => {
     const q = quizzes();
     for (const id of ['mars-lake', 'mars-sky', 'mars-sky-color', 'mars-photos']) marsQ(q, id).hotspot = 'no-such-dot';
     const { pool, problems } = checkPool(marsPool(q), marsSurface);
     expect(pool).toBeUndefined();
-    expect(problems.at(-1)).toBe('mars: needs at least 3 good questions at level 1 or 2 to make a quiz (has 2)');
+    expect(problems.at(-1)).toBe('mars: needs good questions on at least 3 different dots at level 1 or 2 to make a quiz (has 2)');
 
     const noEasy = { lastChecked: '2026-10-23', pools: [{ place: 'mars', format: 'postcard', questions: [marsQ(quizzes(), 'mars-red'), marsQ(quizzes(), 'mars-rover-job')] }] };
     const result = checkPool(noEasy.pools[0], marsSurface);
     expect(result.pool).toBeUndefined();
-    expect(result.problems).toContain('mars: needs at least 1 good questions at level 1 or 2 to make a postcard (has 0)');
+    expect(result.problems).toContain('mars: needs good questions on at least 1 dot at level 1 or 2 to make a postcard (has 0)');
   });
 
   it('gives every question a level of 1, 2 or 3', () => {

@@ -39,6 +39,33 @@ describe('drawQuestions', () => {
     }
   });
 
+  it('never asks two questions on the same dot, so one cannot give the other away', () => {
+    for (const [name, pool] of POOLS) {
+      for (const rank of RANKS) {
+        for (const seed of SEEDS) {
+          const dots = drawQuestions(pool, rank, seed).map((q) => q.hotspot);
+          expect(new Set(dots).size, `${name} rank ${rank} seed ${seed}: ${dots.join(', ')}`).toBe(dots.length);
+        }
+      }
+    }
+  });
+
+  it('still asks every dot: each question in a pool comes up across seeds at the ranks that may ask it', () => {
+    for (const pool of [mars, earth]) {
+      const seen = new Set<string>();
+      for (const rank of [1, 5]) for (const seed of SEEDS) for (const q of drawQuestions(pool, rank, seed)) seen.add(q.id);
+      expect([...seen].sort()).toEqual(pool.questions.map((q) => q.id).sort());
+    }
+  });
+
+  it('a pool that skipped validation with too few dots still fills its draw, sharing a dot only then', () => {
+    // Three easy questions on two dots (rim twice): the validator would drop this pool, but the draw must not come up short.
+    const twoDots: QuestionPool = { place: 'mars', format: 'quiz', questions: ['mars-lake', 'mars-lake-age', 'mars-sky'].map((id) => byId(mars, id)) };
+    for (const seed of SEEDS.slice(0, 50)) {
+      expect(drawQuestions(twoDots, 1, seed).map((q) => q.id).sort()).toEqual(['mars-lake', 'mars-lake-age', 'mars-sky']);
+    }
+  });
+
   it('only asks levels 1 and 2 below rank 5', () => {
     for (const [name, pool] of POOLS) {
       for (const rank of [1, 2, 3, 4]) {
