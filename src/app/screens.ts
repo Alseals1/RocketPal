@@ -11,6 +11,7 @@ import type { EventBus } from '../core/events';
 import type { ProgressionView } from '../core/progression';
 import type { Content } from '../data/content';
 import type { Surface } from '../data/surfaces';
+import type { AssetManager } from '../platform/assets';
 import type { InputManager } from '../platform/input/inputManager';
 import type { SaveStore } from '../platform/saveStore';
 import type { RendererHost } from '../render/rendererHost';
@@ -38,6 +39,7 @@ export interface ScreenContext {
   renderer: RendererHost; // 4.11 (#31): the one WebGLRenderer, its canvas, quality and a lost context
   events: EventBus; // 4.11 (#39): screens emit what happened; the recorder saves it
   progression: () => ProgressionView; // 4.11 (#39): stars, missions and XP, worked out from the save
+  assets: AssetManager; // 4.11 (#40): acquire on enter, release on leave
   // Stand-ins, each replaced when its 4.11 member arrives:
   /** Where screens add their HTML. → `overlays` (OverlayStack) */
   stage: HTMLElement;

@@ -1,4 +1,7 @@
-import { initialQuality } from '../quality/quality';
+import { ASSET_ENTRIES } from '../assets/manifest';
+import { RefCountedAssetManager } from '../platform/assets';
+import { initialQuality, prefersLowAssets } from '../quality/quality';
+import { modelLoader, textureLoader } from '../render/assetLoaders';
 import { WebRendererHost } from '../render/rendererHost';
 import { SPACE_VIEW_LABEL } from '../scene/spaceScene';
 import { ContextLostNotice } from '../ui/contextLostNotice';
@@ -26,6 +29,16 @@ export function watchContextLoss(host: WebRendererHost, stage: HTMLElement, setL
   host.onContextRestored(() => {
     setLost(false);
     notice.hide();
+  });
+}
+
+/** The game's one asset manager: the manifest, the render loaders, and the host's quality and lost-context events. */
+export function createGameAssets(host: WebRendererHost): RefCountedAssetManager {
+  return new RefCountedAssetManager({
+    entries: ASSET_ENTRIES,
+    loaders: { texture: textureLoader, model: modelLoader },
+    prefersLow: () => prefersLowAssets(host.quality, host.renderer.capabilities.maxTextureSize),
+    onContextRestored: (fn) => host.onContextRestored(fn),
   });
 }
 

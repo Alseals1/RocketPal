@@ -2,6 +2,7 @@ import type { ProgressionView } from '../core/progression';
 import type { Settings } from '../core/settings';
 import type { PlaceId } from '../data/ids';
 import type { World } from '../data/planets';
+import type { RefCountedAssetManager } from '../platform/assets';
 import type { FrameMonitor } from '../quality/monitor';
 import type { RendererHost } from '../render/rendererHost';
 import type { SpaceScene } from '../scene/spaceScene';
@@ -18,13 +19,14 @@ export interface DebugSources {
   arrival: ArrivalScreen;
   progression(): ProgressionView;
   settings(): Settings;
+  assets: RefCountedAssetManager;
 }
 
 /**
  * `window.rocketPals`, for the browser tests only (page address has ?debug=1). Members are only ever added
  * (docs/TECHNICAL_ARCHITECTURE.md section 9): the tests rely on every name and what it means.
  */
-export function exposeDebugHandle({ host, scene, monitor, screens, space, arrival, progression, settings }: DebugSources): void {
+export function exposeDebugHandle({ host, scene, monitor, screens, space, arrival, progression, settings, assets }: DebugSources): void {
   (window as unknown as Record<string, unknown>).rocketPals = {
     getShip: () => space.shipState,
     getTargetId: () => space.target,
@@ -48,5 +50,7 @@ export function exposeDebugHandle({ host, scene, monitor, screens, space, arriva
     setAutopilot: (on: boolean) => space.setAutopilot(on),
     /** What is on the graphics card now (textures, geometries), to check a leaving screen frees its own. */
     getRenderMemory: () => ({ ...host.renderer.info.memory }),
+    /** The asset ids someone holds now (loading or loaded), sorted: what a screen acquired and has not released. */
+    getHeldAssets: () => assets.held(),
   };
 }
