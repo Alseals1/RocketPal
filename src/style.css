@@ -439,9 +439,6 @@ button:focus-visible {
 
 @media (max-height: 520px) {
   /* A short settings panel, so "Done" is on the screen without scrolling. */
-  .settings-overlay {
-    padding: 6px;
-  }
   .settings-card {
     padding: 8px 16px;
     line-height: 1.15; /* Lexend's own line height is taller than the old font's, and "Done" must still fit */
@@ -532,6 +529,13 @@ button:focus-visible {
 
 .settings-overlay[hidden] {
   display: none;
+}
+
+/* After the base rule, so it wins: a little more room for "Done" on a phone held sideways. */
+@media (max-height: 520px) {
+  .settings-overlay {
+    padding: 6px;
+  }
 }
 
 .settings-card {

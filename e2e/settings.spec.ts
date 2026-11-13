@@ -188,6 +188,8 @@ test.describe('phone-sized screens with the biggest text', () => {
 
       // Checked before any scrolling: nobody should have to scroll to find "Done": the whole panel fits on a phone held sideways too.
       if (viewport.height < 520) {
+        // The short-screen padding must win over the base rule, or "Done" loses that room.
+        expect(await page.locator('.settings-overlay').evaluate((e) => getComputedStyle(e).paddingTop)).toBe('6px');
         const done = (await page.getByTestId('settings-done').boundingBox())!;
         expect(done.y + done.height).toBeLessThanOrEqual(viewport.height);
       }
