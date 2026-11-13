@@ -1,0 +1,204 @@
+/*
+ * Rocket Pals design tokens: docs/VISUAL_DESIGN.md section 4.
+ *
+ * The only CSS file that may hold colour values or font names (tests/styles.test.ts checks).
+ * Every colour here is also in src/ui/tokens.ts, for Three.js (tests/tokens.test.ts checks).
+ * Decisions: decisions/2026-11-13-design-tokens-and-components.md.
+ */
+
+/* ---- Fonts (SIL OFL 1.1, self-hosted Latin subsets; see CREDITS.md) ---- */
+
+@font-face {
+  font-family: 'Lexend';
+  src: url('/fonts/lexend-latin-wght.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Fredoka';
+  src: url('/fonts/fredoka-latin-600.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* The text-size setting (1, 1.25, 1.5). Settings sets it on <html>. */
+  --ui-scale: 1;
+
+  /* ---- 4.1 Colour: space ---- */
+  --space-950: #05060f;
+  --space-900: #0b1030;
+  --space-800: #141b47;
+  --space-700: #1f2862;
+  --nebula-violet: #3b2a7a;
+  --nebula-teal: #0f4c5c;
+
+  /* ---- 4.1 Colour: glass ---- */
+  --glass-fill: rgba(11, 16, 48, 0.75);
+  --glass-fill-strong: rgba(11, 16, 48, 0.86);
+  --glass-fill-light: rgba(11, 16, 48, 0.55);
+  --glass-edge: rgba(255, 255, 255, 0.16);
+  --glass-highlight: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 40%);
+  --glass-blur: 16px;
+  --scrim: rgba(5, 6, 15, 0.55);
+
+  /* ---- 4.1 Colour: text ---- */
+  --text-primary: #ffffff;
+  --text-soft: #c9d2f2;
+  --text-on-accent: #12163d;
+
+  /* ---- 4.1 Colour: meaning ---- */
+  --signal-gold: #ffd166;
+  --signal-gold-deep: #e8a317;
+  --holo-cyan: #7bdff2;
+  --holo-violet: #a78bfa;
+  --done-mint: #6ef0b5;
+  /* About 4.2:1 on glass over white: a graphic colour only (crosses, edges), never text. */
+  --retry-coral: #ff9e7a;
+  --star-gold: #ffc93c;
+
+  /* ---- 4.1 Colour: worlds ---- */
+  --world-sun: #ffb547;
+  --world-mercury: #b8afa6;
+  --world-venus: #e9c46a;
+  --world-earth: #4fa3e0;
+  --world-moon: #d4d6e0;
+  --world-mars: #e2673f;
+  --world-belt: #a8957e;
+  --world-jupiter: #d9a066;
+  --world-saturn: #e8d08c;
+  --world-uranus: #8fe3e8;
+  --world-neptune: #5672f5;
+
+  /* ---- 4.2 Typography ---- */
+  --font-display: 'Fredoka', ui-rounded, system-ui, sans-serif;
+  --font-text: 'Lexend', system-ui, sans-serif;
+
+  --type-display: calc(44px * var(--ui-scale));
+  --type-title: calc(30px * var(--ui-scale));
+  --type-heading: calc(22px * var(--ui-scale));
+  --type-body: calc(18px * var(--ui-scale));
+  --type-ui: calc(17px * var(--ui-scale));
+  --type-label: calc(13px * var(--ui-scale));
+  --type-numeral: calc(28px * var(--ui-scale));
+
+  --weight-display: 600;
+  --weight-title: 600;
+  --weight-heading: 600;
+  --weight-body: 400;
+  --weight-ui: 500;
+  --weight-label: 600;
+  --weight-numeral: 600;
+
+  --leading-display: 1.1;
+  --leading-title: 1.15;
+  --leading-heading: 1.25;
+  --leading-body: 1.45;
+  --leading-ui: 1.2;
+  --leading-label: 1.2;
+  --leading-numeral: 1;
+
+  --tracking-label: 0.08em;
+
+  /* ---- 4.3 Space, shape, depth ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --gutter: 16px;
+
+  --radius-chip: 12px;
+  --radius-card: 20px;
+  --radius-sheet: 28px;
+  --radius-pill: 999px;
+
+  --target-min: 56px;
+  --target-main: 64px;
+
+  --shadow-panel: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --glow-gold: 0 0 24px rgba(255, 209, 102, 0.45);
+  --glow-cyan: 0 0 20px rgba(123, 223, 242, 0.4);
+
+  --focus-ring-width: 3px;
+  --focus-ring-gap: 2px;
+
+  --layer-canvas: 0;
+  --layer-tags: 10;
+  --layer-hud: 20;
+  --layer-touch: 30;
+  --layer-sheet: 40;
+  --layer-dialog: 50;
+  --layer-toast: 60;
+
+  /* ---- 4.4 Motion ---- */
+  --dur-press: 120ms;
+  --dur-quick: 200ms;
+  --dur-panel: 320ms;
+  --dur-screen: 480ms;
+  --dur-celebrate: 900ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /*
+   * ---- Legacy: today's screens (to be removed in M8) ----
+   * Values today's screens use that have no exact section 4 token. Same values as before M3, so the
+   * screens do not change; the M8 restyle (#55, #56) moves them onto the new tokens and deletes this block.
+   */
+  --legacy-page: #03040c;
+  --legacy-navy-soft: rgba(18, 22, 61, 0.86);
+  --legacy-navy-glass: rgba(18, 22, 61, 0.55);
+  --legacy-overlay: rgba(3, 4, 12, 0.6);
+  --legacy-overlay-light: rgba(3, 4, 12, 0.55);
+  --legacy-tile: rgba(255, 255, 255, 0.1);
+  --legacy-tile-hover: rgba(255, 255, 255, 0.2);
+  --legacy-boost: #ff8c42;
+  --legacy-boost-edge: #b9541a;
+  --legacy-quiz-wrong-edge: #8a90b8;
+  --legacy-quiz-wrong-text: #c9cdea;
+  --legacy-window-wall: #080a16;
+  --legacy-window-edge: #4b5170;
+  --legacy-card-shadow: rgba(0, 0, 0, 0.35);
+  --legacy-window-shade: rgba(0, 0, 0, 0.75);
+  --legacy-spot-glow: rgba(255, 209, 102, 0.85);
+  --legacy-spot-found-glow: rgba(123, 223, 242, 0.7);
+  --legacy-arrow-shadow: #000000;
+}
+
+/* 4.3: the edge gutter is wider on wider screens. Breakpoints are literal px (custom properties cannot be used in @media); the values are in src/ui/tokens.ts. */
+@media (min-width: 901px) {
+  :root {
+    --gutter: 24px;
+  }
+}
+
+/* ---- Section 5: quality and motion modes ---- */
+
+:root[data-quality='low'] {
+  --glass-blur: 0px;
+}
+
+:root[data-reduced-motion='true'] {
+  --dur-press: 0ms;
+  --dur-quick: 0ms;
+  --dur-panel: 0ms;
+  --dur-screen: 0ms;
+  --dur-celebrate: 0ms;
+}
+
+/* Until the game has set data-reduced-motion, follow the computer (as src/style.css does). */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduced-motion]) {
+    --dur-press: 0ms;
+    --dur-quick: 0ms;
+    --dur-panel: 0ms;
+    --dur-screen: 0ms;
+    --dur-celebrate: 0ms;
+  }
+}

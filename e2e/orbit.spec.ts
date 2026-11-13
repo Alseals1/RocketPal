@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
+import { fontsReady } from './fonts.ts';
 import { inCi, SECOND_LANDING_TIMING } from './known-issues.ts';
 
 /** The parts of the `?debug=1` test handle used here. */
@@ -21,6 +22,7 @@ function watchForErrors(page: Page, ignore: RegExp[] = []): string[] {
 async function start(page: Page) {
   await page.goto('/?debug=1&quality=high');
   await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
+  await fontsReady(page);
 }
 
 const face = (page: Page) => page.locator('.orbit-face');
