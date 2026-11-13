@@ -3,7 +3,7 @@ import { WORLD_IDS, type MissionId, type PlaceId, type WorldId } from './ids';
 import { missionLabel, validateMission, validateMissionsFile, type MissionDef } from './missions';
 import { validatePlanetsFile, validateWorld, type World } from './planets';
 import { FALLBACK_RULES, validateProgression, type ProgressionRules } from './progression';
-import { validateQuiz, validateQuizzesFile, type Quiz } from './quizzes';
+import { checkPool, validateQuestionsFile, type QuestionPool } from './quizzes';
 import { validateSurface, validateSurfacesFile, type Surface } from './surfaces';
 
 /** A Star Map destination (docs/TECHNICAL_ARCHITECTURE.md section 4.2). */
@@ -18,16 +18,16 @@ export interface Place {
 /**
  * Everything loaded from public/data/, validated, indexed. Read-only after start.
  *
- * Only the parts today's content uses (section 4.2 lists the rest, which come with their own issues). Arrivals and
- * quizzes keep today's types for now: they become `ArrivalDef` and `QuestionPool` later. Missions are `MissionDef`,
- * with only `find` missions so far. See decisions/2026-11-11-content-loader-interim-types.md and
- * decisions/2026-11-12-events-conditions-progression.md.
+ * Only the parts today's content uses (section 4.2 lists the rest, which come with their own issues). Arrivals keep
+ * today's type for now: they become `ArrivalDef` later. Quizzes are `QuestionPool`s (decisions/2026-11-13-question-pools.md).
+ * Missions are `MissionDef`, with only `find` missions so far. See decisions/2026-11-11-content-loader-interim-types.md
+ * and decisions/2026-11-12-events-conditions-progression.md.
  */
 export interface Content {
   places: Map<PlaceId, Place>;
   worlds: Map<WorldId, World>; // planets.json
   arrivals: Map<PlaceId, Surface>; // surfaces.json
-  quizzes: Map<PlaceId, Quiz>; // quizzes.json
+  quizzes: Map<PlaceId, QuestionPool>; // quizzes.json: each place's question pool, holding only its good questions
   missions: Map<MissionId, MissionDef>; // missions.json
   progression: ProgressionRules; // progression.json: the XP table and the ranks
   /** Entries left out by validation, each as "<file>.json: <why>". Logged; must be empty in tests. */
@@ -59,8 +59,8 @@ const FILES: FileName[] = ['planets', 'surfaces', 'quizzes', 'missions', 'progre
 /**
  * Validates the data files entry by entry and indexes what is left. A bad entry is left out, with the entries that
  * point at it (a world takes its moon, landing picture, quiz and the missions that name it; a landing picture takes
- * its quiz and mission), and the rest still loads. The first copy of anything listed twice is kept. Each file that lost something
- * logs one console error. progression.json is checked as a whole: if it is missing or broken, no XP is given
+ * its quiz and mission). A quiz's bad question is left out on its own, and the rest of the quiz still loads. The first
+ * copy of anything listed twice is kept. Each file that lost something logs one console error. progression.json is checked as a whole: if it is missing or broken, no XP is given
  * (`FALLBACK_RULES`) and the rest still works. Throws only if planets.json is unusable as a whole or keeps no world at all.
  */
 export function buildContent(raw: RawContent): Content {
@@ -127,14 +127,17 @@ export function buildContent(raw: RawContent): Content {
     (s) => validateSurface(s, worldIds),
     (id) => `${id}: listed twice (kept the first)`,
   ) as Map<PlaceId, Surface>;
-  const arrivalFor = (entry: unknown) => arrivals.get((entry as { worldId?: unknown } | null)?.worldId as PlaceId);
-  const quizzes = keep<Quiz>(
-    'quizzes',
-    entriesOf('quizzes', validateQuizzesFile, 'quizzes'),
-    (q) => q.worldId,
-    (q) => validateQuiz(q, arrivalFor(q)),
-    (id) => `${id}: has a quiz more than once (kept the first)`,
-  ) as Map<PlaceId, Quiz>;
+  const arrivalFor = (entry: unknown) => arrivals.get((entry as { place?: unknown } | null)?.place as PlaceId);
+  // Question pools are checked question by question: a bad question is left out on its own, and a pool only when it
+  // can no longer fill a draw.
+  const quizzes = new Map<PlaceId, QuestionPool>();
+  for (const entry of entriesOf('quizzes', validateQuestionsFile, 'pools') ?? []) {
+    const { pool, problems } = checkPool(entry, arrivalFor(entry));
+    found.quizzes.push(...problems);
+    if (!pool) continue;
+    if (quizzes.has(pool.place)) found.quizzes.push(`${pool.place}: has a quiz more than once (kept the first)`);
+    else quizzes.set(pool.place, pool);
+  }
   // Missions are checked against everything kept so far, and against each other's ids (collected first).
   const missionList = entriesOf('missions', validateMissionsFile, 'missions');
   const missionCtx: ConditionContext & { worldIds: readonly string[] } = {

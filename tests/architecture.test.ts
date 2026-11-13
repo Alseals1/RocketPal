@@ -91,9 +91,6 @@ const RULE_TEXT: Record<Layer, string> = {
  * Do not edit src/ to shrink it in this file's PR; later issues do that.
  */
 const ALLOWED_BREAKS: ReadonlyArray<{ file: string; target: string }> = [
-  // Content imports Logic. `QuizQuestion` belongs with the question data. It moves
-  // to data/ with the question pools (#45, TECHNICAL_ARCHITECTURE.md section 4.10).
-  { file: 'src/data/quizzes.ts', target: 'src/quiz/quiz.ts' },
   // Logic imports Render. `BodyLayout` is pure data. Move it out of scene/ into logic
   // or content the next time scene/layout.ts is changed.
   { file: 'src/scale/leg.ts', target: 'src/scene/layout.ts' },

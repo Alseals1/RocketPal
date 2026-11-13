@@ -1,17 +1,4 @@
-export interface QuizOption {
-  text: string;
-  correct: boolean;
-}
-
-export interface QuizQuestion {
-  id: string;
-  question: string;
-  options: QuizOption[];
-  /** One short sentence, from the fact card, shown with the right answer. */
-  because: string;
-  /** The dot (hotspot) on this world's picture that the question is built from. */
-  hotspot: string;
-}
+import type { QuizQuestion } from '../data/quizzes';
 
 export type AnswerResult = 'right' | 'wrong' | 'ignored';
 
