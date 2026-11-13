@@ -153,6 +153,8 @@ Notes posted on #31: —
 
 ## Known issues and open items
 
+* **CI now runs when a pull request's base changes to `dev`** (2026-11-13, `decisions/2026-11-13-ci-on-retarget.md`). Before this, the upper parts of #39's stack (PRs #75, #76, #77) were re-targeted to `dev` and merged without a pull-request CI run; `dev`'s own CI passed after each merge. G.O.A.T.'s autopilot now waits for these checks.
+
 * **Not measured on a Chromebook yet:** the guide is `docs/CHROMEBOOK_MEASUREMENT.md` (#28) and the numbers are pending. Still unknown: frame rate, the 4096 px panoramas (about 45 MB of video memory; low quality uses 2048 px), and read-aloud with a Chromebook voice.
 * **6 slow browser tests** (8 timeouts in a 440-run load test; product owner's decision, 2026-10-23): the Earth-window "never shows empty space beyond the photo at W x H" tests in `e2e/surface-earth.spec.ts` time out under 8-worker load. They passed in all three CI runs on PR #60, so they run in CI. Make them cheaper later; do not delete them.
 * **Title card overlaps the buttons without Trebuchet MS** (found by CI, #27). Linux and ChromeOS have no Trebuchet MS; the wider fallback font makes the title card cover Back or Orbit at 844 x 390 with the biggest text and at 320 x 568 with normal text. Kids on Chromebooks probably see this. Four tests are marked `test.fail()` on Linux (`e2e/known-issues.ts`); follow-up issue to add.
