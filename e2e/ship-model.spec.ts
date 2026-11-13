@@ -105,6 +105,8 @@ for (const [what, { warning, ...file }] of Object.entries(brokenFiles)) {
     await page.waitForTimeout(500);
     expect(await debug(page, (h) => h.hasShipModel())).toBe(false);
     expect(errors).toEqual([]);
-    expect(warnings.some((w) => /Rocket model not loaded/.test(w) && (warning?.test(w) ?? true))).toBe(true);
+    // A file that cannot be read is logged by the asset manager; a model without a flame, by the space screen.
+    const said = /model\/ship could not be loaded|Rocket model not loaded/;
+    expect(warnings.some((w) => said.test(w) && (warning?.test(w) ?? true))).toBe(true);
   });
 }

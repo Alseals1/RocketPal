@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import type { WindowPhoto } from '../data/surfaces';
 import type { ScreenPoint } from '../scene/spaceScene';
 import { azElToDirection, viewHorizontalFov, windowCameraFov, type LookState } from './geometry';
-import { disposePhotoTexture, loadPhotoTexture } from './photoTexture';
 
 const SPHERE_RADIUS = 500;
 const VERTICAL_FOV = 70;
@@ -20,9 +19,6 @@ export class PanoramaScene {
   private readonly camera = new THREE.PerspectiveCamera(VERTICAL_FOV, 1, 0.1, 2000);
   private readonly tmp = new THREE.Vector3();
   private mesh?: THREE.Mesh;
-  private texture?: THREE.Texture;
-  /** Counts loads. If a newer load has started, an older one that finishes late throws its picture away. */
-  private loadTicket = 0;
   /** Set in a window view, so the camera can re-zoom when the screen changes shape. */
   private windowPhoto?: WindowPhoto;
   private width = 1;
@@ -47,23 +43,10 @@ export class PanoramaScene {
     return { horizontalFov: viewHorizontalFov(this.camera.fov, this.camera.aspect), verticalFov: this.camera.fov };
   }
 
-  /** The biggest picture this graphics card can hold. */
-  get maxTextureSize(): number {
-    return this.renderer.capabilities.maxTextureSize;
-  }
-
-  async load(url: string): Promise<void> {
-    this.dispose();
-    const ticket = ++this.loadTicket;
-    const texture = await loadPhotoTexture(url);
-    if (ticket !== this.loadTicket) {
-      disposePhotoTexture(texture); // a newer load has begun since: this picture is out of date
-      return;
-    }
-    this.dispose(); // never leave an older picture behind
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
-    this.texture = texture;
+  /** Shows a 360 degree picture. The texture belongs to the caller (the asset manager), which frees it. */
+  show(texture: THREE.Texture): void {
+    this.clear(); // never leave an older picture behind
+    this.useTexture(texture);
     this.setCameraFov(VERTICAL_FOV);
 
     // The picture's left edge is azimuth 0. Flipping the sphere inside out (scale -1) makes it read the right way round from inside.
@@ -77,18 +60,9 @@ export class PanoramaScene {
    * An ordinary wide photo seen through a window. It hangs flat in front of the camera, sized so it covers exactly the
    * angles the lens saw: that is what makes straight lines look straight, as in the photo.
    */
-  async loadWindow(url: string, photo: WindowPhoto): Promise<void> {
-    this.dispose();
-    const ticket = ++this.loadTicket;
-    const texture = await loadPhotoTexture(url);
-    if (ticket !== this.loadTicket) {
-      disposePhotoTexture(texture);
-      return;
-    }
-    this.dispose();
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
-    this.texture = texture;
+  showWindow(texture: THREE.Texture, photo: WindowPhoto): void {
+    this.clear();
+    this.useTexture(texture);
     this.windowPhoto = photo;
     this.setCameraFov(windowCameraFov(photo, this.camera.aspect, WINDOW_VERTICAL_FOV));
 
@@ -99,6 +73,10 @@ export class PanoramaScene {
     this.mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map: texture }));
     this.mesh.position.set(WINDOW_DISTANCE, 0, 0); // straight ahead at azimuth 0
     this.scene.add(this.mesh);
+  }
+
+  private useTexture(texture: THREE.Texture): void {
+    texture.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
   }
 
   private setCameraFov(fov: number): void {
@@ -140,8 +118,11 @@ export class PanoramaScene {
     return { x, y, inFront, onScreen: inFront && x >= 0 && x <= this.width && y >= 0 && y <= this.height };
   }
 
-  /** Frees the picture's memory. Called when you leave. */
-  dispose(): void {
+  /**
+   * Takes the picture down and frees the mesh. The texture is left alone: the asset manager frees it on the last
+   * release, and never earlier, so after a lost graphics context three.js can upload it again from memory.
+   */
+  clear(): void {
     this.windowPhoto = undefined;
     if (this.mesh) {
       this.scene.remove(this.mesh);
@@ -149,8 +130,5 @@ export class PanoramaScene {
       (this.mesh.material as THREE.Material).dispose();
       this.mesh = undefined;
     }
-    // The bitmap is closed only here, never earlier: after a lost graphics context, three.js uploads it again from memory.
-    if (this.texture) disposePhotoTexture(this.texture);
-    this.texture = undefined;
   }
 }

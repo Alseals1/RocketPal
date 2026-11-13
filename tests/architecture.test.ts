@@ -34,6 +34,8 @@ const LAYERS: ReadonlyArray<readonly [prefix: string, layer: Layer]> = [
   ['src/scale/', 'Logic'],
   ['src/quality/', 'Logic'],
   ['src/platform/', 'Platform'],
+  // The asset manifest: data for the platform AssetManager (decisions/2026-11-13-asset-manager.md).
+  ['src/assets/', 'Platform'],
   // Section 2 and the table call these platform code that moves to platform/ over time.
   ['src/audio/', 'Platform'],
   ['src/render/', 'Render'],
@@ -408,8 +410,8 @@ describe('import checker (fake files)', () => {
   });
 
   it('fails a file in a folder the map does not know', () => {
-    const [message] = messages('src/assets/manifest.ts', `export const a = 1;`);
-    expect(message).toContain('no layer for src/assets/manifest.ts: add it to LAYERS');
+    const [message] = messages('src/widgets/manifest.ts', `export const a = 1;`);
+    expect(message).toContain('no layer for src/widgets/manifest.ts: add it to LAYERS');
   });
 
   it('maps files to layers by the longest prefix', () => {
@@ -419,6 +421,7 @@ describe('import checker (fake files)', () => {
     expect(layerOf('src/app/screens.ts')).toBe('App');
     expect(layerOf('src/style.css')).toBe('App');
     expect(layerOf('src/audio/speech.ts')).toBe('Platform');
+    expect(layerOf('src/assets/manifest.ts')).toBe('Platform');
     expect(layerOf('src/unknown/a.ts')).toBeUndefined();
   });
 });
