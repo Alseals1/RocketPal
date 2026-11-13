@@ -444,6 +444,7 @@ button:focus-visible {
   }
   .settings-card {
     padding: 8px 16px;
+    line-height: 1.15; /* Lexend's own line height is taller than the old font's, and "Done" must still fit */
   }
   .settings-card h2 {
     margin-bottom: 2px;
@@ -680,8 +681,8 @@ button:focus-visible {
   color: var(--holo-cyan);
 }
 
-/* On a short screen (a phone held sideways) the credit is a little smaller so the card stays clear of Orbit. */
-@media (max-height: 520px) {
+/* On a short screen (a phone held sideways) or the narrowest phones (320 px wide) the credit is a little smaller so the card stays clear of Orbit. */
+@media (max-height: 520px), (max-width: 360px) {
   .photo-credit {
     font-size: 0.78em;
     margin-top: 3px !important;
