@@ -76,9 +76,9 @@ export class SpaceScreen implements Screen<SpaceParams> {
   }
 
   update(dt: number, now: number): void {
-    const { controls, scene } = this.ctx;
+    const { input: controls, scene } = this.ctx;
     if (this.autopilot && controls.isSteering()) this.setAutopilot(false);
-    const input = this.autopilot ? AUTOPILOT_INPUT : controls.read();
+    const input = this.autopilot ? AUTOPILOT_INPUT : controls.flight();
 
     const wasDocked = this.ship.docked;
     const targetLayout = this.targetId ? this.layout(this.targetId) : undefined;
