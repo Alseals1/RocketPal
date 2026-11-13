@@ -282,18 +282,20 @@ test('with motion, only transform and opacity are ever transitioned', async ({ p
 
 test('a toast is read politely, shows for 2.5 seconds, then goes', async ({ page }) => {
   const errors = watchForErrors(page);
+  // The page's clock is ours, so a slow test machine cannot eat into the 2.5 seconds.
+  await page.clock.install();
   await openGallery(page);
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000);
   const region = page.getByTestId('toast-region');
   await expect(region).toHaveAttribute('aria-live', 'polite');
   await page.getByTestId('toast-push').click();
   const toast = region.locator('.rp-toast');
   await expect(toast).toHaveText('+3 XP Capsule fact');
   await expect(toast).toBeVisible();
-  const shown = Date.now();
-  await page.waitForTimeout(2000);
+  await page.clock.runFor(2400);
   await expect(toast).toHaveText('+3 XP Capsule fact');
-  await expect(toast).toHaveText('', { timeout: 3000 });
-  expect(Date.now() - shown).toBeGreaterThanOrEqual(2300);
+  await page.clock.runFor(200);
+  await expect(toast).toHaveText('');
   await expect(toast).toBeHidden();
   expect(errors).toEqual([]);
 });
