@@ -11,6 +11,7 @@ interface DebugHandle {
   hasShipModel(): boolean;
   hasPanorama(): boolean;
   getRenderMemory(): { textures: number; geometries: number };
+  getHeldAssets(): string[];
   dockAt(id: string): void;
 }
 const debug = <T>(page: Page, fn: (h: DebugHandle) => T) => page.evaluate(`(${fn.toString()})(window.rocketPals)`) as Promise<T>;
@@ -55,11 +56,12 @@ const TRACK_LISTENERS = `
     };
   })();`;
 
-/** The debug handle's members before #32, plus `getRenderMemory`. Nothing is taken away or renamed. */
+/** The debug handle's members before #32, plus `getRenderMemory` and `getHeldAssets` (#40). Nothing is taken away or renamed. */
 const DEBUG_MEMBERS = [
   'dockAt',
   'getFound',
   'getFps',
+  'getHeldAssets',
   'getLook',
   'getMode',
   'getQuality',
@@ -127,9 +129,10 @@ async function visit(page: Page, worldId: string) {
   const result = await page.evaluate(async () => {
     const h = (window as unknown as { rocketPals: DebugHandle }).rocketPals;
     const during = h.getRenderMemory();
+    const heldDuring = h.getHeldAssets();
     document.querySelector<HTMLButtonElement>('[data-testid="back-to-space"]')!.click();
     for (let i = 0; i < 20; i++) await Promise.resolve(); // leaving finishes in a few promise steps, before any frame
-    return { during, left: h.getRenderMemory(), mode: h.getMode() };
+    return { during, left: h.getRenderMemory(), heldDuring, heldAfter: h.getHeldAssets(), mode: h.getMode() };
   });
   expect(result.mode).toBe('space');
   return result;
@@ -142,9 +145,12 @@ test('leaving a world frees its listeners, its picture and its shape (Mars, Eart
   expect(before.listeners.length).toBeGreaterThan(0);
 
   for (const world of ['mars', 'earth', 'mars']) {
-    const { during, left } = await visit(page, world);
+    const { during, left, heldDuring, heldAfter } = await visit(page, world);
     // A visit puts exactly one picture and one shape (the sphere, or the flat window photo) on the graphics card.
     expect(left, `graphics memory after leaving ${world}`).toEqual({ textures: during.textures - 1, geometries: during.geometries - 1 });
+    // The visit holds its photo through the asset manager, and lets go of it on Back. The rocket is held for the run.
+    expect(heldDuring, `assets held on ${world}`).toEqual(['model/ship', `photo/${world}`]);
+    expect(heldAfter, `assets held after leaving ${world}`).toEqual(['model/ship']);
     const after = await snapshot(page);
     expect(after.listeners, `listeners after leaving ${world}`).toEqual(before.listeners);
   }
@@ -168,12 +174,13 @@ test('Back while the picture is still loading frees everything too, even when th
 
   // The late picture is thrown away before it is ever drawn, so it never reaches the graphics card.
   expect(await debug(page, (h) => h.hasPanorama())).toBe(false);
+  expect(await debug(page, (h) => h.getHeldAssets())).toEqual(['model/ship']); // the late picture was released at once
   const after = await snapshot(page);
   expect(after.listeners).toEqual(before.listeners);
   expect(errors).toEqual([]);
 });
 
-test('the debug handle keeps every member it had, and adds getRenderMemory', async ({ page }) => {
+test('the debug handle keeps every member it had, and adds getRenderMemory and getHeldAssets', async ({ page }) => {
   await page.goto('/?debug=1');
   await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
   const keys = await page.evaluate(() => Object.keys((window as unknown as { rocketPals: object }).rocketPals).sort());

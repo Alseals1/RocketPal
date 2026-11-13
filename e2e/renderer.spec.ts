@@ -6,6 +6,7 @@ interface DebugHandle {
   getShip(): { position: { x: number; y: number; z: number }; docked: boolean };
   getQuality(): string;
   getMode(): string;
+  getHeldAssets(): string[];
   dockAt(id: string): void;
 }
 
@@ -152,6 +153,7 @@ test('if the graphics card drops the picture on Mars, the photo draws again once
   await expect(page.getByTestId('context-lost')).toBeHidden();
   expect(await debug(page, (h) => h.getMode())).toBe('surface');
   await expect.poll(async () => (await pictureStats(page)).orangeShare, { timeout: 10_000 }).toBeGreaterThan(0.5);
+  expect(await debug(page, (h) => h.getHeldAssets())).toContain('photo/mars'); // still held, so never freed while in use
   expect(errors).toEqual([]);
 });
 

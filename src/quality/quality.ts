@@ -1,5 +1,3 @@
-import type { SurfaceKind } from '../data/surfaces';
-
 export type Quality = 'high' | 'low';
 
 export interface HardwareHints {
@@ -67,10 +65,9 @@ export function rendererOptions(quality: Quality, devicePixelRatio: number | und
 const BIG_PHOTO_PX = 4096;
 
 /**
- * Which landing photo to load: `'high'` (4096) or `'low'` (2048). A window view never needs the big one: the photo
- * only fills part of the view. A 360 degree photo gets it at high quality on a card that can hold it.
+ * Whether the asset manager should load each asset's small file: at low quality, or on a graphics card that cannot
+ * hold a 4096 picture. (A window view never gets the big photo: its manifest entry has only the 2048 one.)
  */
-export function photoSize(kind: SurfaceKind, quality: Quality, maxTextureSize: number): Quality {
-  if (kind === 'window') return 'low';
-  return quality === 'high' && maxTextureSize >= BIG_PHOTO_PX ? 'high' : 'low';
+export function prefersLowAssets(quality: Quality, maxTextureSize: number): boolean {
+  return quality === 'low' || maxTextureSize < BIG_PHOTO_PX;
 }

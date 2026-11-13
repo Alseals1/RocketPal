@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { initialQuality, chooseQuality, qualitySettings, rendererOptions, photoSize } from '../src/quality/quality';
+import { initialQuality, chooseQuality, qualitySettings, rendererOptions, prefersLowAssets } from '../src/quality/quality';
 
 const frames = (ms: number, count: number) => Array.from({ length: count }, () => ms);
 
@@ -40,17 +40,15 @@ describe('rendererOptions', () => {
   });
 });
 
-describe('photoSize', () => {
-  it('a window view always gets the small (2048) photo', () => {
-    expect(photoSize('window', 'high', 16384)).toBe('low');
-    expect(photoSize('window', 'low', 16384)).toBe('low');
+describe('prefersLowAssets', () => {
+  it('loads the big files only at high quality on a card that can hold a 4096 picture', () => {
+    expect(prefersLowAssets('high', 16384)).toBe(false);
+    expect(prefersLowAssets('high', 4096)).toBe(false);
+    expect(prefersLowAssets('high', 2048)).toBe(true);
   });
 
-  it('a 360 degree photo gets the big one only at high quality on a card that can hold 4096', () => {
-    expect(photoSize('panorama', 'high', 4096)).toBe('high');
-    expect(photoSize('panorama', 'high', 16384)).toBe('high');
-    expect(photoSize('panorama', 'high', 2048)).toBe('low');
-    expect(photoSize('panorama', 'low', 16384)).toBe('low');
+  it('loads the small files at low quality, whatever the card', () => {
+    expect(prefersLowAssets('low', 16384)).toBe(true);
   });
 });
 

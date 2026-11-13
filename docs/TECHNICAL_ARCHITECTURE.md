@@ -63,7 +63,7 @@ The good news from the audit: the rules are already pure, the content is already
 | **Logic** | `src/core/`, `src/flight/`, `src/quiz/`, `src/scale/`, `src/quality/` | content types, each other | `three`, `howler`, the DOM, `ui/`, `render/` |
 | **Render** | `src/render/` (new), `src/scene/`, `src/surface/` | `three`, logic types, `ui/tokens.ts` | `ui/` components, the save store, `howler` |
 | **UI** | `src/ui/` | logic types and view models, `ui/tokens.ts` | `three`, `render/` |
-| **Platform** | `src/platform/` (new; `audio/`, `flight/input.ts` move here over time) | browser APIs, `howler` | `ui/`, `render/` |
+| **Platform** | `src/platform/` (new; `audio/`, `flight/input.ts` move here over time), `src/assets/` (the asset manifest, #40) | browser APIs, `howler` | `ui/`, `render/` |
 | **Screens and activities** | `src/screens/`, `src/activities/` (new) | everything above | — |
 | **App** | `src/main.ts`, `src/game.ts` → `src/app/` | everything | — |
 
@@ -598,6 +598,7 @@ For each: what it does, what exists today, what changes, the data, and the tests
   * After a lost context, the manager uploads the assets still in use again.
   * A missing or broken asset falls back (a generated texture, the placeholder rocket, no sound) and is logged once, never a crash.
 * **Tests:** every manifest entry has a file, a size within budget and a `CREDITS.md` entry; the first-play download is under budget (CI, #27).
+* **Since #40:** `RefCountedAssetManager` (`src/platform/assets.ts`) and `src/assets/manifest.ts` (`model/ship`, `photo/mars`, `photo/earth`) exist, and `ctx.assets` is on the screen context. The render loaders (`src/render/assetLoaders.ts`) are injected by the app, so platform never imports `three`. The arrival screen acquires its photo on `enter` and releases it on `leave`; the space screen holds the ship for the run. `acquire` rejects on a broken file (logged once) and the caller keeps its fallback. `credit` is the Id column of `CREDITS.md`. Nothing calls `preload` yet, and world textures, sounds and fonts are not in the manifest yet (`decisions/2026-11-13-asset-manager.md`).
 
 ### 5.12 Audio management
 * **Today:** read-aloud only (`audio/speech.ts`, Web Speech). Howler is installed but unused.

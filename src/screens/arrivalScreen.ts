@@ -1,14 +1,15 @@
+import type { Texture } from 'three';
 import type { ArrivalParams, Screen, ScreenContext, SpaceParams } from '../app/screens';
+import { arrivalPhotoId } from '../assets/manifest';
 import { findMissionAt, type MissionDef } from '../data/missions';
 import type { QuizQuestionData } from '../data/quizzes';
-import type { DotId, WorldId } from '../data/ids';
+import type { AssetId, DotId, WorldId } from '../data/ids';
 import type { Surface } from '../data/surfaces';
 import { diffProgression } from '../core/progression';
 import type { LookState } from '../surface/geometry';
 import { windowLookLimits, viewHorizontalFov } from '../surface/geometry';
 import { PanoramaScene } from '../surface/panoramaScene';
 import { LookController } from '../surface/look';
-import { photoSize } from '../quality/quality';
 import { SPACE_VIEW_LABEL } from '../scene/spaceScene';
 import { SurfaceHud } from '../ui/surfaceHud';
 
@@ -18,16 +19,16 @@ import { SurfaceHud } from '../ui/surfaceHud';
  */
 export class ArrivalScreen implements Screen<ArrivalParams> {
   readonly id = 'arrival';
-  /** Kept between visits, like the renderer it draws with. It holds nothing on the graphics card once disposed. */
+  /** Kept between visits, like the renderer it draws with. It holds nothing on the graphics card once cleared. */
   private panorama?: PanoramaScene;
   private look?: LookController;
   private surfaceHud?: SurfaceHud;
   private activeSurface?: Surface;
   private stopWatchingSave?: () => void;
+  /** The picture this visit holds from the asset manager, released on leave. */
+  private photoId?: AssetId;
   /** Counts visits. A picture that finishes loading after the player has left belongs to an old visit and is dropped. */
   private visit = 0;
-  /** Between `enter` and `leave`. */
-  private visiting = false;
 
   constructor(private readonly ctx: ScreenContext) {}
 
@@ -35,7 +36,6 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
   async enter({ surface }: ArrivalParams): Promise<void> {
     const { ctx } = this;
     const visit = ++this.visit;
-    this.visiting = true;
     ctx.renderer.renderer.domElement.setAttribute('aria-label', surface.description);
     ctx.stage.classList.add('is-surface');
     ctx.input.setSources(['keyboard']);
@@ -65,22 +65,22 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
 
     const panorama = (this.panorama ??= new PanoramaScene(ctx.renderer.renderer));
     panorama.setSize(ctx.stage.clientWidth, ctx.stage.clientHeight);
-    // A window view, low quality, or a graphics card that cannot hold a 4096 picture, gets the small one.
-    const size = photoSize(surface.kind, ctx.renderer.quality, panorama.maxTextureSize);
+    // The asset manager picks the size: low quality, or a graphics card that cannot hold a 4096 picture, gets the small one.
+    const id = arrivalPhotoId(surface.worldId);
+    let texture: Texture;
     try {
-      const url = size === 'low' ? surface.images.low : surface.images.high;
-      if (surface.kind === 'window') await panorama.loadWindow(url, surface.photo!);
-      else await panorama.load(url);
+      texture = await ctx.assets.acquire<Texture>(id);
     } catch (error) {
       if (visit !== this.visit) return; // the player has already left: nothing to fall back from
       throw error; // the space screen shows the plain landing card instead
     }
     if (visit !== this.visit) {
-      // It arrived after the player left. If nobody is standing on a world now, do not keep it in memory.
-      // (If they have already landed somewhere new, that visit owns the picture: leave it alone.)
-      if (!this.visiting) panorama.dispose();
+      ctx.assets.release(id); // it arrived after the player left: this visit's hold ends now, and it is never drawn
       return;
     }
+    this.photoId = id;
+    if (surface.kind === 'window') panorama.showWindow(texture, surface.photo!);
+    else panorama.show(texture);
 
     this.look = new LookController(surface.start);
     this.updateLookLimits();
@@ -92,13 +92,14 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
   async leave(): Promise<void> {
     const { ctx } = this;
     this.visit++; // any picture still loading is now out of date
-    this.visiting = false;
     ctx.renderer.renderer.domElement.setAttribute('aria-label', SPACE_VIEW_LABEL);
     ctx.stage.classList.remove('is-surface');
     ctx.speech.stop();
     this.look?.detach();
     this.look = undefined;
-    this.panorama?.dispose();
+    this.panorama?.clear();
+    if (this.photoId) ctx.assets.release(this.photoId); // the last release frees the picture on the graphics card
+    this.photoId = undefined;
     this.stopWatchingSave?.();
     this.stopWatchingSave = undefined;
     this.surfaceHud?.destroy();
