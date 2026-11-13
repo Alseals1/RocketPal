@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { buildContent, loadContent, type Content } from '../src/data/content';
 import { WORLD_IDS } from '../src/data/ids';
+import { FALLBACK_RULES } from '../src/data/progression';
 import { entry, realFiles } from './fixtures/content';
 
 const keys = (map: Map<string, unknown>) => [...map.keys()];
@@ -223,6 +224,47 @@ describe('buildContent with a file that is unusable as a whole', () => {
   });
 });
 
+describe('buildContent with the progression rules', () => {
+  it('loads the XP table and the ranks', () => {
+    const content = buildContent(realFiles());
+    expect(content.progression.ranks).toHaveLength(8);
+    expect(content.progression.xp.dot).toEqual({ first: 5, again: 1 });
+    expect(content.progression.repeatCap).toBe(10);
+  });
+
+  it('a missing file gives no XP, says so in problems, and leaves the console to loadContent', () => {
+    const content = buildContent({ ...realFiles(), progression: undefined });
+    expect(content.progression).toEqual(FALLBACK_RULES);
+    expect(content.problems).toEqual(['progression.json: could not be loaded']);
+    expect(error).not.toHaveBeenCalled();
+    expect(content.missions.size).toBe(2);
+  });
+
+  it('a broken file gives no XP, is logged once, and the rest still loads', () => {
+    const files = realFiles();
+    files.progression.ranks[0].xp = 10;
+    delete files.progression.xp.dot;
+    const content = buildContent(files);
+    expect(content.progression).toEqual(FALLBACK_RULES);
+    expect(content.problems).toEqual([
+      'progression.json: xp.dot must have "first" and "again", each a whole number of 0 or more',
+      'progression.json: ranks[0]: the first rank starts at 0 xp',
+    ]);
+    expect(error.mock.calls.map((c) => String(c[0]))).toEqual([
+      'Bad progression data:\nxp.dot must have "first" and "again", each a whole number of 0 or more\nranks[0]: the first rank starts at 0 xp',
+    ]);
+    expect(content.worlds.size).toBe(10);
+    expect(content.missions.size).toBe(2);
+  });
+
+  it('the fallback is a copy, so changing one content cannot change another', () => {
+    const a = buildContent({ ...realFiles(), progression: null });
+    a.progression.ranks.push({ rank: 2, name: 'x', xp: 1 });
+    expect(buildContent({ ...realFiles(), progression: null }).progression).toEqual(FALLBACK_RULES);
+    expect(FALLBACK_RULES.ranks).toHaveLength(1);
+  });
+});
+
 describe('buildContent tells the console what it left out', () => {
   it('one message per file, with the same wording as before', () => {
     const files = realFiles();
@@ -251,7 +293,7 @@ describe('loadContent', () => {
   const files = realFiles();
   const bodyFor = (url: string) => files[url.replace(/^.*\/(\w+)\.json$/, '$1') as keyof typeof files];
 
-  it('asks for all four files at once, before any of them arrives', async () => {
+  it('asks for all the files at once, before any of them arrives', async () => {
     const waiting: { url: string; answer: () => void }[] = [];
     const fetch = vi.fn(
       (url: string) =>
@@ -265,6 +307,7 @@ describe('loadContent', () => {
     expect(waiting.map((w) => w.url).sort()).toEqual([
       '/data/missions.json',
       '/data/planets.json',
+      '/data/progression.json',
       '/data/quizzes.json',
       '/data/surfaces.json',
     ]);

@@ -328,11 +328,14 @@ test.describe('every dot can be found, on every shape of screen', () => {
   test('found 6 of 6 is possible with a mouse on an ultra-wide monitor', async ({ page }) => {
     await page.setViewportSize({ width: 2560, height: 1080 });
     await landAtEarth(page);
+    // The biggest canvas draws slowest in software WebGL, and the view turns at most 0.1 s of its speed per frame,
+    // so on a CI runner the swing to a far dot can take several seconds. Wait for it honestly instead of racing it.
+    const turnWait = { timeout: 15_000 };
     for (const spot of earth.hotspots) {
       const button = page.getByTestId(`spot-${spot.id}`);
       await button.focus();
-      await expect(button).toHaveCSS('opacity', '1', { timeout: 5000 });
-      await expect.poll(() => debug(page, (h) => h.isLookTurning())).toBe(false);
+      await expect(button).toHaveCSS('opacity', '1', turnWait);
+      await expect.poll(() => debug(page, (h) => h.isLookTurning()), turnWait).toBe(false);
       const box = (await button.boundingBox())!;
       await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); // a real click on the visible dot
       await page.getByTestId('close-card').click();

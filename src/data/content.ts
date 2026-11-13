@@ -1,6 +1,7 @@
 import { WORLD_IDS, type PlaceId, type WorldId } from './ids';
 import { validateMission, validateMissionsFile, type Mission } from './missions';
 import { validatePlanetsFile, validateWorld, type World } from './planets';
+import { FALLBACK_RULES, validateProgression, type ProgressionRules } from './progression';
 import { validateQuiz, validateQuizzesFile, type Quiz } from './quizzes';
 import { validateSurface, validateSurfacesFile, type Surface } from './surfaces';
 
@@ -26,16 +27,18 @@ export interface Content {
   arrivals: Map<PlaceId, Surface>; // surfaces.json
   quizzes: Map<PlaceId, Quiz>; // quizzes.json
   missions: Map<PlaceId, Mission>; // missions.json
+  progression: ProgressionRules; // progression.json: the XP table and the ranks
   /** Entries left out by validation, each as "<file>.json: <why>". Logged; must be empty in tests. */
   problems: string[];
 }
 
-/** The four data files as fetched. `undefined` means the file could not be loaded. */
+/** The data files as fetched. `undefined` means the file could not be loaded. */
 export interface RawContent {
   planets: unknown;
   surfaces?: unknown;
   missions?: unknown;
   quizzes?: unknown;
+  progression?: unknown;
 }
 
 type FileName = keyof RawContent;
@@ -46,18 +49,20 @@ const WORDING: Record<FileName, { entries: string; data: string }> = {
   surfaces: { entries: 'landing pictures', data: 'surface' },
   quizzes: { entries: 'quizzes', data: 'quiz' },
   missions: { entries: 'missions', data: 'mission' },
+  progression: { entries: 'progression rules', data: 'progression' },
 };
 
-const FILES: FileName[] = ['planets', 'surfaces', 'quizzes', 'missions'];
+const FILES: FileName[] = ['planets', 'surfaces', 'quizzes', 'missions', 'progression'];
 
 /**
- * Validates the four files entry by entry and indexes what is left. A bad entry is left out, with the entries that
+ * Validates the data files entry by entry and indexes what is left. A bad entry is left out, with the entries that
  * point at it (a world takes its moon, landing picture, quiz and mission; a landing picture takes its quiz and
  * mission), and the rest still loads. The first copy of anything listed twice is kept. Each file that lost something
- * logs one console error. Throws only if planets.json is unusable as a whole or keeps no world at all.
+ * logs one console error. progression.json is checked as a whole: if it is missing or broken, no XP is given
+ * (`FALLBACK_RULES`) and the rest still works. Throws only if planets.json is unusable as a whole or keeps no world at all.
  */
 export function buildContent(raw: RawContent): Content {
-  const found: Record<FileName, string[]> = { planets: [], surfaces: [], quizzes: [], missions: [] };
+  const found: Record<FileName, string[]> = { planets: [], surfaces: [], quizzes: [], missions: [], progression: [] };
   const fileFailed = new Set<FileName>();
   const notLoaded = new Set<FileName>(); // loadContent has already logged why
 
@@ -136,6 +141,10 @@ export function buildContent(raw: RawContent): Content {
     (id) => `${id}: has a mission more than once (kept the first)`,
   ) as Map<PlaceId, Mission>;
 
+  // The XP table and the ranks: all or nothing.
+  const rulesList = entriesOf('progression', validateProgression, 'ranks');
+  const progression = rulesList ? (raw.progression as ProgressionRules) : structuredClone(FALLBACK_RULES);
+
   const problems: string[] = [];
   for (const file of FILES) {
     const list = found[file];
@@ -145,22 +154,23 @@ export function buildContent(raw: RawContent): Content {
     }
     problems.push(...found[file].map((p) => `${file}.json: ${p}`));
   }
-  return { places, worlds, arrivals, quizzes, missions, problems };
+  return { places, worlds, arrivals, quizzes, missions, progression, problems };
 }
 
 /**
- * Fetches the four data files at the same time and builds the game's content from them. A file other than
+ * Fetches the data files at the same time and builds the game's content from them. A file other than
  * planets.json that cannot be loaded is logged and left out: the game still flies and lands without it.
  * Rejects if planets.json cannot be loaded or is unusable as a whole.
  */
 export async function loadContent(base = '/data/'): Promise<Content> {
-  const [planets, surfaces, missions, quizzes] = await Promise.all([
+  const [planets, surfaces, missions, quizzes, progression] = await Promise.all([
     fetchJson(`${base}planets.json`, true),
     fetchJson(`${base}surfaces.json`),
     fetchJson(`${base}missions.json`),
     fetchJson(`${base}quizzes.json`),
+    fetchJson(`${base}progression.json`),
   ]);
-  return buildContent({ planets, surfaces, missions, quizzes });
+  return buildContent({ planets, surfaces, missions, quizzes, progression });
 }
 
 /** The parsed file, or `undefined` (logged) if it cannot be loaded. A required file throws instead. */
