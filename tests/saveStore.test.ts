@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { BACKUP_KEY, PROGRESS_KEY, createSaveStore } from '../src/platform/saveStore';
 import { emptySave, type SaveData } from '../src/core/save/schema';
-import { recordMission, recordQuiz, starsFor } from '../src/core/progress';
+import { recordMission, recordQuiz, starsFor } from './fixtures/worldFlags';
 import { emptyProgressV1, oldTabEarnsMission } from './fixtures/progressV1';
 import { V1_MARS_3_EARTH_2 } from './fixtures/saves';
 

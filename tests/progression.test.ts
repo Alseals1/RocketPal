@@ -176,3 +176,33 @@ describe('speed', () => {
     expect(performance.now() - start).toBeLessThan(50);
   });
 });
+
+describe('stars (the cases from the old tests/progress.test.ts)', () => {
+  const play = (s: SaveData, ...events: Parameters<typeof record>[1][]) => events.reduce((acc, e) => record(acc, e, content), s);
+  const stars = (s: SaveData, place: string) => deriveProgression(s, content).stars.byPlace.get(place as never) ?? 0;
+  const finishMars = (s: SaveData) => play(s, ...['rim', 'sky', 'rover'].map((id) => ({ type: 'dotFound', dot: `mars/${id}` }) as const));
+
+  it('a new player has no stars anywhere, and a name that is not a place has none either', () => {
+    for (const place of ['mars', 'earth', 'a-world-nobody-has-heard-of', 'constructor', 'toString', 'hasOwnProperty']) {
+      expect(stars(emptySave(), place), place).toBe(0);
+    }
+  });
+
+  it('one star for the mission, one for finishing the quiz and one bonus for a perfect quiz; worlds are separate', () => {
+    let s = finishMars(emptySave());
+    expect(stars(s, 'mars')).toBe(1);
+    expect(stars(s, 'earth')).toBe(0);
+    s = play(s, { type: 'quizFinished', place: 'mars', firstTryAll: false });
+    expect(stars(s, 'mars')).toBe(2);
+    s = play(s, { type: 'quizFinished', place: 'mars', firstTryAll: true }); // a perfect quiz on a later replay
+    expect(stars(s, 'mars')).toBe(3);
+  });
+
+  it('never takes a star away: a worse replay and repeated records change nothing', () => {
+    let s = play(finishMars(emptySave()), { type: 'quizFinished', place: 'mars', firstTryAll: true });
+    s = play(s, { type: 'quizFinished', place: 'mars', firstTryAll: false }, { type: 'quizFinished', place: 'mars', firstTryAll: false });
+    s = finishMars(s);
+    expect(stars(s, 'mars')).toBe(3);
+    expect(s.worlds.mars).toEqual({ missionDone: true, quizDone: true, perfectQuiz: true });
+  });
+});

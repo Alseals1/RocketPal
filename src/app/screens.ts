@@ -7,6 +7,8 @@
  * See decisions/2026-11-11-screen-split.md.
  */
 import type { Speaker } from '../audio/speech';
+import type { EventBus } from '../core/events';
+import type { ProgressionView } from '../core/progression';
 import type { Content } from '../data/content';
 import type { Surface } from '../data/surfaces';
 import type { InputController } from '../flight/input';
@@ -33,6 +35,8 @@ export interface ScreenContext {
   go<P>(screen: ScreenId, params: P): Promise<void>; // 4.11
   content: Content; // 4.11 (#38)
   renderer: RendererHost; // 4.11 (#31): the one WebGLRenderer, its canvas, quality and a lost context
+  events: EventBus; // 4.11 (#39): screens emit what happened; the recorder saves it
+  progression: () => ProgressionView; // 4.11 (#39): stars, missions and XP, worked out from the save
   // Stand-ins, each replaced when its 4.11 member arrives:
   /** Where screens add their HTML. → `overlays` (OverlayStack) */
   stage: HTMLElement;

@@ -154,6 +154,29 @@ test.describe('the mission', () => {
     await expect(page.getByTestId('orbit')).toHaveText(missionOf('earth').done);
     expect(await stars(page, 'earth')).toBe(1);
   });
+
+  test('dots found on an earlier visit count, and a dot found again does not', async ({ page }) => {
+    const errors = watchForErrors(page);
+    await startAndLand(page, 'mars');
+    await findDot(page, 'rim');
+    await findDot(page, 'ground');
+    await page.getByTestId('back-to-space').click();
+    await expect.poll(() => debug(page, (h) => h.getMode())).toBe('space');
+
+    await land(page, 'mars');
+    await expect(page.getByTestId('found')).toHaveText('Found 0 of 5'); // the HUD still counts this visit
+    await expect(page.getByTestId('mission')).toHaveText(`Mission: ${missionOf('mars').title}`);
+    await findDot(page, 'rim'); // found on the last visit: not a new find
+    await expect(page.getByTestId('quiz-time')).toBeHidden();
+    expect(await stars(page, 'mars')).toBe(0);
+
+    await findDot(page, 'sky'); // the third dot ever
+    await expect(page.getByTestId('orbit')).toHaveText(missionOf('mars').done);
+    await expect(page.getByTestId('mission')).toHaveText(`✓ ${missionOf('mars').title}`);
+    await expect(page.getByTestId('quiz-time')).toBeVisible();
+    expect(await stars(page, 'mars')).toBe(1);
+    expect(errors).toEqual([]);
+  });
 });
 
 test.describe('the quiz', () => {
@@ -464,6 +487,8 @@ test.describe('remembering', () => {
       version: 2,
       worlds: { earth: { missionDone: true, quizDone: false, perfectQuiz: false } },
       ...EMPTY_V2_FIELDS,
+      visited: ['earth'], // since #39 the recorder saves where you landed and the dots you found
+      dots: ['earth/air', 'earth/aurora', 'earth/clouds'],
     });
     const keys = await page.evaluate(() => Object.keys(localStorage));
     expect(keys.filter((k) => k.startsWith('rocketpals.')).sort()).toEqual(['rocketpals.progress', 'rocketpals.progress.backup']);
@@ -507,6 +532,8 @@ test.describe('remembering', () => {
     expect(backup).toBe(main);
     expect(JSON.parse(main!)).toEqual({
       ...seeded,
+      visited: ['earth'], // since #39 the recorder saves where you landed and the dots you found
+      dots: ['earth/air', 'earth/aurora', 'earth/clouds', ...seeded.dots],
       worlds: {
         mars: seeded.worlds.mars,
         venus: { missionDone: true, quizDone: false, perfectQuiz: false },

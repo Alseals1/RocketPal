@@ -1,7 +1,7 @@
-import { starsFor } from '../core/progress';
+import type { ProgressionView } from '../core/progression';
 import type { Settings } from '../core/settings';
+import type { PlaceId } from '../data/ids';
 import type { World } from '../data/planets';
-import type { SaveStore } from '../platform/saveStore';
 import type { FrameMonitor } from '../quality/monitor';
 import type { RendererHost } from '../render/rendererHost';
 import type { SpaceScene } from '../scene/spaceScene';
@@ -16,7 +16,7 @@ export interface DebugSources {
   screens: ScreenManager;
   space: SpaceScreen;
   arrival: ArrivalScreen;
-  save: SaveStore;
+  progression(): ProgressionView;
   settings(): Settings;
 }
 
@@ -24,7 +24,7 @@ export interface DebugSources {
  * `window.rocketPals`, for the browser tests only (page address has ?debug=1). Members are only ever added
  * (docs/TECHNICAL_ARCHITECTURE.md section 9): the tests rely on every name and what it means.
  */
-export function exposeDebugHandle({ host, scene, monitor, screens, space, arrival, save, settings }: DebugSources): void {
+export function exposeDebugHandle({ host, scene, monitor, screens, space, arrival, progression, settings }: DebugSources): void {
   (window as unknown as Record<string, unknown>).rocketPals = {
     getShip: () => space.shipState,
     getTargetId: () => space.target,
@@ -41,7 +41,7 @@ export function exposeDebugHandle({ host, scene, monitor, screens, space, arriva
     getViewFov: () => arrival.viewFov(),
     setBackdrop: (color: number) => arrival.setBackdrop(color),
     getFound: () => arrival.foundCount,
-    getStars: (worldId: string) => starsFor(save.read(), worldId),
+    getStars: (worldId: string) => progression().stars.byPlace.get(worldId as PlaceId) ?? 0,
     hasPanorama: () => arrival.hasPanorama,
     dockAt: (id: string) => space.dockAt(id),
     pickTarget: (id: string) => space.pickTarget(id),

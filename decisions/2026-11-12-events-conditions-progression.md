@@ -16,6 +16,11 @@ Date: 2026-11-12. Decided by the Plan agent for issue #39 and approved at plan r
 10. **D10. Fallback rules.** A missing or broken `progression.json` gives `FALLBACK_RULES` (every XP value 0, `repeatCap` 0, one rank `{ 1, 'Cadet', 0 }`) and a line in `content.problems`. Stars and missions still work, because they do not use the rules.
 11. **XP values for ranges.** The design gives side missions 15-25 XP and mini-games 10-15. `progression.json` uses one value each (20 and 10) until their own issues tune them.
 
+## Small choices made while building
+- **A quiz replay counts from either record.** `quizFinished` counts a replay (`quiz:<place>`) when the quiz is already done in `quizzes[place]` **or** in the v1 flag `worlds[place].quizDone`, so a kid upgraded from v1 gets replay XP the first time too.
+- **Within one visit, a dot's card opened again is not a new event.** The HUD calls `onDotFound` only for the first open of each dot on a visit, so `dot:<id>` replays count once per visit, not per tap.
+- **The save format and store tests keep their v1 helpers.** `tests/saveSchema.test.ts` and `tests/saveStore.test.ts` wrote saves with `recordMission`, `recordQuiz` and `starsFor` from `src/core/progress.ts`. Those now come from a small test fixture (`tests/fixtures/worldFlags.ts`) that sets and reads the v1 flags directly, so those tests still check the store and the merge, not progression. The old progress tests moved into `tests/recorder.test.ts` and `tests/progression.test.ts`.
+
 ## Why
 - One recorder that alone writes the save, and one derivation that alone works out stars, missions, XP and ranks, means there is nothing to get out of step and nothing to merge (architecture 4.5).
 - Honouring the v1 flags (D2, D3) keeps every old save's stars without inventing facts.
