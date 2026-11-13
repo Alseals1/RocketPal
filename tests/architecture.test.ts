@@ -36,7 +36,6 @@ const LAYERS: ReadonlyArray<readonly [prefix: string, layer: Layer]> = [
   ['src/platform/', 'Platform'],
   // Section 2 and the table call these platform code that moves to platform/ over time.
   ['src/audio/', 'Platform'],
-  ['src/flight/input.ts', 'Platform'],
   ['src/render/', 'Render'],
   ['src/scene/', 'Render'],
   ['src/surface/', 'Render'],
@@ -415,7 +414,7 @@ describe('import checker (fake files)', () => {
 
   it('maps files to layers by the longest prefix', () => {
     expect(layerOf('src/flight/flightModel.ts')).toBe('Logic');
-    expect(layerOf('src/flight/input.ts')).toBe('Platform');
+    expect(layerOf('src/platform/input/inputManager.ts')).toBe('Platform');
     expect(layerOf('src/app.ts')).toBe('App');
     expect(layerOf('src/app/screens.ts')).toBe('App');
     expect(layerOf('src/style.css')).toBe('App');

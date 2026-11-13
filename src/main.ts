@@ -1,6 +1,7 @@
 import './style.css';
 import { loadContent } from './data/content';
-import { browserStorage, loadSettings } from './core/settings';
+import { browserStorage } from './core/settings';
+import { createSettingsStore } from './platform/settingsStore';
 import { Game } from './app/game';
 import { isDebugOn } from './app';
 import type { Quality } from './quality/quality';
@@ -35,8 +36,8 @@ if (!hasWebGL()) {
 
 function start(): void {
   // Apply saved text size and motion choice before anything is drawn, so nothing jumps.
-  const settings = loadSettings(browserStorage());
-  applySettingsToPage(settings, matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const settings = createSettingsStore(browserStorage());
+  applySettingsToPage(settings.get(), matchMedia('(prefers-reduced-motion: reduce)').matches);
   // One loader for every data file. A broken entry, or a file other than planets.json that cannot be loaded, is left
   // out (and logged) and the game still flies and lands. Only unusable planet data stops it, below.
   loadContent()
