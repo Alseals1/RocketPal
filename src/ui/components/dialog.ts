@@ -92,12 +92,17 @@ export function openDialog(options: DialogOptions): DialogHandle {
   function close(): void {
     if (closed) return;
     closed = true;
+    document.removeEventListener('keydown', onKey);
     scrim.remove();
     onClose?.();
     opener?.focus({ preventScroll: true });
   }
 
-  scrim.addEventListener('keydown', (e) => {
+  // On the document, not the scrim: a click on the body text moves focus to <body>, and Escape and Tab must
+  // still work from there. Only the topmost open dialog answers, so one Escape closes one dialog.
+  function onKey(e: KeyboardEvent): void {
+    const scrims = document.querySelectorAll('.rp-scrim');
+    if (scrims[scrims.length - 1] !== scrim) return;
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
@@ -105,7 +110,8 @@ export function openDialog(options: DialogOptions): DialogHandle {
     } else if (e.key === 'Tab') {
       keepTabInside(dialog, e);
     }
-  });
+  }
+  document.addEventListener('keydown', onKey);
 
   parent.append(scrim);
 
