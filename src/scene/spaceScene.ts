@@ -5,6 +5,7 @@ import type { RendererHost } from '../render/rendererHost';
 import type { BodyLayout } from './layout';
 import type { ShipModel } from './shipModel';
 import { makeGlowTexture, makeWorldTexture } from './textures';
+import { COLORS, hexToNumber } from '../ui/tokens';
 
 /** What the picture of space is, for people who cannot see it. */
 export const SPACE_VIEW_LABEL = 'A 3D view of the solar system from your rocket';
@@ -58,7 +59,8 @@ export class SpaceScene {
     quality: Quality,
     private reducedMotion: boolean,
   ) {
-    this.scene.background = new THREE.Color(0x03040c);
+    // The same page colour as the HTML behind the canvas (src/ui/tokens.ts).
+    this.scene.background = new THREE.Color(hexToNumber(COLORS.legacyPage));
 
     // The Sun lights everything; a soft ambient light keeps the night sides readable.
     const sunLight = new THREE.PointLight(0xffffff, 3.2, 0, 0);

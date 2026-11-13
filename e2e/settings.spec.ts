@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { fontsReady } from './fonts.ts';
 
 interface DebugHandle {
   isReducedMotion(): boolean;
@@ -19,6 +20,7 @@ function watchForErrors(page: Page): string[] {
 async function start(page: Page, query = '') {
   await page.goto(`/?debug=1&quality=high${query}`);
   await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
+  await fontsReady(page);
 }
 
 const open = async (page: Page) => {
@@ -80,6 +82,18 @@ test('every settings control is a big target and the buttons do not overlap', as
     const box = (await control.boundingBox())!;
     expect(box.height).toBeGreaterThanOrEqual(56);
   }
+});
+
+test('the settings card is only as tall as its content and sits in the middle of a laptop screen', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await start(page);
+  await open(page);
+  const overlay = (await page.locator('.settings-overlay').boundingBox())!;
+  const card = (await page.getByTestId('settings-panel').boundingBox())!;
+  expect(card.height).toBeLessThan(overlay.height - 100);
+  const above = card.y - overlay.y;
+  const below = overlay.y + overlay.height - (card.y + card.height);
+  expect(Math.abs(above - below)).toBeLessThanOrEqual(2);
 });
 
 test('text size changes the real text size and is remembered after a reload', async ({ page }) => {

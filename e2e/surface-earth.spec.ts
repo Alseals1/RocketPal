@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { noTrebuchetMs, TITLE_OVERLAP_WITHOUT_TREBUCHET } from './known-issues.ts';
+import { fontsReady } from './fonts.ts';
 import { readFileSync } from 'node:fs';
 
 interface SurfaceFile {
@@ -50,6 +50,7 @@ function watchForErrors(page: Page): string[] {
 async function landAtEarth(page: Page, query = '&quality=high') {
   await page.goto(`/?debug=1${query}`);
   await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
+  await fontsReady(page);
   await debug(page, (h) => h.dockAt('earth'));
   await expect(page.locator('.surface-loading')).toBeHidden({ timeout: 20_000 });
   expect(await debug(page, (h) => h.getMode())).toBe('surface');
@@ -393,7 +394,6 @@ test('going from Earth to Mars and back swaps the view each time, with the right
 
 test.describe('on small screens with the biggest text', () => {
   test('nothing sits on top of anything else, and every button is a big target', async ({ page }) => {
-    test.fail(noTrebuchetMs, TITLE_OVERLAP_WITHOUT_TREBUCHET);
     await page.addInitScript(() =>
       localStorage.setItem('rocketpals.settings', JSON.stringify({ version: 1, textSize: 'huge', reducedMotion: 'system' })),
     );

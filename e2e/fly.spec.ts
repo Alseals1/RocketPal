@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { fontsReady } from './fonts.ts';
 
 /** The test handle that `?debug=1` adds to the page. */
 interface DebugHandle {
@@ -59,6 +60,7 @@ function watchForErrors(page: Page): string[] {
 async function start(page: Page, query = '') {
   await page.goto(`/?debug=1&quality=high${query}`);
   await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
+  await fontsReady(page);
 }
 
 test('draws the solar system with no console errors', async ({ page }) => {

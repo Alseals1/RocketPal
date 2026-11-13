@@ -1,0 +1,7 @@
+/*
+ * Rocket Pals components: docs/VISUAL_DESIGN.md section 6.
+ *
+ * Built only from tokens (src/ui/styles/tokens.css). Every class starts with `rp-`, so today's
+ * screens are untouched until the M4-M8 screens use these. Only transform and opacity animate
+ * (section 8). The components arrive in the next parts of #21.
+ */
