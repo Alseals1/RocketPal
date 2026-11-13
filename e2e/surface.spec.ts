@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { noTrebuchetMs, TITLE_OVERLAP_WITHOUT_TREBUCHET } from './known-issues.ts';
+import { fontsReady } from './fonts.ts';
 import { readFileSync } from 'node:fs';
 
 interface SurfaceFile {
@@ -51,6 +51,7 @@ function watchForErrors(page: Page): string[] {
 async function start(page: Page, query = '&quality=high') {
   await page.goto(`/?debug=1${query}`);
   await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
+  await fontsReady(page);
 }
 
 /** Docks at Mars straight away and waits for the picture to finish loading. */
@@ -488,7 +489,6 @@ test.describe('on a touch screen', () => {
   });
 
   test('nothing sits on top of anything else, even with the biggest text', async ({ page }) => {
-    test.fail(noTrebuchetMs, TITLE_OVERLAP_WITHOUT_TREBUCHET);
     await page.addInitScript(() =>
       localStorage.setItem('rocketpals.settings', JSON.stringify({ version: 1, textSize: 'huge', reducedMotion: 'system' })),
     );
