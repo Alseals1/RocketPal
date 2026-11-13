@@ -2,6 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextRadioIndex } from '../src/ui/components/radioKeys';
 import { createToastQueue, TOAST_MS } from '../src/ui/components/toast';
+import { starLabel } from '../src/ui/components/starRow';
+import { progressFraction } from '../src/ui/components/progressBar';
 
 describe('nextRadioIndex', () => {
   it('moves with the arrows and wraps round both ends', () => {
@@ -52,5 +54,39 @@ describe('toast queue', () => {
 
     queue.push('Again');
     expect(log.at(-1)).toBe('show Again');
+  });
+});
+
+describe('starLabel', () => {
+  it('says how many of 3 stars, in words a screen reader reads', () => {
+    expect(starLabel(0)).toBe('0 of 3 stars');
+    expect(starLabel(1)).toBe('1 of 3 stars');
+    expect(starLabel(2)).toBe('2 of 3 stars');
+    expect(starLabel(3)).toBe('3 of 3 stars');
+  });
+
+  it('clamps like the stars on today\'s screens', () => {
+    expect(starLabel(-1)).toBe('0 of 3 stars');
+    expect(starLabel(7)).toBe('3 of 3 stars');
+    expect(starLabel(2.9)).toBe('2 of 3 stars');
+  });
+});
+
+describe('progressFraction', () => {
+  it('is value over max, from 0 to 1', () => {
+    expect(progressFraction(0, 100)).toBe(0);
+    expect(progressFraction(40, 100)).toBe(0.4);
+    expect(progressFraction(100, 100)).toBe(1);
+  });
+
+  it('never goes past either end', () => {
+    expect(progressFraction(150, 100)).toBe(1);
+    expect(progressFraction(-5, 100)).toBe(0);
+  });
+
+  it('is empty when there is nothing to fill', () => {
+    expect(progressFraction(3, 0)).toBe(0);
+    expect(progressFraction(3, -1)).toBe(0);
+    expect(progressFraction(Number.NaN, 10)).toBe(0);
   });
 });

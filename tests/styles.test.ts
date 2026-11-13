@@ -69,6 +69,31 @@ describe('stylesheets', () => {
   });
 });
 
+describe('component motion (docs/VISUAL_DESIGN.md section 8)', () => {
+  const css = readFileSync(path.join(ROOT, 'src/ui/styles/components.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+
+  it('keyframes change only transform and opacity', () => {
+    const frames = [...css.matchAll(/@keyframes\s+([\w-]+)\s*\{([\s\S]*?\})\s*\}/g)];
+    expect(frames.length).toBeGreaterThan(0);
+    for (const [, name, body] of frames) {
+      const props = declarations(body).map(([prop]) => prop);
+      expect(props.filter((p) => p !== 'transform' && p !== 'opacity'), name).toEqual([]);
+    }
+  });
+
+  it('transitions name only transform and opacity', () => {
+    const bad = declarations(css)
+      .filter(([prop]) => prop === 'transition' || prop === 'transition-property')
+      .filter(([, value]) => !/^none(\s*!important)?$/.test(value) && value.split(',').some((part) => !/^\s*(transform|opacity)\b/.test(part)));
+    expect(bad).toEqual([]);
+  });
+
+  it('blurs no more than 16 px, and only through the --glass-blur token', () => {
+    const blurs = declarations(css).filter(([prop]) => prop.endsWith('backdrop-filter') || prop === 'filter');
+    for (const [, value] of blurs) expect(value).toMatch(/^(none|blur\(var\(--glass-blur\)\))$/);
+  });
+});
+
 describe('fonts', () => {
   const tokensCss = readFileSync(path.join(ROOT, TOKENS), 'utf8');
   const urls = [...tokensCss.matchAll(/url\('([^']+)'\)/g)].map((m) => m[1]);

@@ -62,3 +62,15 @@ for (const size of SIZES) {
     await shot(page, size, 'mars-fact');
   });
 }
+
+for (const size of SIZES) {
+  test(`the component test page at ${size.width}x${size.height}`, async ({ page }) => {
+    mkdirSync(OUT, { recursive: true });
+    await page.setViewportSize(size);
+    await page.goto('/gallery/components.html?motion=reduced');
+    await expect(page.locator('[data-component]').first()).toBeVisible();
+    await fontsReady(page);
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${OUT}/${size.width}x${size.height}-components.jpg`, type: 'jpeg', quality: 60, fullPage: true });
+  });
+}

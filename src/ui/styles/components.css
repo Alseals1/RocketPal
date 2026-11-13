@@ -23,6 +23,10 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.rp-pressable[hidden] {
+  display: none;
+}
+
 .rp-pressable:focus {
   outline: none;
 }
@@ -364,6 +368,566 @@
 
 .rp-toast:empty {
   visibility: hidden;
+}
+
+/* ---- Holographic edge (section 9): a 1 px cyan-to-violet border at 60%, on active elements ---- */
+
+.rp-tile::after,
+.rp-instrument::before,
+.rp-rank__hex::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--holo-cyan), var(--holo-violet));
+  /* Keep only the 1 px ring: the mask colour's alpha is all that counts. */
+  -webkit-mask:
+    linear-gradient(var(--text-primary) 0 0) content-box,
+    linear-gradient(var(--text-primary) 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(var(--text-primary) 0 0) content-box exclude,
+    linear-gradient(var(--text-primary) 0 0);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---- Tile ---- */
+
+.rp-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--target-min);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-chip);
+  background: var(--space-800);
+  color: var(--text-primary);
+  font-family: var(--font-text);
+  font-size: var(--type-ui);
+  font-weight: var(--weight-ui);
+  line-height: var(--leading-ui);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+
+.rp-tile:hover:not([aria-disabled='true']),
+.rp-tile[data-state='selected'] {
+  background: var(--space-700);
+}
+
+.rp-tile:active:not([aria-disabled='true']) {
+  transform: scale(0.97);
+}
+
+.rp-tile[data-state='selected'] {
+  box-shadow: var(--glow-cyan);
+}
+
+.rp-tile[data-state='selected']::after {
+  opacity: 0.6;
+}
+
+.rp-tile[aria-disabled='true'] {
+  cursor: default;
+}
+
+.rp-tile__picture {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.rp-tile__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rp-tile__title {
+  font-weight: var(--weight-label);
+}
+
+.rp-tile__line,
+.rp-tile__condition {
+  color: var(--text-soft);
+  font-size: var(--type-ui);
+  font-weight: var(--weight-body);
+}
+
+.rp-tile__condition:empty {
+  display: none;
+}
+
+.rp-tile__badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.rp-tile[data-state='locked'] .rp-tile__badge {
+  color: var(--text-soft);
+}
+
+.rp-tile[data-state='done'] .rp-tile__badge {
+  color: var(--done-mint);
+}
+
+.rp-tile__new-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--signal-gold);
+}
+
+/* ---- Chip ---- */
+
+.rp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--radius-pill);
+  background: var(--glass-fill);
+  color: var(--text-primary);
+  font-family: var(--font-text);
+  font-size: var(--type-ui);
+  font-weight: var(--weight-ui);
+  line-height: var(--leading-ui);
+  white-space: nowrap;
+}
+
+.rp-chip__dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--rp-world, var(--holo-cyan));
+}
+
+.rp-chip--status {
+  color: var(--signal-gold);
+  font-weight: var(--weight-label);
+}
+
+/* ---- Instrument ---- */
+
+.rp-instrument {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 8em;
+  overflow: hidden;
+}
+
+/* Scanlines (section 9): a 2 px repeating line at 4%, on instruments only, high quality only. */
+.rp-instrument::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(to bottom, var(--text-primary) 0 1px, transparent 1px 2px);
+  opacity: 0.04;
+  pointer-events: none;
+}
+
+:root[data-quality='low'] .rp-instrument::after {
+  display: none;
+}
+
+.rp-instrument[data-highlighted]::before {
+  opacity: 0.6;
+}
+
+.rp-instrument__label {
+  color: var(--text-soft);
+  font-size: var(--type-label);
+  font-weight: var(--weight-label);
+  line-height: var(--leading-label);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.rp-instrument__reading {
+  white-space: nowrap;
+}
+
+.rp-instrument__value {
+  font-size: var(--type-numeral);
+  font-weight: var(--weight-numeral);
+  line-height: var(--leading-numeral);
+  font-variant-numeric: tabular-nums;
+}
+
+.rp-instrument[data-highlighted] .rp-instrument__value {
+  color: var(--holo-cyan);
+}
+
+.rp-instrument__unit {
+  color: var(--text-soft);
+  font-size: var(--type-ui);
+}
+
+/* ---- Progress bar ---- */
+
+.rp-progress {
+  position: relative;
+  display: block;
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--radius-pill);
+  background: var(--space-800);
+}
+
+.rp-progress--thin {
+  height: 6px;
+}
+
+.rp-progress__fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--holo-cyan);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--dur-panel) var(--ease-out);
+}
+
+.rp-progress__tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--space-950);
+}
+
+/* ---- Star row ---- */
+
+.rp-stars {
+  display: inline-flex;
+  gap: var(--space-1);
+  color: var(--star-gold);
+}
+
+.rp-star {
+  display: inline-flex;
+  width: calc(28px * var(--ui-scale));
+  height: calc(28px * var(--ui-scale));
+}
+
+.rp-star svg {
+  width: 100%;
+  height: 100%;
+}
+
+.rp-star[data-new] {
+  animation: rp-star-pop var(--dur-celebrate) var(--ease-spring) both;
+}
+
+@keyframes rp-star-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ---- Rank badge ---- */
+
+.rp-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-primary);
+  font-family: var(--font-text);
+}
+
+.rp-rank__hex {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 64px;
+  height: 72px;
+  overflow: hidden;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: linear-gradient(135deg, var(--holo-cyan), var(--holo-violet));
+}
+
+.rp-rank__inner {
+  display: grid;
+  place-items: center;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  clip-path: inherit;
+  background: var(--space-800);
+  font-family: var(--font-display);
+  font-size: var(--type-heading);
+  font-weight: var(--weight-display);
+}
+
+/* The rank badge's edge comes from the hexagon's gradient, so its ::before ring is not needed. */
+.rp-rank__hex::before {
+  display: none;
+}
+
+/* A single diagonal light sweep when the rank is new. Never a loop. */
+.rp-rank__shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, var(--text-primary) 50%, transparent 65%);
+  opacity: 0;
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+
+.rp-rank[data-new] .rp-rank__shine {
+  animation: rp-shimmer var(--dur-celebrate) var(--ease-out) 1 both;
+}
+
+@keyframes rp-shimmer {
+  from {
+    opacity: 0.35;
+    transform: translateX(-120%);
+  }
+  to {
+    opacity: 0.35;
+    transform: translateX(120%);
+  }
+}
+
+/* Static on low quality (section 5). */
+:root[data-quality='low'] .rp-rank__shine {
+  animation: none;
+  display: none;
+}
+
+.rp-rank__words {
+  display: flex;
+  flex-direction: column;
+}
+
+.rp-rank__number {
+  color: var(--text-soft);
+  font-size: var(--type-ui);
+}
+
+.rp-rank__name {
+  font-size: var(--type-heading);
+  font-weight: var(--weight-heading);
+  line-height: var(--leading-heading);
+}
+
+/* ---- Patch ---- */
+
+.rp-patch {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 9em;
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-text);
+  text-align: center;
+}
+
+.rp-patch__disc {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  color: var(--text-on-accent);
+}
+
+/* Earned: full colour with a stitched ring, like embroidery. */
+.rp-patch[data-state='earned'] .rp-patch__disc {
+  background: var(--rp-patch);
+  border: 4px solid var(--rp-patch);
+  outline: 2px dashed var(--text-on-accent);
+  outline-offset: -10px;
+}
+
+/* Not yet: an outline only. */
+.rp-patch[data-state='not-yet'] .rp-patch__disc {
+  border: 3px dashed var(--rp-patch);
+  color: var(--rp-patch);
+}
+
+.rp-patch__disc svg {
+  width: 40px;
+  height: 40px;
+}
+
+.rp-patch__caption {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--type-ui);
+  line-height: var(--leading-ui);
+}
+
+.rp-patch__name {
+  font-weight: var(--weight-label);
+}
+
+.rp-patch__detail {
+  color: var(--text-soft);
+}
+
+/* ---- Orbit dock ---- */
+
+.rp-orbit {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  max-width: min(34em, 100%);
+  font-family: var(--font-text);
+}
+
+.rp-orbit__portrait {
+  flex: none;
+  width: 72px;
+  height: 72px;
+}
+
+.rp-orbit__talk {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.rp-orbit__bubble {
+  margin: 0;
+  min-width: 0;
+  transform-origin: left bottom;
+  transition:
+    opacity var(--dur-panel) var(--ease-out),
+    transform var(--dur-panel) var(--ease-out);
+}
+
+.rp-orbit[data-state='idle'] .rp-orbit__bubble {
+  opacity: 0;
+  transform: scale(0.9);
+  visibility: hidden;
+}
+
+.rp-orbit__listen {
+  flex: none;
+}
+
+/* ---- Hotspot ---- */
+
+.rp-hotspot {
+  display: inline-block;
+  flex: none;
+  width: var(--target-min);
+  height: var(--target-min);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-on-accent);
+  cursor: pointer;
+}
+
+.rp-hotspot__ring,
+.rp-hotspot__pulse {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+}
+
+/* A dark outline round the cyan ring, so it shows on bright sky and dark rock alike. */
+.rp-hotspot__ring {
+  border: 3px solid var(--holo-cyan);
+  box-shadow: 0 0 0 2px var(--space-950);
+}
+
+.rp-hotspot:focus-visible .rp-hotspot__ring {
+  border-width: 6px;
+}
+
+.rp-hotspot__pulse {
+  background: var(--holo-cyan);
+  opacity: 0.35;
+}
+
+.rp-hotspot[data-state='new'] .rp-hotspot__pulse {
+  animation: rp-pulse 1.6s var(--ease-in-out) infinite;
+}
+
+@keyframes rp-pulse {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.6);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+}
+
+.rp-hotspot[data-state='found'] .rp-hotspot__pulse {
+  background: var(--done-mint);
+  opacity: 1;
+}
+
+.rp-hotspot[data-state='found'] .rp-hotspot__ring {
+  border-color: var(--done-mint);
+}
+
+.rp-hotspot__tick {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+}
+
+.rp-hotspot[data-state='found'] .rp-hotspot__tick {
+  display: grid;
+}
+
+.rp-hotspot__chip {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  display: none;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--glass-fill-strong);
+  color: var(--text-primary);
+  font-family: var(--font-text);
+  font-size: var(--type-ui);
+  font-weight: var(--weight-ui);
+  white-space: nowrap;
+}
+
+.rp-hotspot[data-state='found'] .rp-hotspot__chip {
+  display: block;
 }
 
 /* ---- Reduced motion: a cut, no transition and no animation (section 8). The global rule in
