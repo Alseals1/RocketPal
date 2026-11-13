@@ -97,25 +97,26 @@ test.describe('keyboard', () => {
     await openGallery(page);
     // One Tab stop per enabled button, and one for the segmented control (its checked option).
     const expected = await page.evaluate(() =>
-      [...document.querySelectorAll<HTMLElement>('.rp-pressable')].filter((el) => el.tabIndex >= 0 && !(el as HTMLButtonElement).disabled).length,
+      [...document.querySelectorAll<HTMLElement>('.rp-pressable')].filter((el) => el.tabIndex >= 0 && !(el as HTMLButtonElement).disabled && el.getClientRects().length > 0).length,
     );
-    const reached = new Set<string>();
+    const reached: number[] = [];
     for (let i = 0; i < expected; i++) {
       await page.keyboard.press('Tab');
       const ring = await page.evaluate(() => {
         const el = document.activeElement as HTMLElement;
         const style = getComputedStyle(el);
         const gap = getComputedStyle(el, '::before');
-        return { key: el.dataset.testid ?? el.textContent?.trim() ?? '', pressable: el.classList.contains('rp-pressable'), width: style.outlineWidth, color: style.outlineColor, style: style.outlineStyle, gap: gap.opacity };
+        return { key: [...document.querySelectorAll('.rp-pressable')].indexOf(el), pressable: el.classList.contains('rp-pressable'), width: style.outlineWidth, color: style.outlineColor, style: style.outlineStyle, gap: gap.opacity };
       });
       expect(ring.pressable, `stop ${i} is a component`).toBe(true);
       expect(ring.width).toBe('3px');
       expect(ring.style).toBe('solid');
       expect(ring.color).toBe(CYAN);
       expect(ring.gap, 'the dark gap shows').toBe('1');
-      reached.add(ring.key);
+      reached.push(ring.key);
     }
-    expect(reached.size).toBe(expected);
+    expect(new Set(reached).size, 'every stop is a different part').toBe(expected);
+    expect(reached, 'in page order').toEqual([...reached].sort((a, b) => a - b));
     expect(errors).toEqual([]);
   });
 
@@ -304,4 +305,150 @@ test('the game build does not link to the test page', async ({ page }) => {
   await page.goto('/?debug=1&quality=low');
   const links = await page.evaluate(() => [...document.querySelectorAll('a[href], link[href], script[src]')].map((el) => el.getAttribute('href') ?? el.getAttribute('src')));
   expect(links.some((l) => l?.includes('gallery'))).toBe(false);
+});
+
+test.describe('tiles, stars, bars, badges, Orbit and hotspots', () => {
+  test('tile states have words, not only colour', async ({ page }) => {
+    const errors = watchForErrors(page);
+    await openGallery(page);
+    const locked = page.getByTestId('tile-locked');
+    await expect(locked).toHaveAttribute('aria-disabled', 'true');
+    await expect(locked).toContainText('Find 3 things on Mars'); // the condition is shown and read
+    await expect(locked).toHaveAccessibleName(/Jupiter.*Find 3 things on Mars.*Locked/);
+    await expect(page.getByTestId('tile-done')).toHaveAccessibleName(/Moon.*Done/);
+    await expect(page.getByTestId('tile-new')).toHaveAccessibleName(/Saturn.*New/);
+    await expect(page.getByTestId('tile-selected')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('tile-rest')).toHaveAttribute('aria-pressed', 'false');
+    // Locked tiles can still be reached by keyboard, so the condition can be read.
+    expect(await locked.evaluate((el) => (el as HTMLButtonElement).disabled)).toBe(false);
+    expect(errors).toEqual([]);
+  });
+
+  test('the star row says how many stars for screen readers, and a new star pops in', async ({ page }) => {
+    await openGallery(page);
+    for (const n of [0, 1, 2, 3]) {
+      const row = page.getByTestId(`stars-${n}`);
+      await expect(row).toHaveAttribute('role', 'img');
+      await expect(row).toHaveAccessibleName(`${n} of 3 stars`);
+      await expect(row.locator('.rp-star--filled')).toHaveCount(n);
+      await expect(row.locator('.rp-star--outline')).toHaveCount(3 - n);
+    }
+    await page.getByTestId('stars-earn').click();
+    const earning = page.getByTestId('stars-earning');
+    await expect(earning).toHaveAccessibleName('2 of 3 stars');
+    await expect(earning.locator('[data-new]')).toHaveCount(1);
+    expect(await earning.locator('[data-new]').evaluate((el) => getComputedStyle(el).animationName)).toBe('rp-star-pop');
+  });
+
+  test('progress bars tell screen readers their values', async ({ page }) => {
+    await openGallery(page);
+    const xp = page.getByRole('progressbar', { name: 'XP to the next rank' });
+    await expect(xp).toHaveAttribute('aria-valuemin', '0');
+    await expect(xp).toHaveAttribute('aria-valuemax', '100');
+    await expect(xp).toHaveAttribute('aria-valuenow', '40');
+    await expect(xp).toHaveAttribute('aria-valuetext', '40 of 100 XP');
+    const chapter = page.getByRole('progressbar', { name: 'Chapter progress' });
+    await expect(chapter).toHaveAttribute('aria-valuenow', '2');
+    await expect(chapter).toHaveAttribute('aria-valuemax', '5');
+    await expect(chapter.locator('.rp-progress__tick')).toHaveCount(4);
+    // The fill moves by transform, not width.
+    const fill = await xp.locator('.rp-progress__fill').evaluate((el) => getComputedStyle(el).transform);
+    expect(fill).toBe('matrix(0.4, 0, 0, 1, 0, 0)');
+  });
+
+  test('instruments use tabular numbers, and scanlines only on high quality', async ({ page }) => {
+    await openGallery(page);
+    const value = page.getByTestId('instrument').locator('.rp-instrument__value');
+    expect(await value.evaluate((el) => getComputedStyle(el).fontVariantNumeric)).toBe('tabular-nums');
+    const label = page.getByTestId('instrument').locator('.rp-instrument__label');
+    expect(await label.evaluate((el) => getComputedStyle(el).textTransform)).toBe('uppercase');
+    expect(await page.getByTestId('instrument-highlighted').locator('.rp-instrument__value').evaluate((el) => getComputedStyle(el).color)).toBe(CYAN);
+    const scan = () => page.getByTestId('instrument').evaluate((el) => getComputedStyle(el, '::after').display);
+    expect(await scan()).not.toBe('none');
+    await openGallery(page, '?quality=low');
+    expect(await scan()).toBe('none');
+  });
+
+  test('a new rank shimmers once on high quality, and never on low quality or with reduced motion', async ({ page }) => {
+    const shine = () =>
+      page.getByTestId('rank-new').locator('.rp-rank__shine').evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { name: s.animationName, count: s.animationIterationCount, display: s.display };
+      });
+    await openGallery(page);
+    expect(await shine()).toEqual({ name: 'rp-shimmer', count: '1', display: 'block' });
+    expect(await page.getByTestId('rank').locator('.rp-rank__shine').evaluate((el) => getComputedStyle(el).animationName)).toBe('none');
+    await expect(page.getByTestId('rank-new')).toContainText('Rank 3');
+    await expect(page.getByTestId('rank-new')).toContainText('Star Navigator');
+
+    await openGallery(page, '?quality=low');
+    expect((await shine()).display).toBe('none');
+    await openGallery(page, '?motion=reduced');
+    expect((await shine()).name).toBe('none');
+  });
+
+  test('patches say earned or not yet in words', async ({ page }) => {
+    await openGallery(page);
+    await expect(page.getByTestId('patch-earned')).toContainText('Earned 12 November 2026');
+    await expect(page.getByTestId('patch-not-yet')).toContainText('Not yet: Find 3 things from the Space Station');
+  });
+
+  test("Orbit's bubble is read politely, Listen hands over the words, and idle fades it out but keeps it in the tree", async ({ page }) => {
+    const errors = watchForErrors(page);
+    await openGallery(page);
+    const talking = page.getByTestId('orbit-talking');
+    await expect(talking.locator('.rp-orbit__bubble')).toHaveAttribute('aria-live', 'polite');
+    await expect(talking.locator('.rp-orbit__portrait')).toHaveAttribute('src', '/images/orbit-neutral.png');
+    await expect(page.getByTestId('orbit-happy').locator('.rp-orbit__portrait')).toHaveAttribute('src', '/images/orbit-happy.png');
+    await talking.getByRole('button', { name: 'Listen to Orbit' }).click();
+    await expect(page.getByTestId('orbit-heard')).toHaveText("Hi, I'm Orbit! Tap the glowing dots.");
+    // Idle: no words and no Listen button, but the live region stays in the accessibility tree (faded, not hidden),
+    // so the next line is announced.
+    const idle = page.getByTestId('orbit-idle');
+    const idleBubble = idle.locator('.rp-orbit__bubble');
+    await expect(idleBubble).toHaveText('');
+    await expect(idleBubble).toHaveCSS('opacity', '0');
+    await expect(idleBubble).toHaveCSS('visibility', 'visible');
+    await expect(idleBubble).toHaveCSS('display', 'block');
+    await expect(idleBubble).toHaveAttribute('aria-live', 'polite');
+    await expect(idle.getByRole('button')).toBeHidden();
+    // Orbit wakes up: the same live region gets the words and fades in.
+    await page.getByTestId('orbit-wake').click();
+    await expect(idleBubble).toHaveText('Welcome back, pilot!');
+    await expect(idleBubble).toHaveCSS('opacity', '1');
+    await expect(idle.getByRole('button', { name: 'Listen to Orbit' })).toBeVisible();
+    // Orbit's 72 px portrait loads.
+    const size = await talking.locator('.rp-orbit__portrait').evaluate((img) => [(img as HTMLImageElement).naturalWidth > 0, img.getBoundingClientRect().width]);
+    expect(size).toEqual([true, 72]);
+    expect(errors).toEqual([]);
+  });
+
+  test('hotspots are 56 px, pulse while new, stop with reduced motion, and show found with a tick and a label', async ({ page }) => {
+    await openGallery(page);
+    const fresh = page.getByTestId('hotspot-new');
+    const box = (await fresh.boundingBox())!;
+    expect([box.width, box.height]).toEqual([56, 56]);
+    await expect(fresh).toHaveAccessibleName('The edge of Jezero Crater');
+    expect(await fresh.locator('.rp-hotspot__pulse').evaluate((el) => getComputedStyle(el).animationName)).toBe('rp-pulse');
+
+    const found = page.getByTestId('hotspot-found');
+    await expect(found).toHaveAccessibleName('Dust devil, found');
+    await expect(found.locator('.rp-hotspot__tick')).toBeVisible();
+    await expect(found.locator('.rp-hotspot__chip')).toHaveText('Dust devil');
+    expect(await found.locator('.rp-hotspot__pulse').evaluate((el) => getComputedStyle(el).animationName)).toBe('none');
+
+    // Keyboard focus thickens the ring.
+    const ringWidth = () => fresh.locator('.rp-hotspot__ring').evaluate((el) => getComputedStyle(el).borderTopWidth);
+    expect(await ringWidth()).toBe('3px');
+    await fresh.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect(fresh).toBeFocused();
+    expect(await ringWidth()).toBe('6px');
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('hotspot-pressed')).toHaveText('new');
+
+    await openGallery(page, '?motion=reduced');
+    expect(await page.getByTestId('hotspot-new').locator('.rp-hotspot__pulse').evaluate((el) => getComputedStyle(el).animationName)).toBe('none');
+  });
 });

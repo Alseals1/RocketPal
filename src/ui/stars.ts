@@ -1,8 +1,13 @@
 /** Shows 0 to 3 stars. Filled and empty stars differ in shape, not only colour, and a screen reader hears the number in words. */
 export const MAX_STARS = 3;
 
+/** A whole number of stars from 0 to MAX_STARS. */
+export function clampStars(stars: number): number {
+  return Math.max(0, Math.min(MAX_STARS, Math.floor(stars)));
+}
+
 export function setStars(el: HTMLElement, stars: number): void {
-  const n = Math.max(0, Math.min(MAX_STARS, Math.floor(stars)));
+  const n = clampStars(stars);
   el.textContent = '★'.repeat(n) + '☆'.repeat(MAX_STARS - n);
   el.setAttribute('role', 'img');
   el.setAttribute('aria-label', `${n} of ${MAX_STARS} stars`);
