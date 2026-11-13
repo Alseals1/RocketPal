@@ -3,5 +3,384 @@
  *
  * Built only from tokens (src/ui/styles/tokens.css). Every class starts with `rp-`, so today's
  * screens are untouched until the M4-M8 screens use these. Only transform and opacity animate
- * (section 8). The components arrive in the next parts of #21.
+ * (section 8): glows change through a pseudo-element's opacity, never by animating box-shadow.
+ * Factories that build the markup are in src/ui/components/.
  */
+
+.rp-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---- Focus ring: 3 px cyan with a 2 px dark gap, on every pressable part ---- */
+
+.rp-pressable {
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rp-pressable:focus {
+  outline: none;
+}
+
+.rp-pressable:focus-visible {
+  outline: var(--focus-ring-width) solid var(--holo-cyan);
+  outline-offset: var(--focus-ring-gap);
+}
+
+/* The dark gap between the part and the ring, so the ring shows on gold, glass and photos alike. */
+.rp-pressable::before {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * var(--focus-ring-gap));
+  border: var(--focus-ring-gap) solid var(--space-950);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.rp-pressable:focus-visible::before {
+  opacity: 1;
+}
+
+/* ---- Glass panel ---- */
+
+.rp-glass {
+  position: relative;
+  box-sizing: border-box;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--radius-card);
+  background: var(--glass-highlight), var(--glass-fill);
+  box-shadow: var(--shadow-panel);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  color: var(--text-primary);
+  font-family: var(--font-text);
+  font-size: var(--type-body);
+  font-weight: var(--weight-body);
+  line-height: var(--leading-body);
+}
+
+.rp-glass--hud {
+  box-shadow: none;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-chip);
+}
+
+.rp-glass--card {
+  border-radius: var(--radius-card);
+}
+
+/* A sheet comes up from the bottom on phones (compact, short) and from the side on wider screens. */
+.rp-glass--sheet {
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+@media (min-width: 600px) and (min-height: 520px) {
+  .rp-glass--sheet {
+    border-radius: var(--radius-sheet) 0 0 var(--radius-sheet);
+    max-height: none;
+  }
+}
+
+.rp-glass--dialog {
+  background: var(--glass-highlight), var(--glass-fill-strong);
+}
+
+/* Low quality: no blur, and every panel uses the strong fill so text stays readable. */
+:root[data-quality='low'] .rp-glass {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--glass-highlight), var(--glass-fill-strong);
+}
+
+/* ---- Buttons ---- */
+
+.rp-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  margin: 0;
+  padding: var(--space-2) var(--space-5);
+  border: 0;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-text);
+  font-size: var(--type-ui);
+  font-weight: var(--weight-label);
+  line-height: var(--leading-ui);
+  text-align: center;
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+
+.rp-button__icon {
+  display: inline-flex;
+  flex: none;
+}
+
+/* The hover glow: a pseudo-element whose opacity changes. */
+.rp-button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-quick) var(--ease-out);
+}
+
+.rp-button:hover:not(:disabled)::after {
+  opacity: 1;
+}
+
+.rp-button:active:not(:disabled) {
+  transform: translateY(2px) scale(0.97);
+}
+
+.rp-button:disabled {
+  cursor: default;
+}
+
+/* Primary: the one main action on a screen. Gold pill, navy text, a deeper-gold bottom edge, a soft glow. */
+.rp-button--primary {
+  min-height: var(--target-main);
+  padding-inline: var(--space-6);
+  background: var(--signal-gold);
+  color: var(--text-on-accent);
+  box-shadow: 0 4px 0 var(--signal-gold-deep);
+}
+
+.rp-button--primary::after {
+  box-shadow: var(--glow-gold);
+}
+
+.rp-button--primary:active:not(:disabled) {
+  box-shadow: 0 2px 0 var(--signal-gold-deep);
+}
+
+/* Disabled is an outline, never greyed-out text. */
+.rp-button--primary:disabled {
+  background: transparent;
+  color: var(--signal-gold);
+  box-shadow: inset 0 0 0 2px var(--signal-gold);
+}
+
+/* Secondary: glass pill, 1.5 px cyan edge, white text. */
+.rp-button--secondary {
+  background: var(--glass-fill);
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1.5px var(--holo-cyan);
+}
+
+.rp-button--secondary::after {
+  box-shadow: var(--glow-cyan);
+}
+
+.rp-button--secondary:disabled {
+  background: transparent;
+  color: var(--text-soft);
+  box-shadow: inset 0 0 0 1.5px var(--text-soft);
+}
+
+/* Icon: a 56 px glass circle. The words are hidden but read by screen readers. */
+.rp-button--icon {
+  width: var(--target-min);
+  height: var(--target-min);
+  padding: 0;
+  border-radius: 50%;
+  background: var(--glass-fill-light);
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+}
+
+.rp-button--icon::after {
+  box-shadow: var(--glow-cyan);
+}
+
+.rp-button--icon:disabled {
+  color: var(--text-soft);
+}
+
+/* ---- Segmented control ---- */
+
+.rp-segmented {
+  --rp-count: 2;
+  --rp-index: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--rp-count), minmax(0, 1fr));
+  gap: 0;
+  padding: var(--space-1);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--radius-card);
+  background: var(--glass-fill);
+  font-family: var(--font-text);
+}
+
+.rp-segmented__thumb {
+  position: absolute;
+  top: var(--space-1);
+  bottom: var(--space-1);
+  left: var(--space-1);
+  width: calc((100% - 2 * var(--space-1)) / var(--rp-count));
+  border-radius: calc(var(--radius-card) - var(--space-1));
+  background: var(--signal-gold);
+  transform: translateX(calc(var(--rp-index) * 100%));
+  transition: transform var(--dur-quick) var(--ease-out);
+  pointer-events: none;
+}
+
+.rp-segmented__option {
+  min-width: 0;
+  min-height: var(--target-min);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: calc(var(--radius-card) - var(--space-1));
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-text);
+  font-size: var(--type-ui);
+  font-weight: var(--weight-ui);
+  line-height: var(--leading-ui);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: opacity var(--dur-quick) var(--ease-out);
+}
+
+.rp-segmented__option[aria-checked='true'] {
+  color: var(--text-on-accent);
+  font-weight: var(--weight-label);
+}
+
+/* ---- Dialog and scrim ---- */
+
+.rp-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--layer-dialog);
+  display: flex;
+  padding: var(--gutter);
+  overflow-y: auto;
+  background: var(--scrim);
+  opacity: 0;
+  transition: opacity var(--dur-panel) var(--ease-out);
+}
+
+.rp-scrim[data-open] {
+  opacity: 1;
+}
+
+.rp-dialog {
+  --rp-world: var(--signal-gold);
+  width: min(32em, 100%);
+  margin: auto;
+  padding: var(--space-5);
+  border-radius: var(--radius-card);
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity var(--dur-panel) var(--ease-out),
+    transform var(--dur-panel) var(--ease-out);
+}
+
+.rp-scrim[data-open] .rp-dialog {
+  opacity: 1;
+  transform: none;
+}
+
+/* The title is large text (30 px, 600), so world colours meet the 3:1 large-text bar (tests/contrast.test.ts). */
+.rp-dialog__title {
+  margin: 0 0 var(--space-3);
+  color: var(--rp-world);
+  font-family: var(--font-display);
+  font-size: var(--type-title);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-title);
+}
+
+.rp-dialog__title:focus {
+  outline: none;
+}
+
+.rp-dialog__body p {
+  margin: 0 0 var(--space-3);
+}
+
+.rp-dialog__source {
+  margin: 0 0 var(--space-4);
+  color: var(--text-soft);
+  font-size: var(--type-ui);
+}
+
+.rp-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* ---- Toast ---- */
+
+.rp-toast-region {
+  position: fixed;
+  top: var(--gutter);
+  left: 50%;
+  z-index: var(--layer-toast);
+  transform: translateX(-50%);
+  max-width: calc(100% - 2 * var(--gutter));
+  pointer-events: none;
+}
+
+.rp-toast {
+  margin: 0;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-pill);
+  font-size: var(--type-ui);
+  font-weight: var(--weight-ui);
+  line-height: var(--leading-ui);
+  text-align: center;
+  opacity: 0;
+  transform: translateY(calc(-1 * var(--space-3)));
+  transition:
+    opacity var(--dur-quick) var(--ease-out),
+    transform var(--dur-quick) var(--ease-out);
+}
+
+.rp-toast[data-visible] {
+  opacity: 1;
+  transform: none;
+}
+
+.rp-toast:empty {
+  visibility: hidden;
+}
+
+/* ---- Reduced motion: a cut, no transition and no animation (section 8). The global rule in
+   src/style.css does this for the game; the gallery loads only tokens and components, so it is here too. ---- */
+
+:root[data-reduced-motion='true'] [class*='rp-'],
+:root[data-reduced-motion='true'] [class*='rp-']::before,
+:root[data-reduced-motion='true'] [class*='rp-']::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduced-motion]) [class*='rp-'],
+  :root:not([data-reduced-motion]) [class*='rp-']::before,
+  :root:not([data-reduced-motion]) [class*='rp-']::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

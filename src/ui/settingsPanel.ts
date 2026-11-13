@@ -7,6 +7,7 @@ import {
   type Settings,
   type TextSize,
 } from '../core/settings';
+import { nextRadioIndex } from './components/radioKeys';
 import { focusGameArea, keepTabInside } from './focus';
 
 const TEXT_SIZE_LABELS: Record<TextSize, string> = { normal: 'Normal', big: 'Big', huge: 'Extra big' };
@@ -124,12 +125,8 @@ export class SettingsPanel {
       const radios = [...group.querySelectorAll<HTMLButtonElement>('.choice')];
       const at = radios.indexOf(document.activeElement as HTMLButtonElement);
       if (at < 0) return;
-      const move: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
-      let next: number;
-      if (e.code in move) next = (at + move[e.code] + radios.length) % radios.length;
-      else if (e.code === 'Home') next = 0;
-      else if (e.code === 'End') next = radios.length - 1;
-      else return;
+      const next = nextRadioIndex(at, e.code, radios.length);
+      if (next === undefined) return;
       e.preventDefault();
       e.stopPropagation();
       radios[next].focus();
