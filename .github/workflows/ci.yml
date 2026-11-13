@@ -6,6 +6,10 @@ name: CI
 on:
   pull_request:
     branches: [dev]
+    # The default types plus "edited" (a stack part re-targeted to dev must be
+    # tested against dev; G.O.A.T.'s autopilot waits for this run before it
+    # merges) and "ready_for_review" (a draft marked ready).
+    types: [opened, synchronize, reopened, edited, ready_for_review]
   push:
     branches: [dev]
 
