@@ -336,3 +336,28 @@ test('while the settings panel is open the rocket does not steer or boost behind
   await page.keyboard.up('KeyD');
   expect((await yaw()) - before).toBeLessThan(-0.2);
 });
+
+test('settings saved by the old version load, and are saved again in the new format with the new fields', async ({ page }) => {
+  const errors = watchForErrors(page);
+  await start(page);
+  await page.evaluate(() =>
+    localStorage.setItem('rocketpals.settings', JSON.stringify({ version: 1, textSize: 'huge', reducedMotion: 'on' })),
+  );
+  await page.reload();
+  await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
+  expect(await rootFontSize(page)).toBe(27);
+  expect(await debug(page, (h) => h.isReducedMotion())).toBe(true);
+
+  await open(page);
+  await choose(page, 'Big');
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('rocketpals.settings')!));
+  expect(stored).toEqual({
+    version: 2,
+    textSize: 'big',
+    reducedMotion: 'on',
+    volume: { effects: 0.8, music: 0.5, voice: 1 },
+    assist: 'full',
+    boost: 'hold',
+  });
+  expect(errors).toEqual([]);
+});

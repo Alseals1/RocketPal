@@ -11,6 +11,8 @@ import { focusGameArea, keepTabInside } from './focus';
 
 const TEXT_SIZE_LABELS: Record<TextSize, string> = { normal: 'Normal', big: 'Big', huge: 'Extra big' };
 const MOTION_LABELS: Record<MotionChoice, string> = { system: 'Same as my computer', on: 'On', off: 'Off' };
+/** The settings this panel shows. The others (volume, assist, boost) pass through unchanged. */
+type PanelKey = 'textSize' | 'reducedMotion';
 
 /** Makes the page match the settings: text size and reduced motion. Safe to call again and again. */
 export function applySettingsToPage(settings: Settings, systemPrefersReduced: boolean): boolean {
@@ -100,7 +102,7 @@ export class SettingsPanel {
     focusGameArea(this.parent);
   }
 
-  private fill<K extends keyof Settings>(key: K, values: Settings[K][], labels: Record<string, string>): void {
+  private fill<K extends PanelKey>(key: K, values: Settings[K][], labels: Record<string, string>): void {
     const group = this.panel.querySelector(`[data-group="${key}"]`)!;
     for (const value of values) {
       const choice = document.createElement('button');
@@ -135,7 +137,7 @@ export class SettingsPanel {
     });
   }
 
-  private select<K extends keyof Settings>(key: K, value: Settings[K]): void {
+  private select<K extends PanelKey>(key: K, value: Settings[K]): void {
     this.settings = { ...this.settings, [key]: value };
     this.refresh();
     this.onChange({ ...this.settings });
@@ -143,7 +145,7 @@ export class SettingsPanel {
 
   private refresh(): void {
     this.panel.querySelectorAll<HTMLElement>('.choice').forEach((choice) => {
-      const key = choice.dataset.key as keyof Settings;
+      const key = choice.dataset.key as PanelKey;
       const selected = this.settings[key] === choice.dataset.value;
       choice.setAttribute('aria-checked', String(selected));
       choice.tabIndex = selected ? 0 : -1;
