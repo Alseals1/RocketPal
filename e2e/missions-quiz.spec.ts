@@ -4,8 +4,13 @@ import { fontsReady } from './fonts.ts';
 import { oldWindowEarnsMission } from './old-save-path.ts';
 
 interface QuizFile {
-  quizzes: { worldId: string; questions: { question: string; because: string; hotspot: string; options: { text: string; correct: boolean }[] }[] }[];
+  pools: {
+    place: string;
+    format: string;
+    questions: { id: string; level: number; question: string; because: string; hotspot: string; options: { text: string; correct: boolean }[] }[];
+  }[];
 }
+type PoolQuestion = QuizFile['pools'][number]['questions'][number];
 interface MissionFile {
   missions: { id: string; place: string; title: string; done: string; teaser: { text: string; place: string } }[];
 }
@@ -16,10 +21,46 @@ const surfaceFile = JSON.parse(readFileSync('public/data/surfaces.json', 'utf8')
 const dotTitle = (world: string, id: string) => surfaceFile.surfaces.find((x) => x.worldId === world)!.hotspots.find((h) => h.id === id)!.title;
 const quizzes = JSON.parse(readFileSync('public/data/quizzes.json', 'utf8')) as QuizFile;
 const missions = JSON.parse(readFileSync('public/data/missions.json', 'utf8')) as MissionFile;
-const quizOf = (world: string) => quizzes.quizzes.find((q) => q.worldId === world)!.questions;
+const poolOf = (world: string) => quizzes.pools.find((p) => p.place === world)!.questions;
 const missionOf = (world: string) => missions.missions.find((m) => m.place === world)!;
-const rightIndex = (world: string, q: number) => quizOf(world)[q].options.findIndex((o) => o.correct);
-const wrongIndexes = (world: string, q: number) => [0, 1, 2].filter((i) => i !== rightIndex(world, q));
+
+// Each quiz is a fresh draw from the world's pool, in a shuffled order, so the tests read the card to know what it asks.
+
+/** The pool question on the quiz card now, found by its text. */
+async function shownQuestion(page: Page, world: string): Promise<PoolQuestion> {
+  const text = (await page.getByTestId('quiz-question').textContent())?.trim();
+  const question = poolOf(world).find((q) => q.question === text);
+  if (!question) throw new Error(`"${text}" is not a ${world} question`);
+  return question;
+}
+
+/** The three answers on the card now, as written (read them before one is picked: a wrong pick adds "not quite"). */
+const shownOptions = (page: Page) => Promise.all([0, 1, 2].map(async (i) => (await page.getByTestId(`quiz-option-${i}`).textContent())!.trim()));
+
+/** Where the right answer to the question on the card is. */
+async function rightIndexShown(page: Page, world: string): Promise<number> {
+  const right = (await shownQuestion(page, world)).options.find((o) => o.correct)!.text;
+  const index = (await shownOptions(page)).indexOf(right);
+  if (index < 0) throw new Error(`the right answer "${right}" is not on the card`);
+  return index;
+}
+
+const wrongIndexesShown = async (page: Page, world: string) => {
+  const right = await rightIndexShown(page, world);
+  return [0, 1, 2].filter((i) => i !== right);
+};
+
+/** What the card asks right now: each question's id and its answers in the order shown. */
+async function readQuiz(page: Page, world: string): Promise<{ id: string; level: number; options: string[] }[]> {
+  const seen: { id: string; level: number; options: string[] }[] = [];
+  for (let q = 0; q < 3; q++) {
+    await expect(page.getByTestId('quiz-step')).toHaveText(`Question ${q + 1} of 3`);
+    const { id, level } = await shownQuestion(page, world);
+    seen.push({ id, level, options: await shownOptions(page) });
+    await answerRight(page, world);
+  }
+  return seen;
+}
 
 /** The dots found to finish each mission (the first three on each world). */
 const DOTS: Record<string, string[]> = { mars: ['rim', 'ground', 'sky'], earth: ['aurora', 'air', 'clouds'] };
@@ -92,15 +133,16 @@ async function finishMission(page: Page, world: string) {
   await expect(page.getByTestId('quiz-time')).toBeVisible();
 }
 
-/** Answers question `q` right on the first try, then moves on. */
-async function answerRight(page: Page, world: string, q: number) {
-  await page.getByTestId(`quiz-option-${rightIndex(world, q)}`).click();
-  await expect(page.getByTestId('quiz-because')).toHaveText(quizOf(world)[q].because);
+/** Answers the question on the card right (on the first try, unless a wrong one was picked already), then moves on. */
+async function answerRight(page: Page, world: string) {
+  const question = await shownQuestion(page, world);
+  await page.getByTestId(`quiz-option-${await rightIndexShown(page, world)}`).click();
+  await expect(page.getByTestId('quiz-because')).toHaveText(question.because);
   await page.getByTestId('quiz-next').click();
 }
 
 async function takeQuizPerfectly(page: Page, world: string) {
-  for (let q = 0; q < 3; q++) await answerRight(page, world, q);
+  for (let q = 0; q < 3; q++) await answerRight(page, world);
 }
 
 const starsText = (page: Page) => page.getByTestId('stars').getAttribute('aria-label');
@@ -188,32 +230,37 @@ test.describe('the quiz', () => {
     await page.getByTestId('quiz-time').click();
     await expect(page.getByTestId('quiz-card')).toBeVisible();
 
+    const asked = new Set<string>();
     for (let q = 0; q < 3; q++) {
       await expect(page.getByTestId('quiz-step')).toHaveText(`Question ${q + 1} of 3`);
-      await expect(page.getByTestId('quiz-question')).toHaveText(quizOf('mars')[q].question);
-      for (let i = 0; i < 3; i++) await expect(page.getByTestId(`quiz-option-${i}`)).toHaveText(quizOf('mars')[q].options[i].text);
+      const shown = await shownQuestion(page, 'mars'); // a question from the Mars pool
+      expect(asked.has(shown.id), `${shown.id} is asked once`).toBe(false);
+      asked.add(shown.id);
+      // Its own three answers, in some order.
+      expect((await shownOptions(page)).sort()).toEqual(shown.options.map((o) => o.text).sort());
       await expect(page.getByTestId('quiz-next')).toBeHidden();
+      const rightAt = await rightIndexShown(page, 'mars');
 
       if (q === 0) {
         // Try every wrong answer: each one greys out with a word and a mark, nothing ends, the right one still works.
-        for (const wrong of wrongIndexes('mars', 0)) {
+        for (const wrong of [0, 1, 2].filter((i) => i !== rightAt)) {
           const option = page.getByTestId(`quiz-option-${wrong}`);
           await option.click();
           await expect(option).toContainText('not quite');
           await expect(option).toContainText('✗');
           await expect(option).toHaveAttribute('aria-disabled', 'true');
           await expect(page.getByTestId('quiz-feedback')).toContainText('Not quite. Try another one!');
-          await expect(page.getByTestId('quiz-feedback')).toContainText(`Hint: the \u201c${dotTitle('mars', quizOf('mars')[0].hotspot)}\u201d dot has the answer.`);
+          await expect(page.getByTestId('quiz-feedback')).toContainText(`Hint: the \u201c${dotTitle('mars', shown.hotspot)}\u201d dot has the answer.`);
           await expect(page.getByTestId('quiz-feedback')).toContainText('You can look at it after the quiz.');
           await expect(page.getByTestId('quiz-card')).toBeVisible();
           await expect(page.getByTestId('quiz-step')).toHaveText('Question 1 of 3');
         }
       }
-      const right = page.getByTestId(`quiz-option-${rightIndex('mars', q)}`);
+      const right = page.getByTestId(`quiz-option-${rightAt}`);
       await right.click();
       await expect(right).toContainText('✓');
       await expect(page.getByTestId('quiz-feedback')).toHaveText('Yes! That is right!');
-      await expect(page.getByTestId('quiz-because')).toHaveText(quizOf('mars')[q].because);
+      await expect(page.getByTestId('quiz-because')).toHaveText(shown.because);
       await expect(page.getByTestId('quiz-next')).toHaveText(q < 2 ? 'Next question' : 'See my stars');
       await page.getByTestId('quiz-next').click();
     }
@@ -234,10 +281,10 @@ test.describe('the quiz', () => {
 
     // First go: a slip on question 2.
     await page.getByTestId('quiz-time').click();
-    await answerRight(page, 'mars', 0);
-    await page.getByTestId(`quiz-option-${wrongIndexes('mars', 1)[0]}`).click();
-    await answerRight(page, 'mars', 1);
-    await answerRight(page, 'mars', 2);
+    await answerRight(page, 'mars');
+    await page.getByTestId(`quiz-option-${(await wrongIndexesShown(page, 'mars'))[0]}`).click();
+    await answerRight(page, 'mars');
+    await answerRight(page, 'mars');
     await expect(page.getByTestId('quiz-stars')).toHaveAttribute('aria-label', '2 of 3 stars');
 
     // Replay perfectly: the bonus arrives.
@@ -251,10 +298,10 @@ test.describe('the quiz', () => {
 
     // Replay badly: nothing is taken away.
     await page.getByTestId('quiz-again').click();
-    await page.getByTestId(`quiz-option-${wrongIndexes('mars', 0)[0]}`).click();
-    await answerRight(page, 'mars', 0);
-    await answerRight(page, 'mars', 1);
-    await answerRight(page, 'mars', 2);
+    await page.getByTestId(`quiz-option-${(await wrongIndexesShown(page, 'mars'))[0]}`).click();
+    await answerRight(page, 'mars');
+    await answerRight(page, 'mars');
+    await answerRight(page, 'mars');
     await expect(page.getByTestId('quiz-stars')).toHaveAttribute('aria-label', '3 of 3 stars');
     await expect(page.getByTestId('quiz-feedback')).toHaveText('You have all 3 stars on this world!');
     expect(await stars(page, 'mars')).toBe(3);
@@ -273,7 +320,7 @@ test.describe('the quiz', () => {
     await expect(page.getByTestId('quiz-option-0')).toBeFocused(); // and Tab goes to the first answer
 
     for (let q = 0; q < 3; q++) {
-      await page.getByTestId(`quiz-option-${rightIndex('earth', q)}`).focus();
+      await page.getByTestId(`quiz-option-${await rightIndexShown(page, 'earth')}`).focus();
       await page.keyboard.press('Enter');
       await expect(page.getByTestId('quiz-next')).toBeFocused(); // focus moves to what to do next
       await page.keyboard.press('Enter');
@@ -297,7 +344,7 @@ test.describe('the quiz', () => {
       expect(await page.evaluate(() => !!document.activeElement?.closest('.quiz-card'))).toBe(true);
     }
 
-    await answerRight(page, 'mars', 0); // part way through
+    await answerRight(page, 'mars'); // part way through
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('quiz-card')).toBeHidden();
     expect(await stars(page, 'mars')).toBe(1); // nothing finished, nothing earned
@@ -323,7 +370,7 @@ test.describe('the quiz', () => {
     }
 
     // And again on the next question, where focus also starts on the heading.
-    await answerRight(page, 'mars', 0);
+    await answerRight(page, 'mars');
     await expect(page.getByTestId('quiz-question')).toBeFocused();
     await page.keyboard.press('Shift+Tab');
     expect(await page.evaluate(() => !!document.activeElement?.closest('.quiz-card'))).toBe(true);
@@ -352,14 +399,16 @@ test.describe('the quiz', () => {
     await page.getByTestId('quiz-time').click();
 
     const spoken = () => page.evaluate(() => (window as unknown as { __utterances: { text: string }[] }).__utterances.map((u) => u.text));
+    const shown = await shownQuestion(page, 'mars');
     await page.getByTestId('quiz-listen').click();
     const first = (await spoken()).at(-1)!;
-    expect(first).toContain(quizOf('mars')[0].question);
-    for (const option of quizOf('mars')[0].options) expect(first).toContain(option.text);
+    expect(first).toContain(shown.question);
+    // The answers are read in the order they are shown.
+    expect(first).toContain((await shownOptions(page)).join('. '));
 
-    await page.getByTestId(`quiz-option-${rightIndex('mars', 0)}`).click();
+    await page.getByTestId(`quiz-option-${await rightIndexShown(page, 'mars')}`).click();
     await page.getByTestId('quiz-listen').click();
-    expect((await spoken()).at(-1)).toContain(quizOf('mars')[0].because);
+    expect((await spoken()).at(-1)).toContain(shown.because);
   });
 
   test('Listen reads the hint after a wrong answer', async ({ page }) => {
@@ -367,11 +416,12 @@ test.describe('the quiz', () => {
     await finishMission(page, 'mars');
     await page.getByTestId('quiz-time').click();
 
-    await page.getByTestId(`quiz-option-${wrongIndexes('mars', 0)[0]}`).click();
+    const shown = await shownQuestion(page, 'mars');
+    await page.getByTestId(`quiz-option-${(await wrongIndexesShown(page, 'mars'))[0]}`).click();
     await page.getByTestId('quiz-listen').click();
     const said = await page.evaluate(() => (window as unknown as { __utterances: { text: string }[] }).__utterances.at(-1)!.text);
-    expect(said).toContain(`Hint: the \u201c${dotTitle('mars', quizOf('mars')[0].hotspot)}\u201d dot has the answer.`);
-    expect(said).toContain(quizOf('mars')[0].question);
+    expect(said).toContain(`Hint: the \u201c${dotTitle('mars', shown.hotspot)}\u201d dot has the answer.`);
+    expect(said).toContain(shown.question);
   });
 
   test('Back to space on the result card leaves, and the quiz is closed when you come back', async ({ page }) => {
@@ -387,6 +437,54 @@ test.describe('the quiz', () => {
     await expect(page.getByTestId('quiz-card')).toBeHidden();
     await expect(page.getByTestId('quiz-time')).toBeVisible(); // the mission is remembered
   });
+
+  test('Play again draws a new quiz: other questions, or the same ones in another order', async ({ page }) => {
+    const errors = watchForErrors(page);
+    await startAndLand(page, 'mars');
+    await finishMission(page, 'mars');
+    await page.getByTestId('quiz-time').click();
+    let last = await readQuiz(page, 'mars');
+    for (let go = 0; go < 2; go++) {
+      await page.getByTestId('quiz-again').click();
+      const next = await readQuiz(page, 'mars');
+      expect(JSON.stringify(next), `go ${go + 2} is not the same as the one before`).not.toBe(JSON.stringify(last));
+      last = next;
+    }
+    // Closing and opening again with Quiz time draws a new one too.
+    await page.getByTestId('quiz-close').click();
+    await page.getByTestId('quiz-time').click();
+    expect(JSON.stringify(await readQuiz(page, 'mars'))).not.toBe(JSON.stringify(last));
+    expect(errors).toEqual([]);
+  });
+
+  test('a new pilot only gets the easier questions (levels 1 and 2)', async ({ page }) => {
+    await startAndLand(page, 'earth');
+    await finishMission(page, 'earth');
+    await page.getByTestId('quiz-time').click();
+    for (let go = 0; go < 3; go++) {
+      if (go > 0) await page.getByTestId('quiz-again').click();
+      for (const { id, level } of await readQuiz(page, 'earth')) expect(level, id).toBeLessThanOrEqual(2);
+    }
+  });
+
+  test('from rank 5, every quiz has exactly one harder question (level 3)', async ({ page }) => {
+    const errors = watchForErrors(page);
+    // Ranks that come quickly, so finding the mission's dots is enough to reach rank 5 and up.
+    const progression = JSON.parse(readFileSync('public/data/progression.json', 'utf8')) as { ranks: { xp: number }[] };
+    progression.ranks.forEach((r, i) => (r.xp = i));
+    await page.route('**/data/progression.json', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(progression) }),
+    );
+    await startAndLand(page, 'mars');
+    await finishMission(page, 'mars');
+    await page.getByTestId('quiz-time').click();
+    for (let go = 0; go < 3; go++) {
+      if (go > 0) await page.getByTestId('quiz-again').click();
+      const levels = (await readQuiz(page, 'mars')).map((q) => q.level);
+      expect(levels.filter((l) => l === 3), levels.join()).toHaveLength(1);
+    }
+    expect(errors).toEqual([]);
+  });
 });
 
 test.describe('for screen readers and small hands', () => {
@@ -396,15 +494,18 @@ test.describe('for screen readers and small hands', () => {
     await page.getByTestId('quiz-time').click();
     for (let q = 0; q < 3; q++) {
       await expect(page.getByTestId('quiz-question')).toBeFocused();
-      await expect(page.getByTestId('quiz-question')).toHaveText(quizOf('mars')[q].question);
+      await expect(page.getByTestId('quiz-step')).toHaveText(`Question ${q + 1} of 3`);
+      await shownQuestion(page, 'mars'); // the heading is a Mars question
       if (q === 0) {
-        const wrong = page.getByTestId(`quiz-option-${wrongIndexes('mars', 0)[0]}`);
+        const wrongAt = (await wrongIndexesShown(page, 'mars'))[0];
+        const wrongText = (await shownOptions(page))[wrongAt];
+        const wrong = page.getByTestId(`quiz-option-${wrongAt}`);
         await wrong.click();
         await expect(wrong.locator('.quiz-mark')).toHaveAttribute('aria-hidden', 'true');
         // A screen reader hears the words, not the cross: "<answer> - not quite".
-        await expect(wrong).toHaveAccessibleName(`${quizOf('mars')[0].options[wrongIndexes('mars', 0)[0]].text} \u2013 not quite`);
+        await expect(wrong).toHaveAccessibleName(`${wrongText} \u2013 not quite`);
       }
-      await answerRight(page, 'mars', q);
+      await answerRight(page, 'mars');
     }
   });
 
@@ -417,7 +518,7 @@ test.describe('for screen readers and small hands', () => {
     await page.evaluate((right) => {
       (document.querySelector(`[data-testid=quiz-option-${right}]`) as HTMLElement).click();
       (document.querySelector('[data-testid=quiz-next]') as HTMLElement).click();
-    }, rightIndex('mars', 0));
+    }, await rightIndexShown(page, 'mars'));
     await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
 
     await expect(page.getByTestId('quiz-step')).toHaveText('Question 2 of 3');
@@ -435,7 +536,7 @@ test.describe('for screen readers and small hands', () => {
       const el = document.querySelector('[data-testid=quiz-feedback]')!;
       new MutationObserver(() => w.__seen.push(el.textContent ?? '')).observe(el, { childList: true, characterData: true, subtree: true });
     });
-    const [first, second] = wrongIndexes('mars', 0);
+    const [first, second] = await wrongIndexesShown(page, 'mars');
     await page.getByTestId(`quiz-option-${first}`).click();
     await expect(page.getByTestId('quiz-feedback')).toContainText('Not quite');
     await page.getByTestId(`quiz-option-${second}`).click();
@@ -452,7 +553,7 @@ test.describe('for screen readers and small hands', () => {
     await startAndLand(page, 'mars');
     await finishMission(page, 'mars');
     await page.getByTestId('quiz-time').click();
-    await answerRight(page, 'mars', 0);
+    await answerRight(page, 'mars');
     await expect(page.getByTestId('quiz-step')).toHaveText('Question 2 of 3');
     await page.mouse.click(5, 300); // outside the card, on the dim backdrop
     await expect(page.getByTestId('quiz-card')).toBeVisible();
@@ -669,7 +770,7 @@ test.describe('when the data is missing', () => {
     // The game logs which quiz it left out: that one message is expected here.
     const errors = watchForErrors(page, [/Some quizzes were left out:\nmars|Failed to load/]);
     await page.route('**/data/quizzes.json', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: '{"lastChecked":"2026-10-23","quizzes":[{"worldId":"mars","questions":[]}]}' }),
+      route.fulfill({ status: 200, contentType: 'application/json', body: '{"lastChecked":"2026-10-23","pools":[{"place":"mars","format":"quiz","questions":[]}]}' }),
     );
     await startAndLand(page, 'mars');
     await expect(page.getByTestId('quiz-time')).toBeHidden();
@@ -749,7 +850,7 @@ test.describe('on small screens with the biggest text', () => {
 
       // Every answer can be reached (scrolled into view) and used.
       for (let q = 0; q < 3; q++) {
-        const option = page.getByTestId(`quiz-option-${rightIndex('earth', q)}`);
+        const option = page.getByTestId(`quiz-option-${await rightIndexShown(page, 'earth')}`);
         await option.scrollIntoViewIfNeeded();
         await option.click();
         const next = page.getByTestId('quiz-next');

@@ -1,5 +1,6 @@
 import type { Speaker } from '../audio/speech';
-import { createQuizRun, type QuizQuestion, type QuizRun } from '../quiz/quiz';
+import type { QuizQuestion } from '../data/quizzes';
+import { createQuizRun, type QuizRun } from '../quiz/quiz';
 import { keepTabInside } from './focus';
 import { MAX_STARS, setStars } from './stars';
 
@@ -26,7 +27,8 @@ export class QuizPanel {
 
   constructor(
     parent: HTMLElement,
-    private readonly questions: QuizQuestion[],
+    /** Draws the questions for one go. Called on every open, so a replay is a new quiz. */
+    private readonly draw: () => QuizQuestion[],
     private readonly teaser: string,
     /** The title of each dot by id, so a wrong answer can point the kid to where the answer is. */
     private readonly dotTitles: Record<string, string>,
@@ -76,9 +78,9 @@ export class QuizPanel {
     return !this.overlay.hidden;
   }
 
-  /** Starts a fresh go at the quiz. */
+  /** Starts a fresh go at the quiz, with a new draw of questions. */
   open(): void {
-    this.run = createQuizRun(this.questions);
+    this.run = createQuizRun(this.draw());
     this.speaker.stop();
     this.speaker.reset();
     this.overlay.hidden = false;

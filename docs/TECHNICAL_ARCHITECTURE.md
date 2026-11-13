@@ -336,11 +336,15 @@ export interface QuestionPool {
 }
 export interface PoolQuestion extends QuizQuestionData { level: 1 | 2 | 3 }
 
-/** Pure, seeded. Picks the run's questions for the rank and shuffles the answers. */
+/** Pure, seeded. Picks the run's questions for the rank (never two on one dot) and shuffles the answers. */
 export function drawQuestions(pool: QuestionPool, rank: number, seed: number): QuizQuestion[];
+/** drawQuestions from `seed`, `seed + 1`, ... (at most 20 tries) until the draw differs from `last`. */
+export function drawDifferent(pool: QuestionPool, rank: number, seed: number, last?: readonly QuizQuestion[]): { questions: QuizQuestion[]; seed: number };
+/** quiz: draw 3 from 6-9; postcard: draw 1 from 2-4. From rank 5 a quiz has exactly one level-3 question. */
+export const POOL_RULES = { quiz: { draw: 3, min: 6, max: 9 }, postcard: { draw: 1, min: 2, max: 4 }, level3FromRank: 5 };
 ```
 
-Every existing content check (the right answer backed by its dot's words, and so on) runs on every question in every pool.
+Every existing content check (the right answer backed by its dot's words, and so on) runs on every question in every pool. A bad question is left out on its own; a pool is left out only when it can no longer fill a draw. `QuizQuestion` lives here too, and the seed comes from the arrival screen (decisions/2026-11-13-question-pools.md).
 
 ### 4.11 Screens (`src/app/screens.ts`)
 

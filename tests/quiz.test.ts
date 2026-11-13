@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createQuizRun, type QuizQuestion } from '../src/quiz/quiz';
+import type { QuizQuestion } from '../src/data/quizzes';
+import { createQuizRun } from '../src/quiz/quiz';
 
 /** Three questions; the right answers sit at options 1, 0 and 2. */
 function questions(): QuizQuestion[] {

@@ -1,32 +1,13 @@
 {
   "lastChecked": "2026-10-23",
-  "quizzes": [
+  "pools": [
     {
-      "worldId": "mars",
+      "place": "mars",
+      "format": "quiz",
       "questions": [
         {
-          "id": "mars-red",
-          "question": "Why does the ground on Mars look red?",
-          "options": [
-            {
-              "text": "Red paint on the rocks",
-              "correct": false
-            },
-            {
-              "text": "Iron in the dirt that rusts",
-              "correct": true
-            },
-            {
-              "text": "Red grass that grows there",
-              "correct": false
-            }
-          ],
-          "because": "The iron rusts, a bit like an old bike left in the rain.",
-          "hotspot": "ground",
-          "evidence": "the iron rusts"
-        },
-        {
           "id": "mars-rover",
+          "level": 1,
           "question": "What is Perseverance?",
           "options": [
             {
@@ -48,6 +29,7 @@
         },
         {
           "id": "mars-lake",
+          "level": 1,
           "question": "Long ago, rivers poured into Jezero Crater. What did they make?",
           "options": [
             {
@@ -66,35 +48,214 @@
           "because": "Rivers made a lake there more than 3.5 billion years ago!",
           "hotspot": "rim",
           "evidence": "made a lake"
+        },
+        {
+          "id": "mars-sky",
+          "level": 1,
+          "question": "What floats in the thin air on Mars?",
+          "options": [
+            {
+              "text": "Lots of dust",
+              "correct": true
+            },
+            {
+              "text": "Lots of birds",
+              "correct": false
+            },
+            {
+              "text": "Lots of bubbles",
+              "correct": false
+            }
+          ],
+          "because": "Mars has thin air with lots of dust floating in it.",
+          "hotspot": "sky",
+          "evidence": "lots of dust floating"
+        },
+        {
+          "id": "mars-sky-color",
+          "level": 2,
+          "question": "How would the sky on Mars look to our eyes?",
+          "options": [
+            {
+              "text": "Clear and blue",
+              "correct": false
+            },
+            {
+              "text": "Hazy and red",
+              "correct": true
+            },
+            {
+              "text": "Dark green",
+              "correct": false
+            }
+          ],
+          "because": "The dust makes the sky look hazy and red, not blue like on Earth.",
+          "hotspot": "sky",
+          "evidence": "hazy and red"
+        },
+        {
+          "id": "mars-photos",
+          "level": 2,
+          "question": "How many photos were joined to make this picture?",
+          "options": [
+            {
+              "text": "12",
+              "correct": false
+            },
+            {
+              "text": "500",
+              "correct": false
+            },
+            {
+              "text": "142",
+              "correct": true
+            }
+          ],
+          "because": "Perseverance took them on its third day on Mars.",
+          "hotspot": "photo",
+          "evidence": "made of 142 photos"
+        },
+        {
+          "id": "mars-lake-age",
+          "level": 2,
+          "question": "How long ago did rivers make a lake in Jezero Crater?",
+          "options": [
+            {
+              "text": "More than 3.5 billion years ago",
+              "correct": true
+            },
+            {
+              "text": "About 100 years ago",
+              "correct": false
+            },
+            {
+              "text": "Last summer",
+              "correct": false
+            }
+          ],
+          "because": "Long ago, rivers poured into this crater and made a lake.",
+          "hotspot": "rim",
+          "evidence": "more than 3.5 billion years ago"
+        },
+        {
+          "id": "mars-red",
+          "level": 3,
+          "question": "Why does the ground on Mars look red?",
+          "options": [
+            {
+              "text": "Red paint on the rocks",
+              "correct": false
+            },
+            {
+              "text": "Iron in the dirt that rusts",
+              "correct": true
+            },
+            {
+              "text": "Red grass that grows there",
+              "correct": false
+            }
+          ],
+          "because": "The iron rusts, a bit like an old bike left in the rain.",
+          "hotspot": "ground",
+          "evidence": "the iron rusts"
+        },
+        {
+          "id": "mars-rover-job",
+          "level": 3,
+          "question": "Why does Perseverance collect pieces of rock?",
+          "options": [
+            {
+              "text": "To build a house",
+              "correct": false
+            },
+            {
+              "text": "To study them",
+              "correct": true
+            },
+            {
+              "text": "To feed its pets",
+              "correct": false
+            }
+          ],
+          "because": "It is looking for signs of ancient life.",
+          "hotspot": "rover",
+          "evidence": "collects pieces of rock to study"
         }
       ]
     },
     {
-      "worldId": "earth",
+      "place": "earth",
+      "format": "quiz",
       "questions": [
         {
-          "id": "earth-aurora",
-          "question": "What makes Earth's air glow in an aurora?",
+          "id": "earth-air",
+          "level": 1,
+          "question": "What is Earth's air mostly made of?",
           "options": [
             {
-              "text": "Bright lights from big cities",
+              "text": "Nitrogen and oxygen",
+              "correct": true
+            },
+            {
+              "text": "Dust and smoke from big fires",
               "correct": false
             },
             {
-              "text": "Fireflies flying high up in space",
+              "text": "Steam and sand",
+              "correct": false
+            }
+          ],
+          "because": "It is mostly nitrogen and oxygen, so we can breathe.",
+          "hotspot": "air",
+          "evidence": "mostly nitrogen and oxygen"
+        },
+        {
+          "id": "earth-aurora-oxygen",
+          "level": 1,
+          "question": "What gas makes this aurora glow green?",
+          "options": [
+            {
+              "text": "Helium",
               "correct": false
             },
             {
-              "text": "Tiny charged bits from the Sun",
+              "text": "Oxygen",
+              "correct": true
+            },
+            {
+              "text": "Smoke",
+              "correct": false
+            }
+          ],
+          "because": "Green comes from oxygen. Tiny charged bits from the Sun make the air glow.",
+          "hotspot": "aurora",
+          "evidence": "green comes from oxygen"
+        },
+        {
+          "id": "earth-clouds",
+          "level": 1,
+          "question": "What are these clouds floating over?",
+          "options": [
+            {
+              "text": "A sandy desert",
+              "correct": false
+            },
+            {
+              "text": "A snowy mountain",
+              "correct": false
+            },
+            {
+              "text": "The Indian Ocean",
               "correct": true
             }
           ],
-          "because": "They are called the solar wind. The green comes from oxygen.",
-          "hotspot": "aurora",
-          "evidence": "tiny charged bits from the sun"
+          "because": "Most of our planet is covered in water!",
+          "hotspot": "clouds",
+          "evidence": "floating over the indian ocean"
         },
         {
           "id": "earth-orbit",
+          "level": 2,
           "question": "How often does the space station go all the way around Earth?",
           "options": [
             {
@@ -115,25 +276,114 @@
           "evidence": "about every 90 minutes"
         },
         {
-          "id": "earth-air",
-          "question": "What is Earth's air mostly made of?",
+          "id": "earth-oceans",
+          "level": 2,
+          "question": "How much of Earth do oceans cover?",
           "options": [
             {
-              "text": "Nitrogen and oxygen",
+              "text": "About 71 percent",
               "correct": true
             },
             {
-              "text": "Dust and smoke from big fires",
+              "text": "About 10 percent",
               "correct": false
             },
             {
-              "text": "Steam and sand",
+              "text": "None of it",
               "correct": false
             }
           ],
-          "because": "It is mostly nitrogen and oxygen, so we can breathe.",
+          "because": "Earth's oceans cover about 71 percent of the planet.",
+          "hotspot": "clouds",
+          "evidence": "about 71 percent"
+        },
+        {
+          "id": "earth-arrays",
+          "level": 2,
+          "question": "How many main solar arrays does the space station have?",
+          "options": [
+            {
+              "text": "2",
+              "correct": false
+            },
+            {
+              "text": "8",
+              "correct": true
+            },
+            {
+              "text": "50",
+              "correct": false
+            }
+          ],
+          "because": "Together they give the station power.",
+          "hotspot": "array",
+          "evidence": "8 main solar arrays"
+        },
+        {
+          "id": "earth-height",
+          "level": 2,
+          "question": "How high up was the space station when this photo was taken?",
+          "options": [
+            {
+              "text": "5 miles",
+              "correct": false
+            },
+            {
+              "text": "269 miles",
+              "correct": true
+            },
+            {
+              "text": "2,000 miles",
+              "correct": false
+            }
+          ],
+          "because": "An astronaut took this photo from the space station.",
+          "hotspot": "about",
+          "evidence": "269 miles above the indian ocean"
+        },
+        {
+          "id": "earth-aurora",
+          "level": 3,
+          "question": "What makes Earth's air glow in an aurora?",
+          "options": [
+            {
+              "text": "Bright lights from big cities",
+              "correct": false
+            },
+            {
+              "text": "Fireflies flying high up in space",
+              "correct": false
+            },
+            {
+              "text": "Tiny charged bits from the Sun",
+              "correct": true
+            }
+          ],
+          "because": "They are called the solar wind. The green comes from oxygen.",
+          "hotspot": "aurora",
+          "evidence": "tiny charged bits from the sun"
+        },
+        {
+          "id": "earth-air-shield",
+          "level": 3,
+          "question": "How does Earth's air help keep us safe?",
+          "options": [
+            {
+              "text": "It makes the Sun go away",
+              "correct": false
+            },
+            {
+              "text": "It shields us from harmful radiation",
+              "correct": true
+            },
+            {
+              "text": "It keeps out all the rain",
+              "correct": false
+            }
+          ],
+          "because": "It also shields us from much of the harmful radiation from the Sun.",
           "hotspot": "air",
-          "evidence": "mostly nitrogen and oxygen"
+          "evidence": "shields us from much of the harmful radiation"
         }
       ]
     }

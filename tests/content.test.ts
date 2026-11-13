@@ -49,7 +49,9 @@ describe('buildContent with the shipped files', () => {
     const files = realFiles();
     const built = buildContent(files);
     expect(built.arrivals.get('mars')).toBe(entry(files.surfaces.surfaces, 'mars'));
-    expect(built.quizzes.get('earth')).toBe(entry(files.quizzes.quizzes, 'earth'));
+    // A question pool is rebuilt with only its good questions, but holds the questions themselves.
+    expect(built.quizzes.get('earth')).toEqual(entry(files.quizzes.pools, 'earth'));
+    expect(built.quizzes.get('earth')!.questions[0]).toBe(entry(files.quizzes.pools, 'earth').questions[0]);
     expect(built.missions.get('find-3-mars')).toBe(entry(files.missions.missions, 'find-3-mars'));
     expect(built.worlds.get('moon')).toBe(entry(files.planets.worlds, 'moon'));
   });
@@ -112,12 +114,28 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
 
   it('a broken quiz: only that quiz is missing', () => {
     const files = realFiles();
-    entry(files.quizzes.quizzes, 'mars').questions = [];
+    entry(files.quizzes.pools, 'mars').questions = [];
     const content = buildContent(files);
-    expect(content.problems).toEqual(['quizzes.json: mars: needs exactly 3 questions']);
+    expect(content.problems).toEqual([
+      'quizzes.json: mars: needs 6 to 9 questions (has 0)',
+      'quizzes.json: mars: needs good questions on at least 3 different dots at level 1 or 2 to make a quiz (has 0)',
+    ]);
     expect(keys(content.quizzes)).toEqual(['earth']);
     expect(content.missions.size).toBe(2);
     expect(content.arrivals.size).toBe(2);
+  });
+
+  it('a bad question: only that question is missing, and the rest of its quiz still loads', () => {
+    const files = realFiles();
+    const mars = entry(files.quizzes.pools, 'mars');
+    mars.questions.find((q: any) => q.id === 'mars-sky').hotspot = 'no-such-dot';
+    const content = buildContent(files);
+    expect(content.problems).toEqual(['quizzes.json: mars/mars-sky: hotspot "no-such-dot" is not a dot on mars']);
+    expect(keys(content.quizzes).sort()).toEqual(['earth', 'mars']);
+    const ids = content.quizzes.get('mars')!.questions.map((q) => q.id);
+    expect(ids).toEqual(mars.questions.map((q: any) => q.id).filter((id: string) => id !== 'mars-sky'));
+    expect(content.missions.size).toBe(2);
+    expect(error.mock.calls.map((c) => String(c[0]))).toEqual(['Some quizzes were left out:\nmars/mars-sky: hotspot "no-such-dot" is not a dot on mars']);
   });
 
   it('a broken mission: only that mission is missing', () => {
@@ -182,13 +200,13 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
 
   it('keeps the first copy of a quiz or mission that is listed twice, and the first find mission at a place', () => {
     const files = realFiles();
-    const marsQuiz = entry(files.quizzes.quizzes, 'mars');
+    const marsQuiz = entry(files.quizzes.pools, 'mars');
     const marsMission = entry(files.missions.missions, 'find-3-mars');
-    files.quizzes.quizzes.push(structuredClone(marsQuiz));
+    files.quizzes.pools.push({ ...structuredClone(marsQuiz), questions: marsQuiz.questions.slice(0, 6) });
     files.missions.missions.push({ ...structuredClone(marsMission), title: 'A second Mars mission' });
     files.missions.missions.push({ ...structuredClone(marsMission), id: 'find-2-mars' });
     const content = buildContent(files);
-    expect(content.quizzes.get('mars')).toBe(marsQuiz);
+    expect(content.quizzes.get('mars')).toEqual(marsQuiz); // the first copy: all 8 questions
     expect(content.missions.get('find-3-mars')).toBe(marsMission);
     expect(keys(content.missions)).toEqual(['find-3-mars', 'find-3-earth']);
     expect(content.problems).toEqual([
@@ -312,13 +330,13 @@ describe('buildContent with the progression rules', () => {
 describe('buildContent tells the console what it left out', () => {
   it('one message per file, with the same wording as before', () => {
     const files = realFiles();
-    entry(files.quizzes.quizzes, 'mars').questions = [];
+    entry(files.quizzes.pools, 'mars').questions = [];
     entry(files.planets.worlds, 'neptune').hook = '';
     buildContent(files);
     const messages = error.mock.calls.map((c) => String(c[0]));
     expect(messages).toEqual([
       'Some worlds were left out:\nneptune: hook is required\nneptune: world is missing',
-      'Some quizzes were left out:\nmars: needs exactly 3 questions',
+      'Some quizzes were left out:\nmars: needs 6 to 9 questions (has 0)\nmars: needs good questions on at least 3 different dots at level 1 or 2 to make a quiz (has 0)',
     ]);
   });
 
