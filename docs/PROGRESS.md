@@ -27,9 +27,9 @@ Last updated: 2026-11-13.
 
 | Check | Result |
 | --- | --- |
-| `npm test` (Vitest) | 681 passed (2026-11-13, #40) |
-| `npm run test:e2e` (Playwright) | 169 tests: all pass on macOS (2026-11-13, #40); in CI 4 are expected failures (Linux font) and 1 is skipped |
-| `npm run build` | Clean. 675 KB first-load JavaScript (177 KB gzipped); Howler is a separate 36 KB chunk loaded on the first tap or key (#41), and GLTFLoader a separate 45 KB chunk loaded after the first frame (#40) |
+| `npm test` (Vitest) | 736 passed (2026-11-13, #21 part 1 with #40) |
+| `npm run test:e2e` (Playwright) | 175 tests: 171 pass and 4 screenshot-only tests are skipped on macOS (2026-11-13, #21 part 1). The 4 Linux-font expected failures are gone: the game now ships its own fonts |
+| `npm run build` | Clean. 677 KB first-load JavaScript (178 KB gzipped); Howler is a separate 36 KB chunk loaded on the first tap or key (#41), and GLTFLoader a separate 45 KB chunk loaded after the first frame (#40) |
 | CI | GitHub Actions `Tests and build` on PRs into `dev` and pushes to `dev`, about 5-7 minutes (#27). First play 758 kB of the 15 MB budget |
 | Chromebook | Not measured yet. Guide ready (#28) |
 
