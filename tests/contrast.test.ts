@@ -82,6 +82,16 @@ describe('non-text contrast (3:1 or more)', () => {
   });
 });
 
+describe('dialog titles in the world colour (large text, 3:1 or more)', () => {
+  const worlds = (Object.keys(COLORS) as ColorToken[]).filter((k) => k.startsWith('world'));
+  it('covers all eleven worlds', () => expect(worlds.length).toBe(11));
+  for (const world of worlds) {
+    it(`${world} on glassFillStrong`, () => {
+      expect(worstRatio(world, 'glassFillStrong')).toBeGreaterThanOrEqual(3);
+    });
+  }
+});
+
 describe('the section 4.1 table', () => {
   const overWhite = (fg: ColorToken, bg: ColorToken) => ratio(parse(COLORS[fg]), over(parse(COLORS[bg]), WHITE));
   const cases: [ColorToken, ColorToken, number][] = [

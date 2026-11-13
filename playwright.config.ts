@@ -28,5 +28,7 @@ export default defineConfig({
     // If the port is taken, --strictPort makes the run fail loudly instead.
     reuseExistingServer: false,
     timeout: 120_000,
+    // Builds the component test page too (gallery/components.html, vite.config.ts).
+    env: { ...(Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== undefined)) as Record<string, string>), RP_GALLERY: '1' },
   },
 });

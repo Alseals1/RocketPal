@@ -1,0 +1,59 @@
+/* Layout of the component test page only (gallery/components.html). Tokens only, like every stylesheet. */
+
+html,
+body {
+  margin: 0;
+  background: var(--space-950);
+  color: var(--text-primary);
+  font-family: var(--font-text);
+  font-size: var(--type-body);
+}
+
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--gutter);
+}
+
+.gallery h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--type-title);
+  font-weight: var(--weight-title);
+}
+
+.gallery-section > h2 {
+  margin: 0 0 var(--space-3);
+  color: var(--text-soft);
+  font-size: var(--type-heading);
+  font-weight: var(--weight-heading);
+}
+
+.gallery-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+/* Two backdrops behind the glass: a dark space picture and pure white (the worst case for contrast). */
+.gallery-backdrop {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16em, 100%), 1fr));
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-card);
+}
+
+.gallery-backdrop--space {
+  background: radial-gradient(circle at 20% 30%, var(--nebula-violet), transparent 60%), radial-gradient(circle at 80% 70%, var(--nebula-teal), transparent 55%), var(--space-900);
+}
+
+.gallery-backdrop--white {
+  background: var(--text-primary);
+}
+
+.gallery-backdrop p {
+  margin: 0;
+}
