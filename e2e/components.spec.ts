@@ -393,7 +393,7 @@ test.describe('tiles, stars, bars, badges, Orbit and hotspots', () => {
     await expect(page.getByTestId('patch-not-yet')).toContainText('Not yet: Find 3 things from the Space Station');
   });
 
-  test("Orbit's bubble is read politely, Listen hands over the words, and idle has no bubble", async ({ page }) => {
+  test("Orbit's bubble is read politely, Listen hands over the words, and idle fades it out but keeps it in the tree", async ({ page }) => {
     const errors = watchForErrors(page);
     await openGallery(page);
     const talking = page.getByTestId('orbit-talking');
@@ -402,8 +402,21 @@ test.describe('tiles, stars, bars, badges, Orbit and hotspots', () => {
     await expect(page.getByTestId('orbit-happy').locator('.rp-orbit__portrait')).toHaveAttribute('src', '/images/orbit-happy.png');
     await talking.getByRole('button', { name: 'Listen to Orbit' }).click();
     await expect(page.getByTestId('orbit-heard')).toHaveText("Hi, I'm Orbit! Tap the glowing dots.");
-    await expect(page.getByTestId('orbit-idle').locator('.rp-orbit__bubble')).toBeHidden();
-    await expect(page.getByTestId('orbit-idle').getByRole('button')).toBeHidden();
+    // Idle: no words and no Listen button, but the live region stays in the accessibility tree (faded, not hidden),
+    // so the next line is announced.
+    const idle = page.getByTestId('orbit-idle');
+    const idleBubble = idle.locator('.rp-orbit__bubble');
+    await expect(idleBubble).toHaveText('');
+    await expect(idleBubble).toHaveCSS('opacity', '0');
+    await expect(idleBubble).toHaveCSS('visibility', 'visible');
+    await expect(idleBubble).toHaveCSS('display', 'block');
+    await expect(idleBubble).toHaveAttribute('aria-live', 'polite');
+    await expect(idle.getByRole('button')).toBeHidden();
+    // Orbit wakes up: the same live region gets the words and fades in.
+    await page.getByTestId('orbit-wake').click();
+    await expect(idleBubble).toHaveText('Welcome back, pilot!');
+    await expect(idleBubble).toHaveCSS('opacity', '1');
+    await expect(idle.getByRole('button', { name: 'Listen to Orbit' })).toBeVisible();
     // Orbit's 72 px portrait loads.
     const size = await talking.locator('.rp-orbit__portrait').evaluate((img) => [(img as HTMLImageElement).naturalWidth > 0, img.getBoundingClientRect().width]);
     expect(size).toEqual([true, 72]);

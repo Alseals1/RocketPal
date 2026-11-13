@@ -219,7 +219,9 @@ function tid<T extends HTMLElement>(el: T, id: string): T {
   const talking = createOrbitDock({ text: "Hi, I'm Orbit! Tap the glowing dots.", onListen: (t) => (heard.textContent = t) });
   const happy = createOrbitDock({ text: 'You found it! Great looking.', state: 'happy', onListen: (t) => (heard.textContent = t) });
   const idle = createOrbitDock({ onListen: (t) => (heard.textContent = t) });
-  row.append(tid(talking.element, 'orbit-talking'), tid(happy.element, 'orbit-happy'), tid(idle.element, 'orbit-idle'), heard);
+  const wake = tid(createButton({ kind: 'secondary', label: 'Wake Orbit' }), 'orbit-wake');
+  wake.addEventListener('click', () => idle.say('Welcome back, pilot!'));
+  row.append(tid(talking.element, 'orbit-talking'), tid(happy.element, 'orbit-happy'), tid(idle.element, 'orbit-idle'), wake, heard);
 }
 
 // ---- Hotspot ----

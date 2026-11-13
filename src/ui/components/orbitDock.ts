@@ -1,7 +1,8 @@
 /**
  * Orbit dock: docs/VISUAL_DESIGN.md section 6. Orbit's 72 px portrait, a glass speech bubble that
- * screen readers hear politely, and a Listen button. States: idle (no bubble), talking (the bubble grows
- * in), happy. Read-aloud itself comes later (#34): Listen calls the callback it is given.
+ * screen readers hear politely, and a Listen button. States: idle (the bubble is empty and faded out, but
+ * stays in the accessibility tree so the next line is announced), talking (the bubble grows in), happy.
+ * Read-aloud itself comes later (#34): Listen calls the callback it is given.
  */
 import { createButton, ICONS } from './button';
 

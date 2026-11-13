@@ -827,10 +827,12 @@
     transform var(--dur-panel) var(--ease-out);
 }
 
+/* Opacity and transform only, never visibility or display: the bubble is the live region, and it must stay in the
+   accessibility tree while idle, or a screen reader may miss Orbit's first line when it starts talking again. */
 .rp-orbit[data-state='idle'] .rp-orbit__bubble {
   opacity: 0;
   transform: scale(0.9);
-  visibility: hidden;
+  pointer-events: none;
 }
 
 .rp-orbit__listen {
