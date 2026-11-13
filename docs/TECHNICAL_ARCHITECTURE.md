@@ -336,7 +336,7 @@ export interface QuestionPool {
 }
 export interface PoolQuestion extends QuizQuestionData { level: 1 | 2 | 3 }
 
-/** Pure, seeded. Picks the run's questions for the rank and shuffles the answers. */
+/** Pure, seeded. Picks the run's questions for the rank (never two on one dot) and shuffles the answers. */
 export function drawQuestions(pool: QuestionPool, rank: number, seed: number): QuizQuestion[];
 /** drawQuestions from `seed`, `seed + 1`, ... (at most 20 tries) until the draw differs from `last`. */
 export function drawDifferent(pool: QuestionPool, rank: number, seed: number, last?: readonly QuizQuestion[]): { questions: QuizQuestion[]; seed: number };
