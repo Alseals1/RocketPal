@@ -39,7 +39,7 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
     this.visiting = true;
     ctx.renderer.renderer.domElement.setAttribute('aria-label', surface.description);
     ctx.stage.classList.add('is-surface');
-    ctx.controls.suspendTouchControls(true);
+    ctx.input.setSources(['keyboard']);
 
     this.activeSurface = surface;
     const hud = new SurfaceHud(
@@ -105,7 +105,7 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
     this.surfaceHud?.destroy();
     this.surfaceHud = undefined;
     this.activeSurface = undefined;
-    ctx.controls.suspendTouchControls(false);
+    ctx.input.setSources(['keyboard', 'touchStick']);
   }
 
   pause(): void {} // nothing pauses a screen yet
@@ -115,7 +115,7 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
   update(dt: number): void {
     const { panorama, look } = this;
     if (!panorama?.isLoaded || !look) return;
-    const input = this.ctx.controls.read();
+    const input = this.ctx.input.flight();
     look.step(dt, { turn: input.turn, tilt: input.pitch });
     panorama.setLook(look.state);
     this.surfaceHud?.update((azimuth, elevation) => panorama.project(azimuth, elevation));
