@@ -25,7 +25,7 @@ E2E_PORT=4300 npm run test:e2e
 
 ## Continuous integration
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request into `dev` and every push to `dev`. The check is called **Tests and build**. It runs, in order:
+GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request into `dev` and every push to `dev`. A pull request is tested again when it is opened, gets new commits, is reopened, is edited (including when its base branch changes to `dev`, as for the upper parts of a stacked change) or is marked ready for review. The check is called **Tests and build**. It runs, in order:
 
 1. `npm ci`
 2. `npm test` (unit tests)
