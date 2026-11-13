@@ -1,5 +1,5 @@
 import type { MissionDef } from '../data/missions';
-import type { QuizQuestionData } from '../data/quizzes';
+import type { QuizQuestion } from '../data/quizzes';
 import type { Hotspot, Surface } from '../data/surfaces';
 import type { Speaker } from '../audio/speech';
 import type { ScreenPoint } from '../scene/spaceScene';
@@ -23,7 +23,8 @@ export interface SurfaceCallbacks {
 /** A mission and quiz for this world (left out if their data could not be loaded: the landing still works without them). */
 export interface MissionExtras {
   mission: MissionDef;
-  questions: QuizQuestionData[];
+  /** Draws one go's questions from the world's pool. Called every time the quiz opens. */
+  draw: () => QuizQuestion[];
 }
 
 /** What the kid has earned on this world so far. */
@@ -125,7 +126,7 @@ export class SurfaceHud {
 
     if (extras) {
       const dotTitles = Object.fromEntries(surface.hotspots.map((h) => [h.id, h.title]));
-      this.quizPanel = new QuizPanel(this.root, extras.questions, extras.mission.teaser?.text ?? '', dotTitles, this.speaker, {
+      this.quizPanel = new QuizPanel(this.root, extras.draw, extras.mission.teaser?.text ?? '', dotTitles, this.speaker, {
         onFinished: (perfect) => this.callbacks.onQuizFinished(perfect),
         onBackToSpace: () => this.callbacks.onBack(),
         onClosed: () => {

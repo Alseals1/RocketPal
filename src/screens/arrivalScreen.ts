@@ -1,9 +1,9 @@
 import type { Texture } from 'three';
 import type { ArrivalParams, Screen, ScreenContext, SpaceParams } from '../app/screens';
 import { arrivalPhotoId } from '../assets/manifest';
-import { findMissionAt, type MissionDef } from '../data/missions';
-import type { QuizQuestionData } from '../data/quizzes';
-import type { AssetId, DotId, WorldId } from '../data/ids';
+import { findMissionAt } from '../data/missions';
+import { drawDifferent, type QuestionPool, type QuizQuestion } from '../data/quizzes';
+import type { AssetId, DotId, PlaceId, WorldId } from '../data/ids';
 import type { Surface } from '../data/surfaces';
 import { diffProgression } from '../core/progression';
 import type { LookState } from '../surface/geometry';
@@ -11,7 +11,7 @@ import { windowLookLimits, viewHorizontalFov } from '../surface/geometry';
 import { PanoramaScene } from '../surface/panoramaScene';
 import { LookController } from '../surface/look';
 import { SPACE_VIEW_LABEL } from '../scene/spaceScene';
-import { SurfaceHud } from '../ui/surfaceHud';
+import { SurfaceHud, type MissionExtras } from '../ui/surfaceHud';
 
 /**
  * Standing on a world, looking at a real photograph. Everything it shows is built when you arrive and freed when you
@@ -29,6 +29,13 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
   private photoId?: AssetId;
   /** Counts visits. A picture that finishes loading after the player has left belongs to an old visit and is dropped. */
   private visit = 0;
+  /**
+   * Where the next quiz draw starts. It only decides which questions come up and in which order, never a reward.
+   * Kept with the screen (which outlives a visit), so a replay on a later visit is a new quiz too.
+   */
+  private quizSeed = Math.floor(Math.random() * 2 ** 32);
+  /** The last questions drawn on each place, so the next draw is never the same. */
+  private readonly lastDraw = new Map<PlaceId, QuizQuestion[]>();
 
   constructor(private readonly ctx: ScreenContext) {}
 
@@ -158,10 +165,19 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
   }
 
   /** The mission and quiz for a world, if both exist. A world without them just has no mission. */
-  private missionExtras(worldId: string): { mission: MissionDef; questions: QuizQuestionData[] } | undefined {
+  private missionExtras(worldId: string): MissionExtras | undefined {
     const mission = findMissionAt(this.ctx.content, worldId);
-    const questions = this.ctx.content.quizzes.get(worldId as WorldId)?.questions;
-    return mission && questions ? { mission, questions } : undefined;
+    const pool = this.ctx.content.quizzes.get(worldId as WorldId);
+    return mission && pool ? { mission, draw: () => this.drawQuiz(pool) } : undefined;
+  }
+
+  /** A new set of questions for the pilot's rank right now, never the same as the last one on this place. */
+  private drawQuiz(pool: QuestionPool): QuizQuestion[] {
+    const rank = this.ctx.progression().rank.rank;
+    const { questions, seed } = drawDifferent(pool, rank, this.quizSeed, this.lastDraw.get(pool.place));
+    this.quizSeed = seed + 1;
+    this.lastDraw.set(pool.place, questions);
+    return questions;
   }
 
   /** The world's mission and stars, worked out from the save. */
