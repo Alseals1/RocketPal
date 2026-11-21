@@ -8,13 +8,19 @@ const SOUNDS: SoundDef[] = [
 
 /** A pretend Howler that records every sound made and played. */
 function fakeHowler() {
-  const made: { src: string[]; volume: number }[] = [];
+  const made: { src: string[]; volume: number; preload?: boolean }[] = [];
   const played: { src: string; volume: number }[] = [];
+  const howls: FakeHowl[] = [];
   class FakeHowl {
     private vol: number;
-    constructor(private readonly options: { src: string[]; volume?: number }) {
+    constructor(readonly options: { src: string[]; volume?: number; preload?: boolean; onloaderror?: (id: unknown, e: unknown) => void }) {
       this.vol = options.volume ?? 1;
-      made.push({ src: options.src, volume: this.vol });
+      made.push({ src: options.src, volume: this.vol, preload: options.preload });
+      howls.push(this);
+    }
+    /** The file could not be fetched or decoded, as Howler reports it. */
+    failToLoad() {
+      this.options.onloaderror?.(1, 'Decoding audio data failed.');
     }
     volume(v: number) {
       this.vol = v;
@@ -27,7 +33,7 @@ function fakeHowler() {
   }
   const mod = { Howl: FakeHowl } as unknown as HowlerModule;
   const load = vi.fn(() => Promise.resolve(mod));
-  return { made, played, load };
+  return { made, played, load, howls };
 }
 
 const volumes = { effects: 0.8, music: 0.5, voice: 1 };
@@ -84,12 +90,50 @@ describe('createAudioManager', () => {
     expect(fake.played).toEqual([{ src: '/sound/dot.mp3', volume: 0.5 * 0.8 }]);
   });
 
-  it('makes one Howl per sound and reuses it', async () => {
+  it('makes one Howl per sound as soon as Howler is in, preloading its file, and reuses it', async () => {
     const { audio, fake } = await unlocked();
+    expect(fake.made).toEqual([
+      { src: ['/sound/dot.mp3'], volume: 1, preload: true },
+      { src: ['/sound/theme.mp3'], volume: 1, preload: true },
+    ]);
     audio.play('dot-found');
     audio.play('dot-found');
-    expect(fake.made).toHaveLength(1);
+    expect(fake.made).toHaveLength(2);
     expect(fake.played).toHaveLength(2);
+  });
+
+  it('makes no Howl and fetches no file before unlock()', () => {
+    const fake = fakeHowler();
+    const audio = createAudioManager({ load: fake.load, sounds: SOUNDS, volumes });
+    audio.play('dot-found');
+    audio.setVolume('effects', 1);
+    expect(fake.made).toEqual([]);
+  });
+
+  it('warns once when sound files cannot load, and keeps those sounds silent', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { audio, fake } = await unlocked();
+    for (const howl of fake.howls) howl.failToLoad();
+    audio.play('dot-found');
+    expect(fake.played).toEqual([]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain('Sound is off: a sound file could not load.');
+  });
+
+  it('calls onPlayed only when a sound really plays', async () => {
+    const fake = fakeHowler();
+    const onPlayed = vi.fn();
+    const audio = createAudioManager({ load: fake.load, sounds: SOUNDS, volumes, onPlayed });
+    audio.play('dot-found'); // before unlock
+    audio.unlock();
+    await settle();
+    audio.play('no-such-sound');
+    audio.setVolume('effects', 0);
+    audio.play('dot-found'); // at volume 0
+    expect(onPlayed).not.toHaveBeenCalled();
+    audio.setVolume('effects', 0.5);
+    audio.play('dot-found');
+    expect(onPlayed.mock.calls).toEqual([['dot-found']]);
   });
 
   it('uses the new channel volume after setVolume', async () => {
@@ -106,7 +150,6 @@ describe('createAudioManager', () => {
     audio.play('dot-found');
     audio.play('no-such-sound');
     expect(fake.played).toEqual([]);
-    expect(fake.made).toEqual([]);
   });
 
   it('keeps volumes between 0 and 1', async () => {

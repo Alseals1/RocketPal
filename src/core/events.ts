@@ -1,7 +1,7 @@
 /**
  * Events (docs/TECHNICAL_ARCHITECTURE.md section 4.4). Everything that happens in play is one typed event. Screens
- * publish; the progression recorder (and later audio cues, toasts and the debug log) subscribe.
- * See decisions/2026-11-12-events-conditions-progression.md (D9).
+ * publish; the progression recorder, the sound cues (src/app/sound.ts) and later toasts and the debug log subscribe.
+ * See decisions/2026-11-12-events-conditions-progression.md (D9) and decisions/2026-11-21-sound-effects-and-listen.md.
  */
 import type { ActivityId, CapsuleId, CourseId, DotId, ItemId, MissionId, PlaceId } from '../data/ids';
 
@@ -15,7 +15,8 @@ export type GameEvent =
   | { type: 'rescueDone'; mission: MissionId }
   | { type: 'itemEquipped'; item: ItemId }
   | { type: 'bump' } // for sound and screen feedback only
-  | { type: 'boost'; on: boolean };
+  | { type: 'boost'; on: boolean }
+  | { type: 'answered'; place: PlaceId; correct: boolean }; // a quiz answer, for sound and feedback only (#34); not recorded
 
 export interface EventBus {
   emit(e: GameEvent): void;

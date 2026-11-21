@@ -39,6 +39,36 @@ describe('connectProgression', () => {
     expect(progression()).not.toBe(a);
   });
 
+  it('tells onRecorded listeners what each recorded event earned', () => {
+    const save = createSaveStore(null, null);
+    const { events, onRecorded } = connectProgression(save, content);
+    const seen: { type: string; pages: string[]; stars: number; missions: string[] }[] = [];
+    onRecorded((e, diff) => seen.push({ type: e.type, pages: diff.newPages, stars: diff.newStars.length, missions: diff.missionsDone }));
+    events.emit({ type: 'bump' }); // not recorded: no call
+    events.emit({ type: 'dotFound', dot: 'mars/rim' });
+    events.emit({ type: 'dotFound', dot: 'mars/sky' });
+    events.emit({ type: 'dotFound', dot: 'mars/rover' });
+    events.emit({ type: 'quizFinished', place: 'mars', firstTryAll: false });
+    expect(seen).toEqual([
+      { type: 'dotFound', pages: ['mars/rim'], stars: 0, missions: [] },
+      { type: 'dotFound', pages: ['mars/sky'], stars: 0, missions: [] },
+      { type: 'dotFound', pages: ['mars/rover'], stars: 1, missions: ['find-3-mars'] },
+      { type: 'quizFinished', pages: [], stars: 1, missions: [] },
+    ]);
+  });
+
+  it('gives an empty diff for a recorded event that changed nothing, and stops after unsubscribe', () => {
+    const save = createSaveStore(null, null);
+    const { events, onRecorded } = connectProgression(save, content);
+    events.emit({ type: 'dotFound', dot: 'mars/rim' });
+    const diffs: number[] = [];
+    const stop = onRecorded((_e, diff) => diffs.push(diff.newPages.length + diff.newStars.length + (diff.rankUp ? 1 : 0)));
+    events.emit({ type: 'dotFound', dot: 'mars/rim' }); // a repeat
+    stop();
+    events.emit({ type: 'dotFound', dot: 'mars/sky' });
+    expect(diffs).toEqual([0]);
+  });
+
   it('stops recording once disposed', () => {
     const save = createSaveStore(null, null);
     const { events, dispose } = connectProgression(save, content);

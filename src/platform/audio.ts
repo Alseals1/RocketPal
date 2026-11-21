@@ -28,7 +28,7 @@ interface HowlLike {
   volume(v: number): unknown;
   play(): unknown;
 }
-type HowlConstructor = new (options: { src: string[]; volume?: number; preload?: boolean }) => HowlLike;
+type HowlConstructor = new (options: { src: string[]; volume?: number; preload?: boolean; onloaderror?: (id: unknown, error: unknown) => void }) => HowlLike;
 /** What `import('howler')` gives: `Howl` at the top, or under `default` when the bundler wraps the CommonJS file. */
 export type HowlerModule = { Howl?: HowlConstructor; default?: { Howl?: HowlConstructor } };
 
@@ -39,13 +39,15 @@ export interface AudioOptions {
   /** From an asset id to the URL of its file. */
   url?: (file: AssetId) => string;
   volumes: VolumeSettings;
+  /** Called each time a sound really starts (for the debug handle): not before unlock, not at volume 0. */
+  onPlayed?: (id: SoundId) => void;
 }
 
 const loadHowler = () => import('howler') as unknown as Promise<HowlerModule>;
 
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
 
-export function createAudioManager({ load = loadHowler, sounds = [], url = (file) => file, volumes }: AudioOptions): AudioManager {
+export function createAudioManager({ load = loadHowler, sounds = [], url = (file) => file, volumes, onPlayed }: AudioOptions): AudioManager {
   const defs = new Map(sounds.map((s) => [s.id, s]));
   const volume: Record<Channel, number> = {
     effects: clamp01(volumes.effects),
@@ -53,8 +55,30 @@ export function createAudioManager({ load = loadHowler, sounds = [], url = (file
     voice: clamp01(volumes.voice),
   };
   const howls = new Map<SoundId, HowlLike>();
+  /** Sounds whose file could not load: they stay silent instead of asking for the file again on every play. */
+  const broken = new Set<SoundId>();
   let Howl: HowlConstructor | undefined;
   let started = false;
+  let warnedFile = false;
+
+  /** One Howl per sound, made once Howler is in. Each file is fetched straight away, so the first play is not late. */
+  const preload = (make: HowlConstructor) => {
+    for (const def of defs.values()) {
+      howls.set(
+        def.id,
+        new make({
+          src: [url(def.file)],
+          preload: true,
+          onloaderror: (_id, error) => {
+            broken.add(def.id);
+            if (warnedFile) return;
+            warnedFile = true;
+            console.warn('Sound is off: a sound file could not load.', error);
+          },
+        }),
+      );
+    }
+  };
 
   return {
     unlock() {
@@ -65,22 +89,20 @@ export function createAudioManager({ load = loadHowler, sounds = [], url = (file
           const found = mod.Howl ?? mod.default?.Howl;
           if (!found) throw new Error('the sound player has no Howl');
           Howl = found;
+          preload(found);
         })
         .catch((error: unknown) => console.warn('Sound is off: the sound player could not load.', error));
     },
     play(id) {
       if (!Howl) return; // not unlocked yet, still loading, or the load failed: plays made now are dropped
       const def = defs.get(id);
-      if (!def) return;
+      const howl = howls.get(id);
+      if (!def || !howl || broken.has(id)) return;
       const v = def.volume * volume[def.channel];
       if (v <= 0) return;
-      let howl = howls.get(id);
-      if (!howl) {
-        howl = new Howl({ src: [url(def.file)] });
-        howls.set(id, howl);
-      }
       howl.volume(v);
       howl.play();
+      onPlayed?.(id);
     },
     music() {
       // Phase 2: music. The id is accepted so callers can be written now.

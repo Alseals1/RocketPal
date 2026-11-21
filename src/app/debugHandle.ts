@@ -20,13 +20,15 @@ export interface DebugSources {
   progression(): ProgressionView;
   settings(): Settings;
   assets: RefCountedAssetManager;
+  /** Every sound effect that really started, oldest first (a copy). */
+  soundsPlayed(): string[];
 }
 
 /**
  * `window.rocketPals`, for the browser tests only (page address has ?debug=1). Members are only ever added
  * (docs/TECHNICAL_ARCHITECTURE.md section 9): the tests rely on every name and what it means.
  */
-export function exposeDebugHandle({ host, scene, monitor, screens, space, arrival, progression, settings, assets }: DebugSources): void {
+export function exposeDebugHandle({ host, scene, monitor, screens, space, arrival, progression, settings, assets, soundsPlayed }: DebugSources): void {
   (window as unknown as Record<string, unknown>).rocketPals = {
     getShip: () => space.shipState,
     getTargetId: () => space.target,
@@ -52,5 +54,7 @@ export function exposeDebugHandle({ host, scene, monitor, screens, space, arriva
     getRenderMemory: () => ({ ...host.renderer.info.memory }),
     /** The asset ids someone holds now (loading or loaded), sorted: what a screen acquired and has not released. */
     getHeldAssets: () => assets.held(),
+    /** The sound effects that really started (#34), oldest first. Empty before the first tap or key. */
+    getSoundsPlayed: () => soundsPlayed(),
   };
 }

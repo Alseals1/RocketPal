@@ -38,6 +38,8 @@ export class SpaceScreen implements Screen<SpaceParams> {
   /** The world the rocket is right next to, if any. You cannot pick it as a destination. */
   private here: string | null = null;
   private autopilot = false;
+  /** Whether the boost is on, as last told to the event bus (`boost` events play the whoosh). */
+  private boosting = false;
   private lastStats = 0;
   private sceneLeg = 1;
   private legKm = 0;
@@ -94,6 +96,7 @@ export class SpaceScreen implements Screen<SpaceParams> {
     const { input: controls, scene } = this.ctx;
     if (this.autopilot && controls.isSteering()) this.setAutopilot(false);
     const input = this.autopilot ? AUTOPILOT_INPUT : controls.flight();
+    this.setBoosting(input.boost && !this.ship.docked);
 
     const wasDocked = this.ship.docked;
     const targetLayout = this.targetId ? this.layout(this.targetId) : undefined;
@@ -186,8 +189,16 @@ export class SpaceScreen implements Screen<SpaceParams> {
     this.updateStats();
   }
 
+  /** Tells the bus when the boost starts or stops (only on a change, not every frame). */
+  private setBoosting(on: boolean): void {
+    if (on === this.boosting) return;
+    this.boosting = on;
+    this.ctx.events.emit({ type: 'boost', on });
+  }
+
   /** The rocket has docked: stand on the world if it has a real photograph, or show the plain landing card. */
   private onDocked(layout: BodyLayout): void {
+    this.setBoosting(false);
     this.ctx.events.emit({ type: 'arrived', place: layout.world.id as WorldId });
     this.autopilot = false;
     this.hud.setAutopilot(false);

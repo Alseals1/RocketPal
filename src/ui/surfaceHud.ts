@@ -1,7 +1,7 @@
 import type { MissionDef } from '../data/missions';
 import type { QuizQuestion } from '../data/quizzes';
 import type { Hotspot, Surface } from '../data/surfaces';
-import type { Speaker } from '../audio/speech';
+import type { Speaker } from '../core/speaker';
 import type { ScreenPoint } from '../scene/spaceScene';
 import { keepTabInside } from './focus';
 import { QuizPanel } from './quizPanel';
@@ -18,6 +18,8 @@ export interface SurfaceCallbacks {
   onDotFound(id: string): boolean;
   /** The kid finished the quiz. The game saves it and returns the stars they now have on this world. */
   onQuizFinished(perfect: boolean): number;
+  /** The kid picked a quiz answer: right, or not quite. */
+  onAnswered(correct: boolean): void;
 }
 
 /** A mission and quiz for this world (left out if their data could not be loaded: the landing still works without them). */
@@ -128,6 +130,7 @@ export class SurfaceHud {
       const dotTitles = Object.fromEntries(surface.hotspots.map((h) => [h.id, h.title]));
       this.quizPanel = new QuizPanel(this.root, extras.draw, extras.mission.teaser?.text ?? '', dotTitles, this.speaker, {
         onFinished: (perfect) => this.callbacks.onQuizFinished(perfect),
+        onAnswered: (correct) => this.callbacks.onAnswered(correct),
         onBackToSpace: () => this.callbacks.onBack(),
         onClosed: () => {
           if (this.quizOpenedByKeyboard) this.els.quizButton.focus();
