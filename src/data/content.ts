@@ -1,9 +1,10 @@
 import type { ConditionContext } from './conditions';
-import { WORLD_IDS, type MissionId, type PlaceId, type WorldId } from './ids';
+import { WORLD_IDS, type MissionId, type PlaceId, type SoundId, type WorldId } from './ids';
 import { missionLabel, validateMission, validateMissionsFile, type MissionDef } from './missions';
 import { validatePlanetsFile, validateWorld, type World } from './planets';
 import { FALLBACK_RULES, validateProgression, type ProgressionRules } from './progression';
 import { checkPool, validateQuestionsFile, type QuestionPool } from './quizzes';
+import { validateSound, validateSoundsFile, type SoundDef } from './sounds';
 import { validateSurface, validateSurfacesFile, type Surface } from './surfaces';
 
 /** A Star Map destination (docs/TECHNICAL_ARCHITECTURE.md section 4.2). */
@@ -30,6 +31,7 @@ export interface Content {
   quizzes: Map<PlaceId, QuestionPool>; // quizzes.json: each place's question pool, holding only its good questions
   missions: Map<MissionId, MissionDef>; // missions.json
   progression: ProgressionRules; // progression.json: the XP table and the ranks
+  sounds: Map<SoundId, SoundDef>; // sounds.json: the sound effects (none if the file is missing: the game is silent)
   /** Entries left out by validation, each as "<file>.json: <why>". Logged; must be empty in tests. */
   problems: string[];
 }
@@ -41,6 +43,7 @@ export interface RawContent {
   missions?: unknown;
   quizzes?: unknown;
   progression?: unknown;
+  sounds?: unknown;
 }
 
 type FileName = keyof RawContent;
@@ -52,19 +55,20 @@ const WORDING: Record<FileName, { entries: string; data: string }> = {
   quizzes: { entries: 'quizzes', data: 'quiz' },
   missions: { entries: 'missions', data: 'mission' },
   progression: { entries: 'progression rules', data: 'progression' },
+  sounds: { entries: 'sounds', data: 'sound' },
 };
 
-const FILES: FileName[] = ['planets', 'surfaces', 'quizzes', 'missions', 'progression'];
+const FILES: FileName[] = ['planets', 'surfaces', 'quizzes', 'missions', 'progression', 'sounds'];
 
 /**
  * Validates the data files entry by entry and indexes what is left. A bad entry is left out, with the entries that
  * point at it (a world takes its moon, landing picture, quiz and the missions that name it; a landing picture takes
  * its quiz and mission). A quiz's bad question is left out on its own, and the rest of the quiz still loads. The first
- * copy of anything listed twice is kept. Each file that lost something logs one console error. progression.json is checked as a whole: if it is missing or broken, no XP is given
+ * copy of anything listed twice is kept. A bad sound is left out on its own. Each file that lost something logs one console error. progression.json is checked as a whole: if it is missing or broken, no XP is given
  * (`FALLBACK_RULES`) and the rest still works. Throws only if planets.json is unusable as a whole or keeps no world at all.
  */
 export function buildContent(raw: RawContent): Content {
-  const found: Record<FileName, string[]> = { planets: [], surfaces: [], quizzes: [], missions: [], progression: [] };
+  const found: Record<FileName, string[]> = { planets: [], surfaces: [], quizzes: [], missions: [], progression: [], sounds: [] };
   const fileFailed = new Set<FileName>();
   const notLoaded = new Set<FileName>(); // loadContent has already logged why
 
@@ -167,6 +171,15 @@ export function buildContent(raw: RawContent): Content {
   const rulesList = entriesOf('progression', validateProgression, 'ranks');
   const progression = rulesList ? (raw.progression as ProgressionRules) : structuredClone(FALLBACK_RULES);
 
+  // Sound effects: a bad entry is left out on its own; with no file at all the game is simply silent.
+  const sounds = keep<SoundDef>(
+    'sounds',
+    entriesOf('sounds', validateSoundsFile, 'sounds'),
+    (s) => s.id,
+    validateSound,
+    (id) => `${id}: listed twice (kept the first)`,
+  ) as Map<SoundId, SoundDef>;
+
   const problems: string[] = [];
   for (const file of FILES) {
     const list = found[file];
@@ -176,7 +189,7 @@ export function buildContent(raw: RawContent): Content {
     }
     problems.push(...found[file].map((p) => `${file}.json: ${p}`));
   }
-  return { places, worlds, arrivals, quizzes, missions, progression, problems };
+  return { places, worlds, arrivals, quizzes, missions, progression, sounds, problems };
 }
 
 /**
@@ -185,14 +198,15 @@ export function buildContent(raw: RawContent): Content {
  * Rejects if planets.json cannot be loaded or is unusable as a whole.
  */
 export async function loadContent(base = '/data/'): Promise<Content> {
-  const [planets, surfaces, missions, quizzes, progression] = await Promise.all([
+  const [planets, surfaces, missions, quizzes, progression, sounds] = await Promise.all([
     fetchJson(`${base}planets.json`, true),
     fetchJson(`${base}surfaces.json`),
     fetchJson(`${base}missions.json`),
     fetchJson(`${base}quizzes.json`),
     fetchJson(`${base}progression.json`),
+    fetchJson(`${base}sounds.json`),
   ]);
-  return buildContent({ planets, surfaces, missions, quizzes, progression });
+  return buildContent({ planets, surfaces, missions, quizzes, progression, sounds });
 }
 
 /** The parsed file, or `undefined` (logged) if it cannot be loaded. A required file throws instead. */

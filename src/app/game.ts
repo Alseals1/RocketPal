@@ -2,7 +2,6 @@ import { createSpeaker } from '../audio/speech';
 import type { Content } from '../data/content';
 import { createSaveStore, type SaveStore } from '../platform/saveStore';
 import { browserStorage, effectiveReducedMotion, type Settings } from '../core/settings';
-import { createAudioManager, unlockOnFirstGesture, type AudioManager } from '../platform/audio';
 import { buildTouchControls, createInputManager, type InputManager } from '../platform/input/inputManager';
 import { FrameMonitor } from '../quality/monitor';
 import { chooseQuality } from '../quality/quality';
@@ -16,6 +15,7 @@ import { ScreenManager } from './screenManager';
 import { exposeDebugHandle } from './debugHandle';
 import { createGameAssets, createRendererHost, watchContextLoss } from './rendering';
 import { connectProgression } from './progression';
+import { startGameSound, type GameSound } from './sound';
 import { SpaceScreen } from '../screens/spaceScreen';
 import { ArrivalScreen } from '../screens/arrivalScreen';
 
@@ -30,7 +30,7 @@ export class Game {
   private readonly host: WebRendererHost;
   private readonly scene: SpaceScene;
   private readonly input: InputManager;
-  private readonly audio: AudioManager; // silent until #34 adds sounds; Howler loads on the first tap or key
+  private readonly sound: GameSound; // Howler and the sound files load on the first tap or key
   private readonly monitor = new FrameMonitor();
   private readonly screens: ScreenManager;
   private readonly space: SpaceScreen;
@@ -61,9 +61,8 @@ export class Game {
     this.scene = new SpaceScene(host, layouts, host.quality, this.reducedMotion);
     const isBlocked = () => (this.settingsPanel?.isOpen ?? false) || this.arrival.isCardOpen;
     this.input = createInputManager({ controls: buildTouchControls(stage), showTouchControls: options.touchControls, isBlocked });
-    this.audio = createAudioManager({ volumes: settings.volume });
-    unlockOnFirstGesture(this.audio, window);
-    const { events, progression } = connectProgression(this.save, content);
+    const { events, progression, onRecorded } = connectProgression(this.save, content);
+    this.sound = startGameSound({ stage, content, volumes: settings.volume, speaker: this.speaker, events, onRecorded, debug: options.debug });
     const ctx: ScreenContext = {
       save: this.save,
       events, progression, assets, // the recorder is already listening (src/app/progression.ts)
@@ -101,7 +100,8 @@ export class Game {
 
     if (options.debug) {
       const { scene, monitor, screens, space, arrival } = this;
-      exposeDebugHandle({ host, scene, monitor, screens, space, arrival, progression, assets, settings: () => this.options.settings.get() });
+      const settings = () => this.options.settings.get();
+      exposeDebugHandle({ host, scene, monitor, screens, space, arrival, progression, assets, settings, soundsPlayed: this.sound.played });
     }
     requestAnimationFrame((t) => this.frame(t));
   }
@@ -109,7 +109,7 @@ export class Game {
   /** Called when the player picks something in the settings panel (or the computer's motion setting changes). */
   private changeSettings(next: Settings, save = true): void {
     const settings = save ? this.options.settings.set(next) : next;
-    for (const channel of ['effects', 'music', 'voice'] as const) this.audio.setVolume(channel, settings.volume[channel]);
+    this.sound.setVolumes(settings.volume);
     this.reducedMotion = applySettingsToPage(settings, this.systemMotion.matches);
     this.scene.setReducedMotion(this.reducedMotion);
   }

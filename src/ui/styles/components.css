@@ -795,6 +795,10 @@
   color: var(--text-soft);
 }
 
+.rp-patch__listen {
+  flex: none;
+}
+
 /* ---- Orbit dock ---- */
 
 .rp-orbit {

@@ -68,6 +68,7 @@ const DEBUG_MEMBERS = [
   'getRenderMemory',
   'getSettings',
   'getShip',
+  'getSoundsPlayed',
   'getStars',
   'getTargetId',
   'getViewFov',
@@ -113,6 +114,27 @@ async function start(page: Page) {
   await page.goto('/?debug=1&quality=high');
   await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
   await expect.poll(() => debug(page, (h) => h.hasShipModel()), { timeout: 20_000 }).toBe(true);
+  await settleSound(page);
+}
+
+/**
+ * The first key loads the sound player (#34). Howler then listens on the page for one more tap or key, to unlock audio
+ * on phones, and stops listening once it has. Both happen here, before anything is counted, so the counts only see
+ * the screens' own listeners.
+ */
+async function settleSound(page: Page) {
+  const onDocument = async () =>
+    (await page.evaluate(() => (window as unknown as { __liveListeners(): string[] }).__liveListeners())).filter((l) => l.startsWith('document:')).length;
+  const quiet = await onDocument();
+  await page.keyboard.press('KeyX');
+  const soundFiles = () => page.evaluate(() => performance.getEntriesByType('resource').filter((e) => /\/sounds\/[a-z-]+\.wav$/.test(e.name)).length);
+  await expect.poll(soundFiles).toBeGreaterThan(0);
+  await expect
+    .poll(async () => {
+      await page.keyboard.press('KeyX');
+      return onDocument();
+    })
+    .toBe(quiet);
 }
 
 /**
@@ -180,7 +202,7 @@ test('Back while the picture is still loading frees everything too, even when th
   expect(errors).toEqual([]);
 });
 
-test('the debug handle keeps every member it had, and adds getRenderMemory and getHeldAssets', async ({ page }) => {
+test('the debug handle keeps every member it had, and adds getRenderMemory, getHeldAssets and getSoundsPlayed', async ({ page }) => {
   await page.goto('/?debug=1');
   await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
   const keys = await page.evaluate(() => Object.keys((window as unknown as { rocketPals: object }).rocketPals).sort());

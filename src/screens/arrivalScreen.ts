@@ -59,6 +59,7 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
         },
         onDotFound: (id) => this.dotFound(surface.worldId, id),
         onQuizFinished: (perfect) => this.quizFinished(surface.worldId, perfect),
+        onAnswered: (correct) => ctx.events.emit({ type: 'answered', place: surface.worldId as WorldId, correct }),
       },
       ctx.speech,
       this.missionExtras(surface.worldId),

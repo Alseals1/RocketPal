@@ -6,7 +6,7 @@
  * 4.11 keep its names, and each stand-in has a different name, so nobody takes it for the 4.11 contract.
  * See decisions/2026-11-11-screen-split.md.
  */
-import type { Speaker } from '../audio/speech';
+import type { Speaker } from '../core/speaker';
 import type { EventBus } from '../core/events';
 import type { ProgressionView } from '../core/progression';
 import type { Content } from '../data/content';

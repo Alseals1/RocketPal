@@ -1,14 +1,7 @@
 /** Reads text aloud with the voice that is built into the browser. Nothing is sent anywhere. */
-export interface Speaker {
-  /** False on a computer or browser with no reading voice. */
-  isSupported(): boolean;
-  isSpeaking(): boolean;
-  /** Starts reading. Anything already being read stops first. `onEnd` runs when it finishes or is stopped. */
-  speak(text: string, onEnd?: () => void): void;
-  stop(): void;
-  /** Forgets an earlier failure to start, so the next reading gets a fresh try. */
-  reset(): void;
-}
+import type { Speaker } from '../core/speaker';
+
+export type { Speaker } from '../core/speaker';
 
 /** If reading has not begun this long after we asked, the computer has no working voice. */
 const START_TIMEOUT_MS = 2500;
@@ -20,6 +13,7 @@ export function createSpeaker(synth: SpeechSynthesis | undefined = typeof speech
   let current = 0;
   /** Set once a reading failed to start: this computer cannot read aloud, so stop offering. */
   let broken = false;
+  let volume = 1;
 
   /** A clear English voice if there is one; otherwise the browser's default. */
   const pickVoice = (): SpeechSynthesisVoice | undefined => {
@@ -42,11 +36,14 @@ export function createSpeaker(synth: SpeechSynthesis | undefined = typeof speech
         onEnd?.();
         return;
       }
+      // Whatever was being read stops, and its button is told so (two Listen buttons never both show "Stop").
+      if (speaking) done();
       current++;
       const mine = current;
       synth.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'en-US';
+      utterance.volume = volume;
       utterance.rate = 0.95; // a little slower than normal, for young readers
       const voice = pickVoice();
       if (voice) {
@@ -83,6 +80,9 @@ export function createSpeaker(synth: SpeechSynthesis | undefined = typeof speech
     },
     reset() {
       broken = false;
+    },
+    setVolume(v) {
+      volume = Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1;
     },
     stop() {
       if (!synth) return;

@@ -1,7 +1,9 @@
 import type { BodyLayout } from '../scene/layout';
 import type { ScreenPoint } from '../scene/spaceScene';
 import type { ArrivalWording } from '../data/surfaces';
+import type { Speaker } from '../core/speaker';
 import { focusGameArea, keepTabInside } from './focus';
+import { bindListen } from './listen';
 
 export interface HudCallbacks {
   onSelect(worldId: string): void;
@@ -42,6 +44,7 @@ export class Hud {
   private readonly pickerButtons = new Map<string, HTMLButtonElement>();
   private readonly els: Record<string, HTMLElement>;
   private readonly whereButton: HTMLButtonElement;
+  private readonly landedListen: { refresh(): void };
   private targetId: string | null = null;
   private pointerShown = false;
   private lastTitle = '';
@@ -52,6 +55,7 @@ export class Hud {
     private readonly root: HTMLElement,
     private readonly layouts: BodyLayout[],
     private readonly callbacks: HudCallbacks,
+    private readonly speaker: Speaker,
   ) {
     const overlay = document.createElement('div');
     overlay.className = 'hud';
@@ -77,7 +81,10 @@ export class Hud {
         <div class="card landed-card" role="dialog" aria-labelledby="landed-title">
           <h2 id="landed-title" data-el="landed-title">You landed!</h2>
           <p data-el="landed-text">Great flying! Fact cards and missions are coming soon.</p>
-          <button class="big-button" data-testid="fly-again" data-el="fly-again" type="button">Fly again</button>
+          <div class="landed-actions">
+            <button class="big-button secondary" data-testid="landed-listen" data-el="landed-listen" type="button"></button>
+            <button class="big-button" data-testid="fly-again" data-el="fly-again" type="button">Fly again</button>
+          </div>
         </div>
       </div>`;
     root.appendChild(overlay);
@@ -89,6 +96,10 @@ export class Hud {
     this.onPress(this.whereButton, () => this.togglePicker());
     this.onPress(this.els.autopilot, () => this.callbacks.onAutopilot(this.els.autopilot.getAttribute('aria-pressed') !== 'true'));
     this.onPress(this.els['fly-again'], () => this.callbacks.onFlyAgain());
+    // Listen reads the card's title and words (#34).
+    this.landedListen = bindListen(this.els['landed-listen'] as HTMLButtonElement, speaker, () =>
+      `${this.els['landed-title'].textContent ?? ''} ${this.els['landed-text'].textContent ?? ''}`,
+    );
     window.addEventListener('keydown', (e) => {
       // The landing card is a dialog: Tab stays on it and Escape does what "Fly again" does. Not while settings is on top.
       if (!this.els.landed.hidden && !this.callbacks.isCovered?.()) {
@@ -182,12 +193,14 @@ export class Hud {
       this.whereButton.setAttribute('aria-expanded', 'false');
     }
     this.els.landed.hidden = false;
+    this.landedListen.refresh(); // one false alarm earlier must not leave "No voice" on every later card
     this.els.autopilot.hidden = true;
     // With settings open on top, focus stays in settings: the card is reached once settings closes.
     if (!this.callbacks.isCovered?.()) this.els['fly-again'].focus();
   }
 
   hideLanded(): void {
+    if (!this.els.landed.hidden) this.speaker.stop(); // the card may still be reading
     const hadFocus = this.els.landed.contains(document.activeElement);
     this.els.landed.hidden = true;
     // Like the other panels: focus goes to the game area, so Space boosts and the next Tab starts at the top.

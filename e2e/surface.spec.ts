@@ -350,9 +350,15 @@ test('the landing card is a proper dialog: Tab stays on it, Escape flies again, 
   await start(page);
   await debug(page, (h) => h.dockAt('moon'));
   const flyAgain = page.getByTestId('fly-again');
+  const listen = page.getByTestId('landed-listen');
   await expect(flyAgain).toBeFocused();
+  // Tab goes round the card's two buttons (Listen, then Fly again) and never leaves it.
+  await page.keyboard.press('Tab');
+  await expect(listen).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(flyAgain).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(listen).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(flyAgain).toBeFocused();
 
@@ -397,9 +403,9 @@ test('with settings open when the rocket arrives, Escape closes only settings, a
   await expect(page.getByTestId('landed')).toBeVisible();
   expect((await debug(page, (h) => h.getShip())).docked).toBe(true);
 
-  // Now the card has the keys.
+  // Now the card has the keys: Tab goes to its first button, Listen (#34).
   await page.keyboard.press('Tab');
-  await expect(page.getByTestId('fly-again')).toBeFocused();
+  await expect(page.getByTestId('landed-listen')).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('landed')).toBeHidden();
   expect(errors).toEqual([]);
@@ -777,4 +783,112 @@ test('if the browser will not start reading, the Listen button does not get stuc
   const listen = page.getByTestId('listen');
   await listen.click();
   await expect(listen).toHaveText('Listen'); // back to normal, so it can be tried again
+});
+
+test.describe('Listen everywhere (#34)', () => {
+  const missionTitle = (JSON.parse(readFileSync('public/data/missions.json', 'utf8')) as { missions: { place: string; title: string }[] }).missions.find(
+    (m) => m.place === 'mars',
+  )!.title;
+  /** What the pretend voice was asked to read, with the volume of each. */
+  const spoken = (page: Page) =>
+    page.evaluate(() => (window as unknown as { __utterances: SpeechSynthesisUtterance[] }).__utterances.map((u) => ({ text: u.text, volume: u.volume })));
+  const lastSpoken = async (page: Page) => (await spoken(page)).at(-1);
+
+  test("Orbit's and the mission's Listen read their words, stop on a second tap, and a new one puts the old button back", async ({ page }) => {
+    const errors = watchForErrors(page);
+    await landOnMars(page);
+    const orbit = page.getByTestId('orbit-listen');
+    const mission = page.getByTestId('mission-listen');
+    for (const button of [orbit, mission]) {
+      const box = (await button.boundingBox())!;
+      expect(box.width).toBeGreaterThanOrEqual(56);
+      expect(box.height).toBeGreaterThanOrEqual(56);
+    }
+    await expect(orbit).toHaveAccessibleName('Listen to Orbit');
+    await expect(mission).toHaveAccessibleName('Listen to the mission');
+
+    // A tap reads Orbit's words; the button becomes Stop.
+    await orbit.click();
+    await expect(orbit).toHaveAttribute('aria-pressed', 'true');
+    await expect(orbit).toHaveAccessibleName('Stop reading');
+    expect((await lastSpoken(page))!.text).toBe((await page.getByTestId('orbit').textContent())!.trim());
+
+    // The mission Listen takes over, and Orbit's button goes back to Listen.
+    await mission.click();
+    await expect(orbit).toHaveAttribute('aria-pressed', 'false');
+    await expect(orbit).toHaveAccessibleName('Listen to Orbit');
+    await expect(mission).toHaveAttribute('aria-pressed', 'true');
+    const read = (await lastSpoken(page))!.text;
+    expect(read).toContain('Jezero Crater, Mars');
+    expect(read).toContain(`Mission: ${missionTitle}`);
+    expect(read).toContain('Found 0 of 5');
+
+    // A second tap stops it.
+    const count = (await spoken(page)).length;
+    await mission.click();
+    await expect(mission).toHaveAttribute('aria-pressed', 'false');
+    expect(await spoken(page)).toHaveLength(count);
+
+    // The keyboard works too.
+    await orbit.focus();
+    await page.keyboard.press('Enter');
+    await expect(orbit).toHaveAttribute('aria-pressed', 'true');
+    expect(await spoken(page)).toHaveLength(count + 1);
+    expect(errors).toEqual([]);
+  });
+
+  test('Orbit\'s Listen hides while the bubble is empty, and opening a fact card stops Orbit reading', async ({ page }) => {
+    await landOnMars(page);
+    const orbit = page.getByTestId('orbit-listen');
+    await orbit.click();
+    await expect(orbit).toHaveAttribute('aria-pressed', 'true');
+    await (await reachSpot(page, 'rim')).press('Enter');
+    await expect(page.getByTestId('fact-card')).toBeVisible();
+    await expect(orbit).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.getByTestId('listen')).toHaveText('Listen'); // the card's own Listen is ready, not stopped by Orbit
+    await page.getByTestId('listen').click();
+    await expect(page.getByTestId('listen')).toHaveText('Stop');
+  });
+
+  test('the landing card has Listen first, and it reads the card', async ({ page }) => {
+    const errors = watchForErrors(page);
+    await start(page);
+    await debug(page, (h) => h.dockAt('jupiter'));
+    const listen = page.getByTestId('landed-listen');
+    await expect(page.locator('.landed-card button').first()).toHaveAttribute('data-testid', 'landed-listen');
+    await expect(listen).toHaveText('Listen');
+    expect((await listen.boundingBox())!.height).toBeGreaterThanOrEqual(56);
+    await listen.click();
+    await expect(listen).toHaveText('Stop');
+    expect((await lastSpoken(page))!.text).toContain('You are flying past Jupiter!');
+    expect((await lastSpoken(page))!.text).toContain('There is no solid ground to land on here.');
+    await listen.click();
+    await expect(listen).toHaveText('Listen');
+    await listen.press('Enter');
+    await expect(listen).toHaveText('Stop');
+    await page.getByTestId('fly-again').click(); // flying off stops the reading
+    await expect(page.getByTestId('landed')).toBeHidden();
+    expect(errors).toEqual([]);
+  });
+
+  test('the reading voice is as loud as Settings says', async ({ page }) => {
+    await landOnMars(page);
+    await page.getByTestId('orbit-listen').click();
+    expect((await lastSpoken(page))!.volume).toBe(1); // Loud, the default
+    await page.getByTestId('orbit-listen').click(); // stop
+
+    await page.getByTestId('settings-button').click();
+    await page.getByRole('radiogroup', { name: 'Reading voice', exact: true }).getByRole('radio', { name: 'Quiet', exact: true }).click();
+    await page.getByTestId('settings-done').click();
+    await page.getByTestId('orbit-listen').click();
+    expect((await lastSpoken(page))!.volume).toBe(0.25);
+  });
+
+  test('with no voice on the computer the icon Listen buttons hide, and the words are still there', async ({ page }) => {
+    await page.addInitScript(() => Object.defineProperty(window, 'speechSynthesis', { value: undefined, configurable: true }));
+    await landOnMars(page);
+    await expect(page.getByTestId('orbit-listen')).toBeHidden();
+    await expect(page.getByTestId('mission-listen')).toBeHidden();
+    await expect(page.getByTestId('orbit')).toContainText("I'm Orbit");
+  });
 });

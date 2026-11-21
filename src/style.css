@@ -349,6 +349,14 @@ button:focus-visible {
   margin: 0 0 16px;
 }
 
+/* Listen and Fly again side by side, or one above the other when the card is narrow or the text is big. */
+.landed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
 /* ---- The 3D picture was lost (a lost WebGL context) ---- */
 
 .context-lost {
@@ -540,8 +548,27 @@ button:focus-visible {
 
 .settings-card {
   width: min(30em, 100%);
-  /* "auto" on every side centres the card and keeps it only as tall as its content; when it is too tall it starts at the top and scrolls. */
+  /* "auto" on every side centres the card and keeps it only as tall as its content. When it is taller than the screen
+     (a phone held sideways, big text), the card scrolls inside the screen and Done stays at its bottom (#34). */
   margin: auto;
+  box-sizing: border-box;
+  max-height: 100%;
+  overflow-y: auto;
+  padding-bottom: 0; /* the card's bottom padding is Done's footer, so nothing scrolls past under it */
+}
+
+/* Done is always on the screen: it stays at the bottom of a card that scrolls, on the card's own colour. */
+.settings-actions {
+  position: sticky;
+  bottom: 0;
+  padding: 8px 0 12px;
+  background: var(--text-on-accent);
+}
+
+@media (max-height: 520px) {
+  .settings-actions {
+    padding-bottom: 8px;
+  }
 }
 
 .settings-card h2 {
@@ -631,6 +658,7 @@ button:focus-visible {
 /* While the picture loads, only Orbit's face shows on top of the loading screen. The dots (which can be reached by keyboard) and the speech bubble (which would cover the loading words on a narrow screen) wait. */
 .surface-hud.is-loading .spots,
 .surface-hud.is-loading .orbit-bubble,
+.surface-hud.is-loading .orbit-listen,
 .surface-hud.is-loading .quiz-button {
   visibility: hidden;
 }
@@ -645,6 +673,19 @@ button:focus-visible {
 
 .surface-title p {
   margin: 0;
+}
+
+/* Listen to the mission: at the top right of the title card, with the words flowing round it. The card ignores the
+   mouse so the photo under it can be dragged; the button does not. */
+.mission-listen {
+  float: right;
+  margin: 0 0 4px 10px;
+  pointer-events: auto;
+}
+
+/* An icon Listen button on a computer with no reading voice (src/ui/listen.ts). The words are still on the screen. */
+.is-no-voice {
+  display: none !important;
 }
 
 /* The mission line is a little smaller than the rest so it stays on one line. */
@@ -670,7 +711,11 @@ button:focus-visible {
   .orbit-bubble {
     font-size: 0.9em;
   }
-  /* The Quiz time button sits beside Orbit's words, not under them, so Orbit stays short. */
+  /* Orbit's Listen goes beside the face, and the Quiz time button beside Orbit's words, so Orbit stays short. */
+  .orbit .orbit-side {
+    flex-direction: row-reverse;
+    align-items: flex-end;
+  }
   .orbit .orbit-talk {
     flex-direction: row;
     align-items: flex-end;
@@ -742,6 +787,27 @@ button:focus-visible {
 .quiz-button {
   margin: 0 0 8px;
   pointer-events: auto;
+}
+
+/* Orbit's Listen sits above Orbit's face (beside it on a short screen), so the words keep their full width (#34). */
+.orbit-side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.orbit-listen {
+  flex: none;
+  pointer-events: auto;
+}
+
+/* Listen buttons that can sit on the photo are solid, like Orbit's bubble, so they show on a bright sky too. */
+.orbit-listen,
+.mission-listen {
+  background: var(--text-on-accent);
+  box-shadow: inset 0 0 0 3px var(--holo-cyan);
 }
 
 .orbit-bubble {
@@ -902,6 +968,15 @@ button:focus-visible {
   /* The two-line Back button is taller, so the settings gear sits lower to stay clear of it. */
   .stage.is-surface .settings-button {
     top: calc(var(--gap) + 4.2em);
+  }
+  /* The card sits under the buttons here, so its Listen goes in the free space just above its top-left corner, level
+     with the settings gear, and the card stays short enough to clear Orbit (#34). */
+  .mission-listen {
+    position: absolute;
+    float: none;
+    left: 0;
+    top: calc(-56px - var(--gap));
+    margin: 0;
   }
 }
 

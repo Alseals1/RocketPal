@@ -351,6 +351,46 @@ describe('buildContent tells the console what it left out', () => {
   });
 });
 
+describe('sounds', () => {
+  it('fills the sound table from the shipped file', () => {
+    const content = buildContent(realFiles());
+    expect(content.sounds.size).toBe(10);
+    expect(content.sounds.get('dot-found')).toEqual({ id: 'dot-found', file: 'sound/dot-found', channel: 'effects', volume: 0.6, caption: 'Ding' });
+  });
+
+  it('leaves out only the broken sound, and says why', () => {
+    const files = realFiles();
+    files.sounds.sounds[0].channel = 'loud';
+    const content = buildContent(files);
+    expect(content.sounds.size).toBe(9);
+    expect(content.sounds.has('boost')).toBe(false);
+    expect(content.problems).toEqual(['sounds.json: boost: channel must be one of effects, music, voice']);
+    expect(error).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the first copy of a sound listed twice', () => {
+    const files = realFiles();
+    files.sounds.sounds.push({ ...files.sounds.sounds[0], volume: 0.1 });
+    const content = buildContent(files);
+    expect(content.sounds.get('boost')!.volume).toBe(0.5);
+    expect(content.problems).toEqual(['sounds.json: boost: listed twice (kept the first)']);
+  });
+
+  it('runs silently without sounds.json: an empty table, and the rest of the game intact', () => {
+    const content = buildContent({ ...realFiles(), sounds: undefined });
+    expect(content.sounds.size).toBe(0);
+    expect(content.worlds.size).toBe(10);
+    expect(content.missions.size).toBe(2);
+    expect(content.problems).toEqual(['sounds.json: could not be loaded']);
+  });
+
+  it('drops the whole file when it is not a sound list', () => {
+    const content = buildContent({ ...realFiles(), sounds: { sounds: 'x' } });
+    expect(content.sounds.size).toBe(0);
+    expect(content.problems).toEqual(['sounds.json: sounds must be a list']);
+  });
+});
+
 describe('loadContent', () => {
   const files = realFiles();
   const bodyFor = (url: string) => files[url.replace(/^.*\/(\w+)\.json$/, '$1') as keyof typeof files];
@@ -371,6 +411,7 @@ describe('loadContent', () => {
       '/data/planets.json',
       '/data/progression.json',
       '/data/quizzes.json',
+      '/data/sounds.json',
       '/data/surfaces.json',
     ]);
     for (const w of waiting) w.answer();

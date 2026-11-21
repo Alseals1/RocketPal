@@ -204,9 +204,15 @@ function tid<T extends HTMLElement>(el: T, id: string): T {
 // ---- Patch ----
 {
   const row = section('patch', 'Patch');
+  const heard = tid(document.createElement('p'), 'patch-heard');
   row.append(
     tid(createPatch({ name: 'Mars explorer', color: 'mars', earned: true, date: '12 November 2026', icon: ICONS.tick }), 'patch-earned'),
     tid(createPatch({ name: 'Earth watcher', color: 'earth', earned: false, condition: 'Find 3 things from the Space Station', icon: ICONS.info }), 'patch-not-yet'),
+    tid(
+      createPatch({ name: 'Moon walker', color: 'moon', earned: false, condition: 'Land on the Moon', icon: ICONS.info, onListen: (t) => (heard.textContent = t) }),
+      'patch-listen',
+    ),
+    heard,
   );
 }
 

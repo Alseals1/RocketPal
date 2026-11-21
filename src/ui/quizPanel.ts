@@ -1,4 +1,4 @@
-import type { Speaker } from '../audio/speech';
+import type { Speaker } from '../core/speaker';
 import type { QuizQuestion } from '../data/quizzes';
 import { createQuizRun, type QuizRun } from '../quiz/quiz';
 import { keepTabInside } from './focus';
@@ -10,6 +10,8 @@ export interface QuizPanelCallbacks {
   onBackToSpace(): void;
   /** The panel was closed by the kid (Not now, Keep exploring, Escape). Not called when the screen closes it. */
   onClosed(): void;
+  /** The kid picked an answer: right, or not quite (for the sound; the card shows the mark and the words). */
+  onAnswered(correct: boolean): void;
 }
 
 /** The quiz card: three questions, tries as often as you like, then the stars. It looks and behaves like the fact card. */
@@ -149,6 +151,7 @@ export class QuizPanel {
     const q = run.current!;
     const result = run.answer(optionIndex);
     const button = this.optionButtons[optionIndex];
+    if (result === 'wrong' || result === 'right') this.callbacks.onAnswered(result === 'right');
     if (result === 'wrong') {
       // A word and a mark, not only a colour. Nothing is lost and every other answer stays open.
       button.classList.add('is-wrong');

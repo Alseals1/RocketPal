@@ -20,6 +20,18 @@ export const ASSET_ENTRIES: readonly AssetEntry[] = [
   // A window view only fills part of the screen, so it never needs the big picture (#31): earth-iss-4096.jpg stays on
   // disk and in CREDITS.md, but is left out here on purpose.
   { id: 'photo/earth', type: 'texture', url: { high: '/textures/surfaces/earth-iss-2048.jpg' }, bytes: 546539, credit: 'earth-iss' },
+  // The sound effects (#34): made by tools/make-sounds.ts, played through the AudioManager, which preloads them after
+  // the first tap or key.
+  { id: 'sound/boost', type: 'sound', url: { high: '/sounds/boost.wav' }, bytes: 19890, credit: 'sounds' },
+  { id: 'sound/capsule', type: 'sound', url: { high: '/sounds/capsule.wav' }, bytes: 13274, credit: 'sounds' },
+  { id: 'sound/dot-found', type: 'sound', url: { high: '/sounds/dot-found.wav' }, bytes: 19890, credit: 'sounds' },
+  { id: 'sound/docking', type: 'sound', url: { high: '/sounds/docking.wav' }, bytes: 26504, credit: 'sounds' },
+  { id: 'sound/right', type: 'sound', url: { high: '/sounds/right.wav' }, bytes: 17684, credit: 'sounds' },
+  { id: 'sound/not-quite', type: 'sound', url: { high: '/sounds/not-quite.wav' }, bytes: 15478, credit: 'sounds' },
+  { id: 'sound/star', type: 'sound', url: { high: '/sounds/star.wav' }, bytes: 26504, credit: 'sounds' },
+  { id: 'sound/rank-up', type: 'sound', url: { high: '/sounds/rank-up.wav' }, bytes: 52964, credit: 'sounds' },
+  { id: 'sound/patch', type: 'sound', url: { high: '/sounds/patch.wav' }, bytes: 35324, credit: 'sounds' },
+  { id: 'sound/bump', type: 'sound', url: { high: '/sounds/bump.wav' }, bytes: 11070, credit: 'sounds' },
 ];
 
 /** The most bytes one file of each type may have (`high` and `low` for textures). */
@@ -30,6 +42,14 @@ export const ASSET_BUDGET_BYTES = {
   sound: 500_000,
   font: 200_000,
 } as const;
+
+/** All the sound files together may be at most this big (#34: small, and loaded only after the first tap or key). */
+export const SOUND_TOTAL_BUDGET_BYTES = 500_000;
+
+/** The URL of an asset's (high) file, or `undefined` for an id the manifest does not have. */
+export function assetUrl(id: AssetId): string | undefined {
+  return ASSET_ENTRIES.find((e) => e.id === id)?.url.high;
+}
 
 /** The landing photo of a world. */
 export function arrivalPhotoId(worldId: string): AssetId {

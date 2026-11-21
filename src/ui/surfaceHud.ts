@@ -1,9 +1,11 @@
 import type { MissionDef } from '../data/missions';
 import type { QuizQuestion } from '../data/quizzes';
 import type { Hotspot, Surface } from '../data/surfaces';
-import type { Speaker } from '../audio/speech';
+import type { Speaker } from '../core/speaker';
 import type { ScreenPoint } from '../scene/spaceScene';
+import { createButton, ICONS } from './components/button';
 import { keepTabInside } from './focus';
+import { bindListen, type ListenBinding } from './listen';
 import { QuizPanel } from './quizPanel';
 import { setStars } from './stars';
 
@@ -18,6 +20,8 @@ export interface SurfaceCallbacks {
   onDotFound(id: string): boolean;
   /** The kid finished the quiz. The game saves it and returns the stars they now have on this world. */
   onQuizFinished(perfect: boolean): number;
+  /** The kid picked a quiz answer: right, or not quite. */
+  onAnswered(correct: boolean): void;
 }
 
 /** A mission and quiz for this world (left out if their data could not be loaded: the landing still works without them). */
@@ -59,6 +63,9 @@ export class SurfaceHud {
   /** The mission was finished by the card that is open right now: Orbit says so when it closes. */
   private missionJustDone = false;
   private quizOpenedByKeyboard = false;
+  private missionDone = false;
+  private readonly listens: ListenBinding[] = [];
+  private readonly orbitListen: HTMLButtonElement;
 
   constructor(
     parent: HTMLElement,
@@ -74,7 +81,7 @@ export class SurfaceHud {
     this.root.innerHTML = `
       ${surface.kind === 'window' ? '<div class="window-frame" aria-hidden="true"></div>' : ''}
       <div class="surface-loading" data-el="loading" role="status">Landing on ${this.escape(surface.title.split(',')[0])}...</div>
-      <section class="card surface-title">
+      <section class="card surface-title" data-el="titleCard">
         <p class="stats-title" data-el="title"></p>
         <p class="stats-line mission-line" data-el="mission" data-testid="mission" hidden></p>
         <div class="stats-row">
@@ -85,7 +92,9 @@ export class SurfaceHud {
       </section>
       <button class="big-button back-button" data-testid="back-to-space" type="button">Back to space</button>
       <div class="orbit">
-        <div class="orbit-face" data-el="face" data-mood="thinking" aria-hidden="true">${ORBIT_FACES}</div>
+        <div class="orbit-side" data-el="orbitSide">
+          <div class="orbit-face" data-el="face" data-mood="thinking" aria-hidden="true">${ORBIT_FACES}</div>
+        </div>
         <div class="orbit-talk">
           <p class="orbit-bubble" data-el="orbit" data-testid="orbit" role="status" aria-live="polite"></p>
           <button class="big-button quiz-button" type="button" data-el="quizButton" data-testid="quiz-time" hidden>Quiz time</button>
@@ -111,6 +120,14 @@ export class SurfaceHud {
     this.listenButton = this.els.listen as HTMLButtonElement;
     this.setListenLabel(false);
 
+    // Listen on Orbit's words and on the mission card (#34). Each reads what is showing when it is tapped.
+    this.orbitListen = this.makeListen('orbit-listen', 'Listen to Orbit', () => this.els.orbit.textContent ?? '');
+    this.orbitListen.classList.add('orbit-listen');
+    this.els.orbitSide.prepend(this.orbitListen); // above Orbit's face, so the words keep their full width
+    const missionListen = this.makeListen('mission-listen', 'Listen to the mission', () => this.missionSpeech());
+    missionListen.classList.add('mission-listen');
+    this.els.titleCard.prepend(missionListen);
+
     this.root.querySelector('[data-testid="back-to-space"]')!.addEventListener('click', () => this.callbacks.onBack());
     this.listenButton.addEventListener('click', () => this.toggleListening());
     this.els.close.addEventListener('click', () => this.closeCard());
@@ -128,6 +145,7 @@ export class SurfaceHud {
       const dotTitles = Object.fromEntries(surface.hotspots.map((h) => [h.id, h.title]));
       this.quizPanel = new QuizPanel(this.root, extras.draw, extras.mission.teaser?.text ?? '', dotTitles, this.speaker, {
         onFinished: (perfect) => this.callbacks.onQuizFinished(perfect),
+        onAnswered: (correct) => this.callbacks.onAnswered(correct),
         onBackToSpace: () => this.callbacks.onBack(),
         onClosed: () => {
           if (this.quizOpenedByKeyboard) this.els.quizButton.focus();
@@ -189,6 +207,7 @@ export class SurfaceHud {
   }
 
   hide(): void {
+    this.speaker.stop(); // Orbit or the mission may be reading
     this.closeCard(false);
     this.quizPanel?.close();
     this.root.hidden = true;
@@ -199,6 +218,7 @@ export class SurfaceHud {
   destroy(): void {
     this.hide();
     this.quizPanel?.destroy();
+    this.listens.forEach((l) => l.dispose());
     window.removeEventListener('keydown', this.onKeyDown);
     this.root.remove();
   }
@@ -206,6 +226,7 @@ export class SurfaceHud {
   /** Shows what the kid has earned on this world: the mission, the Quiz time button and the stars. */
   setProgress({ missionDone, stars }: WorldProgressView): void {
     if (!this.extras) return;
+    this.missionDone = missionDone;
     this.els.mission.textContent = missionDone ? `\u2713 ${this.extras.mission.title}` : `Mission: ${this.extras.mission.title}`;
     this.els.quizButton.hidden = !missionDone;
     setStars(this.els.stars, stars);
@@ -242,6 +263,7 @@ export class SurfaceHud {
     // The facts come from NASA's website and we checked them; NASA did not review anything here.
     this.els['fact-source'].textContent = `Facts from NASA's website. Checked ${friendlyDate(spot.lastChecked)}.`;
     this.els.overlay.hidden = false;
+    this.speaker.stop(); // Orbit or the mission may still be reading
     this.speaker.reset(); // one false alarm earlier must not hide Listen on every later card
     this.setListenLabel(false);
     this.setMood('happy'); // a find makes Orbit happy for the rest of the visit
@@ -308,6 +330,23 @@ export class SurfaceHud {
 
   private say(text: string): void {
     this.els.orbit.textContent = text;
+    this.orbitListen.hidden = !text; // nothing to listen to while the bubble is empty
+  }
+
+  /** An icon Listen button bound to the speaker, for Orbit and the mission card. */
+  private makeListen(testid: string, label: string, text: () => string): HTMLButtonElement {
+    const button = createButton({ kind: 'icon', label, icon: ICONS.listen });
+    button.dataset.testid = testid;
+    this.listens.push(bindListen(button, this.speaker, text, { iconLabel: label }));
+    return button;
+  }
+
+  /** What the mission Listen reads: the world, the mission and how many dots are found. */
+  private missionSpeech(): string {
+    const parts = [this.surface.title];
+    if (this.extras) parts.push(this.missionDone ? `Mission done: ${this.extras.mission.title}` : `Mission: ${this.extras.mission.title}`);
+    parts.push(this.els.found.textContent ?? '');
+    return parts.map((p) => p.trim().replace(/[.!?]?$/, '.')).join(' ');
   }
 
   private escape(text: string): string {

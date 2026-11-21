@@ -101,11 +101,6 @@ const ALLOWED_BREAKS: ReadonlyArray<{ file: string; target: string }> = [
   { file: 'src/ui/hud.ts', target: 'src/scene/spaceScene.ts' },
   // UI imports Render. Same `ScreenPoint` move.
   { file: 'src/ui/surfaceHud.ts', target: 'src/scene/spaceScene.ts' },
-  // UI imports Platform. UI should get a "read aloud" callback, or a `Speaker` type from
-  // a shared place. Goes with the sound work (`platform/audio.ts`, section 6).
-  { file: 'src/ui/quizPanel.ts', target: 'src/audio/speech.ts' },
-  // UI imports Platform. Same `Speaker` move.
-  { file: 'src/ui/surfaceHud.ts', target: 'src/audio/speech.ts' },
 ];
 
 // ---------------------------------------------------------------------------
