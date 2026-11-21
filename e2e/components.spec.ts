@@ -393,6 +393,15 @@ test.describe('tiles, stars, bars, badges, Orbit and hotspots', () => {
     await expect(page.getByTestId('patch-not-yet')).toContainText('Not yet: Find 3 things from the Space Station');
   });
 
+  test('a patch with Listen hands over its name and what earns it (#34)', async ({ page }) => {
+    await openGallery(page);
+    await expect(page.getByTestId('patch-earned').getByRole('button')).toHaveCount(0); // Listen only when asked for
+    const listen = page.getByTestId('patch-listen').getByRole('button', { name: 'Listen to this patch' });
+    expect((await listen.boundingBox())!.height).toBeGreaterThanOrEqual(56);
+    await listen.click();
+    await expect(page.getByTestId('patch-heard')).toHaveText('Moon walker. Not yet: Land on the Moon');
+  });
+
   test("Orbit's bubble is read politely, Listen hands over the words, and idle fades it out but keeps it in the tree", async ({ page }) => {
     const errors = watchForErrors(page);
     await openGallery(page);

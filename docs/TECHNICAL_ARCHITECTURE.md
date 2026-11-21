@@ -166,7 +166,8 @@ export type GameEvent =
   | { type: 'rescueDone'; mission: MissionId }
   | { type: 'itemEquipped'; item: ItemId }
   | { type: 'bump' }                                        // for sound and screen feedback only
-  | { type: 'boost'; on: boolean };
+  | { type: 'boost'; on: boolean }
+  | { type: 'answered'; place: PlaceId; correct: boolean }; // a quiz answer, for sound and feedback only (#34)
 
 export interface EventBus {
   emit(e: GameEvent): void;
@@ -504,7 +505,7 @@ export interface AssetManager {
   preload(ids: AssetId[]): void;         // low priority, after the first frame
 }
 
-// Audio
+// Audio (since #34 `Channel` and `SoundDef` live in src/data/sounds.ts, re-exported by src/platform/audio.ts)
 export type Channel = 'effects' | 'music' | 'voice';
 export interface SoundDef { id: SoundId; file: AssetId; channel: Channel; volume: number; caption: string }
 export interface AudioManager {
@@ -612,6 +613,7 @@ For each: what it does, what exists today, what changes, the data, and the tests
   * There are three volumes: effects, music and voice. Voice applies to the existing speaker.
   * Every sound has a visual partner, so nothing needs sound to play.
 * **Tests:** the cue table covers every event that should make a sound; nothing plays before `unlock()` (unit test with a fake Howler); browser test with audio blocked still plays.
+* **Since #34:** ten original WAV sounds (`public/sounds/`, made by `tools/make-sounds.ts`, 239 KB) are listed in `public/data/sounds.json` (`Content.sounds`) and the asset manifest. The cues are pure (`src/core/cues.ts`: `eventCue`, `rewardCue`, `CUED_EVENTS`); only `src/app/sound.ts` plays them, from the bus and from `ProgressionWiring.onRecorded`, so a new rank, patch or star plays instead of the event's own sound. One new event, `answered` (4.4). Howler and every file load after the first tap or key, then preload. The `Speaker` type moved to `src/core/speaker.ts` with `setVolume` (the Reading voice level), and a new reading ends the old one's `onEnd`. `bindListen` (`src/ui/listen.ts`) puts Listen on any button: Orbit's bubble, the mission card, the landed card and `Patch`. Settings has Sound effects (Off to Loud) and Reading voice (Quiet to Loud) (`decisions/2026-11-21-sound-effects-and-listen.md`).
 
 ### 5.13 Save and load persistence
 * **Today:** `rocketpals.progress` holds per-world flags, with a read-merge-write on every save (PR #14). `rocketpals.settings` holds text size and motion.

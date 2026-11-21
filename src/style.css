@@ -554,14 +554,21 @@ button:focus-visible {
   box-sizing: border-box;
   max-height: 100%;
   overflow-y: auto;
+  padding-bottom: 0; /* the card's bottom padding is Done's footer, so nothing scrolls past under it */
 }
 
 /* Done is always on the screen: it stays at the bottom of a card that scrolls, on the card's own colour. */
 .settings-actions {
   position: sticky;
   bottom: 0;
-  padding-top: 8px;
+  padding: 8px 0 12px;
   background: var(--text-on-accent);
+}
+
+@media (max-height: 520px) {
+  .settings-actions {
+    padding-bottom: 8px;
+  }
 }
 
 .settings-card h2 {
@@ -704,7 +711,11 @@ button:focus-visible {
   .orbit-bubble {
     font-size: 0.9em;
   }
-  /* The Quiz time button sits beside Orbit's words, not under them, so Orbit stays short. */
+  /* Orbit's Listen goes beside the face, and the Quiz time button beside Orbit's words, so Orbit stays short. */
+  .orbit .orbit-side {
+    flex-direction: row-reverse;
+    align-items: flex-end;
+  }
   .orbit .orbit-talk {
     flex-direction: row;
     align-items: flex-end;
@@ -778,23 +789,25 @@ button:focus-visible {
   pointer-events: auto;
 }
 
-/* Orbit's words with their Listen button beside them. */
-.orbit-line {
+/* Orbit's Listen sits above Orbit's face (beside it on a short screen), so the words keep their full width (#34). */
+.orbit-side {
+  flex: none;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: center;
   gap: 8px;
-  min-width: 0;
-  margin: 0 0 8px;
-}
-
-.orbit-line .orbit-bubble {
-  margin: 0;
-  min-width: 0;
 }
 
 .orbit-listen {
   flex: none;
   pointer-events: auto;
+}
+
+/* Listen buttons that can sit on the photo are solid, like Orbit's bubble, so they show on a bright sky too. */
+.orbit-listen,
+.mission-listen {
+  background: var(--text-on-accent);
+  box-shadow: inset 0 0 0 3px var(--holo-cyan);
 }
 
 .orbit-bubble {
@@ -955,6 +968,15 @@ button:focus-visible {
   /* The two-line Back button is taller, so the settings gear sits lower to stay clear of it. */
   .stage.is-surface .settings-button {
     top: calc(var(--gap) + 4.2em);
+  }
+  /* The card sits under the buttons here, so its Listen goes in the free space just above its top-left corner, level
+     with the settings gear, and the card stays short enough to clear Orbit (#34). */
+  .mission-listen {
+    position: absolute;
+    float: none;
+    left: 0;
+    top: calc(-56px - var(--gap));
+    margin: 0;
   }
 }
 

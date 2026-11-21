@@ -92,11 +92,11 @@ export class SurfaceHud {
       </section>
       <button class="big-button back-button" data-testid="back-to-space" type="button">Back to space</button>
       <div class="orbit">
-        <div class="orbit-face" data-el="face" data-mood="thinking" aria-hidden="true">${ORBIT_FACES}</div>
+        <div class="orbit-side" data-el="orbitSide">
+          <div class="orbit-face" data-el="face" data-mood="thinking" aria-hidden="true">${ORBIT_FACES}</div>
+        </div>
         <div class="orbit-talk">
-          <div class="orbit-line" data-el="orbitLine">
-            <p class="orbit-bubble" data-el="orbit" data-testid="orbit" role="status" aria-live="polite"></p>
-          </div>
+          <p class="orbit-bubble" data-el="orbit" data-testid="orbit" role="status" aria-live="polite"></p>
           <button class="big-button quiz-button" type="button" data-el="quizButton" data-testid="quiz-time" hidden>Quiz time</button>
         </div>
       </div>
@@ -123,7 +123,7 @@ export class SurfaceHud {
     // Listen on Orbit's words and on the mission card (#34). Each reads what is showing when it is tapped.
     this.orbitListen = this.makeListen('orbit-listen', 'Listen to Orbit', () => this.els.orbit.textContent ?? '');
     this.orbitListen.classList.add('orbit-listen');
-    this.els.orbitLine.append(this.orbitListen);
+    this.els.orbitSide.prepend(this.orbitListen); // above Orbit's face, so the words keep their full width
     const missionListen = this.makeListen('mission-listen', 'Listen to the mission', () => this.missionSpeech());
     missionListen.classList.add('mission-listen');
     this.els.titleCard.prepend(missionListen);

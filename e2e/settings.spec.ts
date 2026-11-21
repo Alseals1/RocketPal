@@ -157,6 +157,31 @@ test('reduce motion: on, off, and "same as my computer"', async ({ page }) => {
   await expect.poll(() => debug(page, (h) => h.isReducedMotion())).toBe(false);
 });
 
+test('the sound levels work by tap, are remembered after a reload, and an old in-between volume shows its nearest level', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('rocketpals.settings')) {
+      localStorage.setItem('rocketpals.settings', JSON.stringify({ version: 2, volume: { effects: 0.3, music: 0.5, voice: 0.8 } }));
+    }
+  });
+  await start(page);
+  await open(page);
+  const effects = page.getByRole('radiogroup', { name: 'Sound effects', exact: true });
+  const voice = page.getByRole('radiogroup', { name: 'Reading voice', exact: true });
+  await expect(effects.getByRole('radio', { name: 'Quiet', exact: true })).toHaveAttribute('aria-checked', 'true'); // 0.3
+  await expect(voice.getByRole('radio', { name: 'Loud', exact: true })).toHaveAttribute('aria-checked', 'true'); // 0.8
+  await expect(voice.getByRole('radio', { name: 'Off', exact: true })).toHaveCount(0); // Listen only reads when tapped
+
+  await choose(page, 'Medium', 'Reading voice');
+  await choose(page, 'Loud', 'Sound effects');
+  expect(await debug(page, (h) => h.getSettings())).toMatchObject({ volume: { effects: 1, music: 0.5, voice: 0.5 } });
+
+  await page.reload();
+  await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
+  await open(page);
+  await expect(voice.getByRole('radio', { name: 'Medium', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(effects.getByRole('radio', { name: 'Loud', exact: true })).toHaveAttribute('aria-checked', 'true');
+});
+
 test('the game still works when the browser will not save anything', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'localStorage', {
