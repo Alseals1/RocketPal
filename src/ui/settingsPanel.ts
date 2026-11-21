@@ -1,7 +1,10 @@
 import {
+  EFFECT_LEVELS,
   MOTION_CHOICES,
   TEXT_SIZES,
+  VOICE_LEVELS,
   effectiveReducedMotion,
+  nearestLevel,
   textScale,
   type MotionChoice,
   type Settings,
@@ -12,8 +15,15 @@ import { focusGameArea, keepTabInside } from './focus';
 
 const TEXT_SIZE_LABELS: Record<TextSize, string> = { normal: 'Normal', big: 'Big', huge: 'Extra big' };
 const MOTION_LABELS: Record<MotionChoice, string> = { system: 'Same as my computer', on: 'On', off: 'Off' };
-/** The settings this panel shows. The others (volume, assist, boost) pass through unchanged. */
-type PanelKey = 'textSize' | 'reducedMotion';
+const LEVEL_LABELS: Record<number, string> = { 0: 'Off', 0.25: 'Quiet', 0.5: 'Medium', 1: 'Loud' };
+/** The volume channels this panel shows, with their levels. Music comes with Phase 2. */
+const VOLUME_GROUPS = { effects: EFFECT_LEVELS, voice: VOICE_LEVELS } as const;
+type VolumeGroup = keyof typeof VOLUME_GROUPS;
+/**
+ * The settings this panel shows, as each group's `data-group`: two settings, and two volume channels
+ * (`volume.effects`, `volume.voice`). The others (music, assist, boost) pass through unchanged.
+ */
+type PanelKey = 'textSize' | 'reducedMotion' | `volume.${VolumeGroup}`;
 
 /** Makes the page match the settings: text size and reduced motion. Safe to call again and again. */
 export function applySettingsToPage(settings: Settings, systemPrefersReduced: boolean): boolean {
@@ -34,7 +44,7 @@ export class SettingsPanel {
     initial: Settings,
     private readonly onChange: (settings: Settings) => void,
   ) {
-    this.settings = { ...initial };
+    this.settings = { ...initial, volume: { ...initial.volume } };
 
     this.button = document.createElement('button');
     this.button.type = 'button';
@@ -62,11 +72,26 @@ export class SettingsPanel {
           <p class="setting-help">Less spinning and shaking, for people who find it too much.</p>
           <div class="choices" data-group="reducedMotion"></div>
         </div>
-        <button class="big-button" type="button" data-testid="settings-done">Done</button>
+        <div class="setting-group" role="radiogroup" aria-labelledby="effects-label">
+          <p id="effects-label" class="setting-label">Sound effects</p>
+          <div class="choices" data-group="volume.effects"></div>
+        </div>
+        <div class="setting-group" role="radiogroup" aria-labelledby="voice-label">
+          <p id="voice-label" class="setting-label">Reading voice</p>
+          <p class="setting-help">How loud Listen reads.</p>
+          <div class="choices" data-group="volume.voice"></div>
+        </div>
+        <div class="settings-actions">
+          <button class="big-button" type="button" data-testid="settings-done">Done</button>
+        </div>
       </div>`;
 
     this.fill('textSize', TEXT_SIZES, TEXT_SIZE_LABELS);
     this.fill('reducedMotion', MOTION_CHOICES, MOTION_LABELS);
+    for (const channel of Object.keys(VOLUME_GROUPS) as VolumeGroup[]) {
+      const levels = VOLUME_GROUPS[channel].map(String);
+      this.fill(`volume.${channel}`, levels, LEVEL_LABELS);
+    }
     this.refresh();
 
     parent.append(this.button, this.panel);
@@ -103,7 +128,7 @@ export class SettingsPanel {
     focusGameArea(this.parent);
   }
 
-  private fill<K extends PanelKey>(key: K, values: Settings[K][], labels: Record<string, string>): void {
+  private fill(key: PanelKey, values: readonly string[], labels: Record<string, string>): void {
     const group = this.panel.querySelector(`[data-group="${key}"]`)!;
     for (const value of values) {
       const choice = document.createElement('button');
@@ -130,20 +155,30 @@ export class SettingsPanel {
       e.preventDefault();
       e.stopPropagation();
       radios[next].focus();
-      this.select(key, radios[next].dataset.value as Settings[K]);
+      this.select(key, radios[next].dataset.value!);
     });
   }
 
-  private select<K extends PanelKey>(key: K, value: Settings[K]): void {
-    this.settings = { ...this.settings, [key]: value };
+  private select(key: PanelKey, value: string): void {
+    const s = this.settings;
+    if (key === 'textSize') this.settings = { ...s, textSize: value as TextSize };
+    else if (key === 'reducedMotion') this.settings = { ...s, reducedMotion: value as MotionChoice };
+    else this.settings = { ...s, volume: { ...s.volume, [key.slice('volume.'.length)]: Number(value) } };
     this.refresh();
-    this.onChange({ ...this.settings });
+    this.onChange({ ...this.settings, volume: { ...this.settings.volume } });
+  }
+
+  /** The value a group shows as picked. A stored volume that is not one of the levels shows the nearest one. */
+  private shown(key: PanelKey): string {
+    if (key === 'textSize' || key === 'reducedMotion') return this.settings[key];
+    const channel = key.slice('volume.'.length) as VolumeGroup;
+    return String(nearestLevel(VOLUME_GROUPS[channel], this.settings.volume[channel]));
   }
 
   private refresh(): void {
     this.panel.querySelectorAll<HTMLElement>('.choice').forEach((choice) => {
       const key = choice.dataset.key as PanelKey;
-      const selected = this.settings[key] === choice.dataset.value;
+      const selected = this.shown(key) === choice.dataset.value;
       choice.setAttribute('aria-checked', String(selected));
       choice.tabIndex = selected ? 0 : -1;
     });

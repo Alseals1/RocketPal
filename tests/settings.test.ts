@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_SETTINGS,
+  EFFECT_LEVELS,
+  VOICE_LEVELS,
+  nearestLevel,
   SETTINGS_KEY,
   effectiveReducedMotion,
   loadSettings,
@@ -206,5 +209,29 @@ describe('effectiveReducedMotion', () => {
   it('is off when the player turns it off, even if the computer asks for less motion', () => {
     expect(effectiveReducedMotion('off', true)).toBe(false);
     expect(effectiveReducedMotion('off', false)).toBe(false);
+  });
+});
+
+describe('nearestLevel', () => {
+  it('gives an exact level back', () => {
+    for (const level of EFFECT_LEVELS) expect(nearestLevel(EFFECT_LEVELS, level)).toBe(level);
+    for (const level of VOICE_LEVELS) expect(nearestLevel(VOICE_LEVELS, level)).toBe(level);
+  });
+
+  it('picks the nearest level for a number in between', () => {
+    expect(nearestLevel(EFFECT_LEVELS, 0.1)).toBe(0);
+    expect(nearestLevel(EFFECT_LEVELS, 0.3)).toBe(0.25);
+    expect(nearestLevel(EFFECT_LEVELS, 0.8)).toBe(1); // the old default shows as Loud
+    expect(nearestLevel(VOICE_LEVELS, 0)).toBe(0.25); // the reading voice has no Off
+  });
+
+  it('gives a tie to the louder level', () => {
+    expect(nearestLevel(EFFECT_LEVELS, 0.125)).toBe(0.25);
+    expect(nearestLevel(EFFECT_LEVELS, 0.375)).toBe(0.5);
+    expect(nearestLevel(EFFECT_LEVELS, 0.75)).toBe(1);
+  });
+
+  it('keeps Off as Off for the effects', () => {
+    expect(nearestLevel(EFFECT_LEVELS, 0)).toBe(0);
   });
 });

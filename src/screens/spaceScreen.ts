@@ -52,7 +52,7 @@ export class SpaceScreen implements Screen<SpaceParams> {
       onAutopilot: (on) => this.setAutopilot(on),
       onFlyAgain: () => this.flyAgain(), // the plain landing card: no screen to change
       isCovered: () => ctx.isCovered(),
-    });
+    }, ctx.speech);
     this.refreshHere();
     this.hud.setAutopilot(false);
 

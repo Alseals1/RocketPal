@@ -3,7 +3,7 @@ import { fontsReady } from './fonts.ts';
 
 interface DebugHandle {
   isReducedMotion(): boolean;
-  getSettings(): { textSize: string; reducedMotion: string };
+  getSettings(): { textSize: string; reducedMotion: string; volume: { effects: number; music: number; voice: number } };
 }
 const debug = <T>(page: Page, fn: (h: DebugHandle) => T) => page.evaluate(`(${fn.toString()})(window.rocketPals)`) as Promise<T>;
 const rootFontSize = (page: Page) => page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
@@ -27,7 +27,9 @@ const open = async (page: Page) => {
   await page.getByTestId('settings-button').click();
   await expect(page.getByTestId('settings-panel')).toBeVisible();
 };
-const choose = (page: Page, name: string) => page.getByRole('radio', { name, exact: true }).click();
+/** Picks a choice by its words. `group` names the group when the words are in more than one ("Off", "Quiet"). */
+const choose = (page: Page, name: string, group?: string) =>
+  (group ? page.getByRole('radiogroup', { name: group, exact: true }) : page).getByRole('radio', { name, exact: true }).click();
 
 test('the settings panel opens and closes with the button, Done, Escape, and a tap outside', async ({ page }) => {
   await start(page);
@@ -77,7 +79,7 @@ test('every settings control is a big target and the buttons do not overlap', as
 
   await open(page);
   const controls = [...(await page.getByRole('radio').all()), page.getByTestId('settings-done')];
-  expect(controls.length).toBe(7); // 3 text sizes + 3 motion choices + Done
+  expect(controls.length).toBe(14); // 3 text sizes + 3 motion choices + 4 sound effects levels + 3 reading voice levels + Done
   for (const control of controls) {
     const box = (await control.boundingBox())!;
     expect(box.height).toBeGreaterThanOrEqual(56);
@@ -131,7 +133,7 @@ test('reduce motion: on, off, and "same as my computer"', async ({ page }) => {
 
   // The player says "off", even though the computer asks for less.
   await open(page);
-  await choose(page, 'Off');
+  await choose(page, 'Off', 'Reduce motion');
   expect(await debug(page, (h) => h.isReducedMotion())).toBe(false);
   await expect(page.locator('html')).toHaveAttribute('data-reduced-motion', 'false');
 
@@ -246,6 +248,19 @@ test('everything in the settings panel works with the keyboard alone', async ({ 
   await expect(page.getByRole('radio', { name: 'On', exact: true })).toBeChecked();
   expect(await debug(page, (h) => h.isReducedMotion())).toBe(true);
 
+  // The sound groups: Tab lands on the picked level (the default 0.8 shows as Loud), and arrows pick another.
+  const effects = page.getByRole('radiogroup', { name: 'Sound effects', exact: true });
+  const voice = page.getByRole('radiogroup', { name: 'Reading voice', exact: true });
+  await page.keyboard.press('Tab');
+  await expect(effects.getByRole('radio', { name: 'Loud', exact: true })).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(effects.getByRole('radio', { name: 'Medium', exact: true })).toBeChecked();
+  await page.keyboard.press('Tab');
+  await expect(voice.getByRole('radio', { name: 'Loud', exact: true })).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(voice.getByRole('radio', { name: 'Quiet', exact: true })).toBeChecked();
+  expect(await debug(page, (h) => h.getSettings())).toMatchObject({ volume: { effects: 0.5, voice: 0.25 } });
+
   // Tab stays inside the panel: Done, then back to the first choice; Shift+Tab goes back.
   await page.keyboard.press('Tab');
   await expect(page.getByTestId('settings-done')).toBeFocused();
@@ -270,9 +285,9 @@ test('turning reduced motion on really switches the animations off in the page',
   expect(await duration()).not.toBe('0s'); // buttons ease when pressed
 
   await open(page);
-  await choose(page, 'On');
+  await choose(page, 'On', 'Reduce motion');
   expect(await duration()).toBe('0s');
-  await choose(page, 'Off');
+  await choose(page, 'Off', 'Reduce motion');
   expect(await duration()).not.toBe('0s');
 });
 

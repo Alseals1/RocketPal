@@ -1,8 +1,10 @@
 /**
  * Patch: docs/VISUAL_DESIGN.md section 6. A round, embroidered-style badge in a world or category
  * colour. Earned: full colour and the date. Not yet: an outline and what earns it. The words say which,
- * so colour is never the only sign.
+ * so colour is never the only sign. With `onListen`, a Listen button hands over the patch's name and its line
+ * (bind it to the speaker with `bindListen`'s text, as the patch board will, #54).
  */
+import { createButton, ICONS } from './button';
 
 export interface PatchOptions {
   name: string;
@@ -15,9 +17,11 @@ export interface PatchOptions {
   condition?: string;
   /** An inline SVG from the game's code, drawn in the patch. */
   icon?: string;
+  /** Adds a Listen button that calls this with "<name>. <detail line>" (#34). */
+  onListen?: (text: string) => void;
 }
 
-export function createPatch({ name, color, earned, date, condition, icon }: PatchOptions): HTMLElement {
+export function createPatch({ name, color, earned, date, condition, icon, onListen }: PatchOptions): HTMLElement {
   const patch = document.createElement('figure');
   patch.className = 'rp-patch';
   patch.dataset.state = earned ? 'earned' : 'not-yet';
@@ -40,5 +44,11 @@ export function createPatch({ name, color, earned, date, condition, icon }: Patc
   caption.append(title, detail);
 
   patch.append(disc, caption);
+  if (onListen) {
+    const listen = createButton({ kind: 'icon', label: 'Listen to this patch', icon: ICONS.listen });
+    listen.classList.add('rp-patch__listen');
+    listen.addEventListener('click', () => onListen(`${name}. ${detail.textContent}`));
+    patch.append(listen);
+  }
   return patch;
 }

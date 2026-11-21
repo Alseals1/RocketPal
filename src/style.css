@@ -349,6 +349,14 @@ button:focus-visible {
   margin: 0 0 16px;
 }
 
+/* Listen and Fly again side by side, or one above the other when the card is narrow or the text is big. */
+.landed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
 /* ---- The 3D picture was lost (a lost WebGL context) ---- */
 
 .context-lost {
@@ -540,8 +548,20 @@ button:focus-visible {
 
 .settings-card {
   width: min(30em, 100%);
-  /* "auto" on every side centres the card and keeps it only as tall as its content; when it is too tall it starts at the top and scrolls. */
+  /* "auto" on every side centres the card and keeps it only as tall as its content. When it is taller than the screen
+     (a phone held sideways, big text), the card scrolls inside the screen and Done stays at its bottom (#34). */
   margin: auto;
+  box-sizing: border-box;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+/* Done is always on the screen: it stays at the bottom of a card that scrolls, on the card's own colour. */
+.settings-actions {
+  position: sticky;
+  bottom: 0;
+  padding-top: 8px;
+  background: var(--text-on-accent);
 }
 
 .settings-card h2 {
@@ -631,6 +651,7 @@ button:focus-visible {
 /* While the picture loads, only Orbit's face shows on top of the loading screen. The dots (which can be reached by keyboard) and the speech bubble (which would cover the loading words on a narrow screen) wait. */
 .surface-hud.is-loading .spots,
 .surface-hud.is-loading .orbit-bubble,
+.surface-hud.is-loading .orbit-listen,
 .surface-hud.is-loading .quiz-button {
   visibility: hidden;
 }
@@ -645,6 +666,19 @@ button:focus-visible {
 
 .surface-title p {
   margin: 0;
+}
+
+/* Listen to the mission: at the top right of the title card, with the words flowing round it. The card ignores the
+   mouse so the photo under it can be dragged; the button does not. */
+.mission-listen {
+  float: right;
+  margin: 0 0 4px 10px;
+  pointer-events: auto;
+}
+
+/* An icon Listen button on a computer with no reading voice (src/ui/listen.ts). The words are still on the screen. */
+.is-no-voice {
+  display: none !important;
 }
 
 /* The mission line is a little smaller than the rest so it stays on one line. */
@@ -741,6 +775,25 @@ button:focus-visible {
 /* Orbit ignores the mouse so dots under it still work; the Quiz time button does not. */
 .quiz-button {
   margin: 0 0 8px;
+  pointer-events: auto;
+}
+
+/* Orbit's words with their Listen button beside them. */
+.orbit-line {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 0 8px;
+}
+
+.orbit-line .orbit-bubble {
+  margin: 0;
+  min-width: 0;
+}
+
+.orbit-listen {
+  flex: none;
   pointer-events: auto;
 }
 

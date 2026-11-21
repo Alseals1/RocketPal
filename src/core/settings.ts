@@ -39,6 +39,24 @@ export const ASSIST_CHOICES: Assist[] = ['full', 'some', 'little'];
 export const BOOST_MODES: BoostMode[] = ['hold', 'toggle'];
 const VOLUME_CHANNELS = ['effects', 'music', 'voice'] as const satisfies readonly (keyof VolumeSettings)[];
 
+/**
+ * The volume levels Settings offers (#34): a few big named choices instead of a slider. Any stored number from 0 to 1
+ * still loads; the panel shows the nearest level. The reading voice has no Off: it only ever plays when Listen is tapped.
+ */
+export const EFFECT_LEVELS = [0, 0.25, 0.5, 1] as const;
+export const VOICE_LEVELS = [0.25, 0.5, 1] as const;
+
+/** The level nearest to `v`. A tie goes to the louder level, so a saved 0.8 shows as Loud and 0.375 as Medium. */
+export function nearestLevel(levels: readonly number[], v: number): number {
+  let best = levels[0];
+  for (const level of levels) {
+    const d = Math.abs(level - v);
+    const bestD = Math.abs(best - v);
+    if (d < bestD || (d === bestD && level > best)) best = level;
+  }
+  return best;
+}
+
 /** The two things we use from the browser's storage, so tests can pass in a pretend one. */
 export interface SettingsStorage {
   getItem(key: string): string | null;
