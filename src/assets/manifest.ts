@@ -32,6 +32,18 @@ export const ASSET_ENTRIES: readonly AssetEntry[] = [
   { id: 'sound/rank-up', type: 'sound', url: { high: '/sounds/rank-up.wav' }, bytes: 52964, credit: 'sounds' },
   { id: 'sound/patch', type: 'sound', url: { high: '/sounds/patch.wav' }, bytes: 35324, credit: 'sounds' },
   { id: 'sound/bump', type: 'sound', url: { high: '/sounds/bump.wav' }, bytes: 11070, credit: 'sounds' },
+  // The Star Map's planet thumbnails (#42): 128 x 128 WebP, made by tools/make-thumbnails.ts from the scene's own
+  // procedural textures. Re-run the script when makeWorldTexture changes.
+  { id: 'thumb/sun', type: 'image', url: { high: '/thumbnails/sun.webp' }, bytes: 5500, credit: 'thumbnails' },
+  { id: 'thumb/mercury', type: 'image', url: { high: '/thumbnails/mercury.webp' }, bytes: 2382, credit: 'thumbnails' },
+  { id: 'thumb/venus', type: 'image', url: { high: '/thumbnails/venus.webp' }, bytes: 2806, credit: 'thumbnails' },
+  { id: 'thumb/earth', type: 'image', url: { high: '/thumbnails/earth.webp' }, bytes: 3122, credit: 'thumbnails' },
+  { id: 'thumb/moon', type: 'image', url: { high: '/thumbnails/moon.webp' }, bytes: 2438, credit: 'thumbnails' },
+  { id: 'thumb/mars', type: 'image', url: { high: '/thumbnails/mars.webp' }, bytes: 2762, credit: 'thumbnails' },
+  { id: 'thumb/jupiter', type: 'image', url: { high: '/thumbnails/jupiter.webp' }, bytes: 2792, credit: 'thumbnails' },
+  { id: 'thumb/saturn', type: 'image', url: { high: '/thumbnails/saturn.webp' }, bytes: 2548, credit: 'thumbnails' },
+  { id: 'thumb/uranus', type: 'image', url: { high: '/thumbnails/uranus.webp' }, bytes: 2748, credit: 'thumbnails' },
+  { id: 'thumb/neptune', type: 'image', url: { high: '/thumbnails/neptune.webp' }, bytes: 2820, credit: 'thumbnails' },
 ];
 
 /** The most bytes one file of each type may have (`high` and `low` for textures). */
@@ -54,4 +66,9 @@ export function assetUrl(id: AssetId): string | undefined {
 /** The landing photo of a world. */
 export function arrivalPhotoId(worldId: string): AssetId {
   return `photo/${worldId}`;
+}
+
+/** The Star Map thumbnail of a world (#42). */
+export function thumbnailId(worldId: string): AssetId {
+  return `thumb/${worldId}`;
 }
