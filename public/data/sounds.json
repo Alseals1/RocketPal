@@ -1,0 +1,74 @@
+{
+  "sounds": [
+    {
+      "id": "boost",
+      "file": "sound/boost",
+      "channel": "effects",
+      "volume": 0.5,
+      "caption": "Whoosh"
+    },
+    {
+      "id": "capsule",
+      "file": "sound/capsule",
+      "channel": "effects",
+      "volume": 0.6,
+      "caption": "Capsule blip"
+    },
+    {
+      "id": "dot-found",
+      "file": "sound/dot-found",
+      "channel": "effects",
+      "volume": 0.6,
+      "caption": "Ding"
+    },
+    {
+      "id": "docking",
+      "file": "sound/docking",
+      "channel": "effects",
+      "volume": 0.6,
+      "caption": "Docking chime"
+    },
+    {
+      "id": "right",
+      "file": "sound/right",
+      "channel": "effects",
+      "volume": 0.6,
+      "caption": "Right answer ding"
+    },
+    {
+      "id": "not-quite",
+      "file": "sound/not-quite",
+      "channel": "effects",
+      "volume": 0.5,
+      "caption": "Soft try-again tones"
+    },
+    {
+      "id": "star",
+      "file": "sound/star",
+      "channel": "effects",
+      "volume": 0.6,
+      "caption": "Star sparkle"
+    },
+    {
+      "id": "rank-up",
+      "file": "sound/rank-up",
+      "channel": "effects",
+      "volume": 0.7,
+      "caption": "Rank-up fanfare"
+    },
+    {
+      "id": "patch",
+      "file": "sound/patch",
+      "channel": "effects",
+      "volume": 0.6,
+      "caption": "Patch chime"
+    },
+    {
+      "id": "bump",
+      "file": "sound/bump",
+      "channel": "effects",
+      "volume": 0.5,
+      "caption": "Soft bump"
+    }
+  ]
+}

@@ -3,20 +3,16 @@
  * Howler. Howler is fetched with a dynamic `import()` on the first tap or key, so it is not in the first download,
  * and no sound can play before the browser allows it.
  *
- * This is the skeleton: there are no sound files yet (#34 adds them, with `sounds.json` and the cue table).
- * See decisions/2026-11-12-platform-services.md.
+ * Since #34 the sounds come from `sounds.json` (`Content.sounds`), and every file is preloaded once Howler is in.
+ * Game code never calls `play` for feedback: `src/app/sound.ts` does, from the cue table in `src/core/cues.ts`.
+ * See decisions/2026-11-12-platform-services.md and decisions/2026-11-21-sound-effects-and-listen.md.
  */
 import type { AssetId, SoundId } from '../data/ids';
+import type { Channel, SoundDef } from '../data/sounds';
 import type { VolumeSettings } from '../core/settings';
 
-export type Channel = 'effects' | 'music' | 'voice';
-export interface SoundDef {
-  id: SoundId;
-  file: AssetId;
-  channel: Channel;
-  volume: number;
-  caption: string;
-}
+// The types live with the content that lists the sounds; they are re-exported here, as 4.15 names them.
+export type { Channel, SoundDef } from '../data/sounds';
 export interface AudioManager {
   /** Silently does nothing before the first tap, or when muted. */
   play(id: SoundId): void;

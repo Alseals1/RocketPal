@@ -45,4 +45,4 @@ Landing on a world shows a real NASA photograph (see `plans/mars-panorama.md`). 
 | Name | Target path | Notes |
 | --- | --- | --- |
 | Music loops (calm space, flying, quiz) | `public/audio/music_*.ogg` | Must be originals or openly licensed; record in `CREDITS.md`. |
-| Effects (boost, land, correct, retry, star, badge) | `public/audio/sfx_*.ogg` | Gentle, no jump scares. |
+| ~~Effects~~ | `public/sounds/*.wav` | **Done in #34:** ten original sounds (boost, capsule, dot-found, docking, right, not-quite, star, rank-up, patch, bump), synthesised by `tools/make-sounds.ts`. See `CREDITS.md` (`sounds`). |

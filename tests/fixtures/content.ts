@@ -2,6 +2,7 @@ import missionsJson from '../../public/data/missions.json';
 import planetsJson from '../../public/data/planets.json';
 import progressionJson from '../../public/data/progression.json';
 import quizzesJson from '../../public/data/quizzes.json';
+import soundsJson from '../../public/data/sounds.json';
 import surfacesJson from '../../public/data/surfaces.json';
 import type { RawContent } from '../../src/data/content';
 
@@ -13,6 +14,7 @@ export function realFiles() {
     missions: structuredClone(missionsJson) as any,
     quizzes: structuredClone(quizzesJson) as any,
     progression: structuredClone(progressionJson) as any,
+    sounds: structuredClone(soundsJson) as any,
   } satisfies RawContent;
 }
 
