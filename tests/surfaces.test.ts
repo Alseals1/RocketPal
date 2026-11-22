@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import surfacesJson from '../public/data/surfaces.json';
-import { arrivalWording, validateSurfaces } from '../src/data/surfaces';
+import { arrivalWording, isWindowLike, validateSurfaces } from '../src/data/surfaces';
 import { WORLD_IDS } from '../src/data/ids';
 import {
   cylindricalPhotoToAzEl,
@@ -31,7 +31,7 @@ describe('surfaces.json', () => {
   });
 
   it('gives Mars five hotspots, each with at least one NASA page it was checked against', () => {
-    const mars = surfacesJson.surfaces.find((s) => s.worldId === 'mars')!;
+    const mars = surfacesJson.surfaces.find((s) => s.place === 'mars')!;
     expect(mars.hotspots).toHaveLength(5);
     for (const spot of mars.hotspots) {
       expect(spot.sources.length).toBeGreaterThanOrEqual(1);
@@ -49,7 +49,7 @@ describe('surfaces.json', () => {
       rover: [0.625, 0.621], // the white rover deck
       photo: [0.9, 0.358], // open ground on the right
     };
-    const mars = surfacesJson.surfaces.find((s) => s.worldId === 'mars')!;
+    const mars = surfacesJson.surfaces.find((s) => s.place === 'mars')!;
     for (const [id, [x, y]] of Object.entries(inPhoto)) {
       const want = cylindricalPhotoToAzEl(x, y, photo);
       const spot = mars.hotspots.find((h) => h.id === id)!;
@@ -63,8 +63,8 @@ describe('surfaces.json', () => {
   });
 
   it('describes each picture for people who cannot see it, truthfully for what it is', () => {
-    const mars = surfacesJson.surfaces.find((s) => s.worldId === 'mars')!;
-    const earth = surfacesJson.surfaces.find((s) => s.worldId === 'earth')!;
+    const mars = surfacesJson.surfaces.find((s) => s.place === 'mars')!;
+    const earth = surfacesJson.surfaces.find((s) => s.place === 'earth')!;
     expect(mars.description).toMatch(/360 degree/);
     expect(mars.description).toMatch(/Perseverance/);
     // Earth is NOT a 360 degree picture and was NOT taken by a rover: the description must not say so.
@@ -79,18 +79,18 @@ describe('surfaces.json', () => {
   });
 
   it('tells the player which parts of the picture are filled in, not photographed', () => {
-    const mars = surfacesJson.surfaces.find((s) => s.worldId === 'mars')!;
+    const mars = surfacesJson.surfaces.find((s) => s.place === 'mars')!;
     expect(mars.creditNote).toMatch(/filled in/i);
   });
 
   it('credits NASA for the photo', () => {
-    const mars = surfacesJson.surfaces.find((s) => s.worldId === 'mars')!;
+    const mars = surfacesJson.surfaces.find((s) => s.place === 'mars')!;
     expect(mars.credit).toContain('NASA');
   });
 });
 
 describe('the Earth window view from the International Space Station', () => {
-  const earth = () => surfacesJson.surfaces.find((s) => s.worldId === 'earth')!;
+  const earth = () => surfacesJson.surfaces.find((s) => s.place === 'earth')!;
 
   it('is a window view of a real NASA astronaut photo, with the lens it was taken with', () => {
     expect(earth().kind).toBe('window');
@@ -176,7 +176,7 @@ describe('validateSurfaces', () => {
 
   it('rejects a surface for a world that does not exist, and duplicates', () => {
     const a = copy();
-    a.surfaces[0].worldId = 'krypton';
+    a.surfaces[0].place = 'krypton';
     expect(validateSurfaces(a, WORLDS)).toContainEqual(expect.stringContaining('krypton'));
     const b = copy();
     b.surfaces.push(structuredClone(b.surfaces[0]));
@@ -247,7 +247,7 @@ describe('validateSurfaces', () => {
   });
 
   it('rejects a window view with no lens details, or silly ones', () => {
-    const earthIndex = copy().surfaces.findIndex((s: any) => s.worldId === 'earth');
+    const earthIndex = copy().surfaces.findIndex((s: any) => s.place === 'earth');
     const a = copy();
     delete a.surfaces[earthIndex].photo;
     expect(validateSurfaces(a, WORLDS)).toContainEqual(expect.stringContaining('photo'));
@@ -260,13 +260,62 @@ describe('validateSurfaces', () => {
   });
 
   it('rejects a dot that sits outside the photo in a window view', () => {
-    const earthIndex = copy().surfaces.findIndex((s: any) => s.worldId === 'earth');
+    const earthIndex = copy().surfaces.findIndex((s: any) => s.place === 'earth');
     const a = copy();
     a.surfaces[earthIndex].hotspots[0].azimuth = 120; // far off to the side
     expect(validateSurfaces(a, WORLDS)).toContainEqual(expect.stringContaining('outside the photo'));
     const b = copy();
     b.surfaces[earthIndex].hotspots[0].elevation = 60;
     expect(validateSurfaces(b, WORLDS)).toContainEqual(expect.stringContaining('outside the photo'));
+  });
+
+  it('accepts a fly-by only with a cockpit frame, and a window only with a station frame', () => {
+    const earthIndex = copy().surfaces.findIndex((s: any) => s.place === 'earth');
+    const marsIndex = copy().surfaces.findIndex((s: any) => s.place === 'mars');
+    const flyby = copy();
+    Object.assign(flyby.surfaces[earthIndex], { kind: 'flyby', frame: 'cockpit', wording: 'flyingPast' });
+    expect(validateSurfaces(flyby, WORLDS)).toEqual([]);
+    const flybyStation = copy();
+    Object.assign(flybyStation.surfaces[earthIndex], { kind: 'flyby', frame: 'station' });
+    expect(validateSurfaces(flybyStation, WORLDS)).toContain('earth: a flyby view needs frame "cockpit"');
+    const windowNoFrame = copy();
+    delete windowNoFrame.surfaces[earthIndex].frame;
+    expect(validateSurfaces(windowNoFrame, WORLDS)).toContain('earth: a window view needs frame "station"');
+    const panoramaFrame = copy();
+    panoramaFrame.surfaces[marsIndex].frame = 'cockpit';
+    expect(validateSurfaces(panoramaFrame, WORLDS)).toContain('mars: a panorama view has no frame');
+  });
+
+  it('runs the photo checks on a fly-by too', () => {
+    const earthIndex = copy().surfaces.findIndex((s: any) => s.place === 'earth');
+    const a = copy();
+    Object.assign(a.surfaces[earthIndex], { kind: 'flyby', frame: 'cockpit' });
+    delete a.surfaces[earthIndex].photo;
+    expect(validateSurfaces(a, WORLDS)).toContainEqual(expect.stringContaining('photo needs'));
+    const b = copy();
+    Object.assign(b.surfaces[earthIndex], { kind: 'flyby', frame: 'cockpit' });
+    b.surfaces[earthIndex].hotspots[0].azimuth = 120;
+    expect(validateSurfaces(b, WORLDS)).toContainEqual(expect.stringContaining('outside the photo'));
+  });
+
+  it('refuses a "course" arrival until the belt is built', () => {
+    const a = copy();
+    a.surfaces[0].kind = 'course';
+    expect(validateSurfaces(a, WORLDS)).toContainEqual(expect.stringContaining('"course"'));
+  });
+
+  it('requires the wording, and "flyingPast" on a world with no solid ground', () => {
+    const a = copy();
+    delete a.surfaces[0].wording;
+    expect(validateSurfaces(a, WORLDS)).toContainEqual(expect.stringContaining('wording must be'));
+    const b = copy();
+    b.surfaces[0].wording = 'splashdown';
+    expect(validateSurfaces(b, WORLDS)).toContainEqual(expect.stringContaining('wording must be'));
+    for (const giant of ['sun', 'jupiter', 'saturn', 'uranus', 'neptune']) {
+      const c = copy();
+      Object.assign(c.surfaces[0], { place: giant, wording: 'landed' });
+      expect(validateSurfaces(c, WORLDS), giant).toContain(`${giant}: has no solid ground, so wording must be "flyingPast"`);
+    }
   });
 
   it('rejects duplicate hotspot ids and an empty hotspot list', () => {
@@ -293,5 +342,18 @@ describe('arrivalWording', () => {
 
   it('only names real worlds', () => {
     for (const id of FLYING_PAST) expect(WORLD_IDS).toContain(id);
+  });
+  it("uses the arrival's own wording when there is one", () => {
+    expect(arrivalWording('moon', { wording: 'flyingPast' })).toBe('flyingPast');
+    expect(arrivalWording('earth', { wording: 'landed' })).toBe('landed');
+  });
+});
+
+describe('isWindowLike', () => {
+  it('is true for window and fly-by views only', () => {
+    expect(isWindowLike({ kind: 'window' })).toBe(true);
+    expect(isWindowLike({ kind: 'flyby' })).toBe(true);
+    expect(isWindowLike({ kind: 'panorama' })).toBe(false);
+    expect(isWindowLike({ kind: 'course' })).toBe(false);
   });
 });

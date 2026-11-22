@@ -4,7 +4,7 @@ import { arrivalPhotoId } from '../assets/manifest';
 import { findMissionAt } from '../data/missions';
 import { drawDifferent, type QuestionPool, type QuizQuestion } from '../data/quizzes';
 import type { AssetId, DotId, PlaceId, WorldId } from '../data/ids';
-import type { Surface } from '../data/surfaces';
+import { isWindowLike, type ArrivalDef } from '../data/surfaces';
 import { diffProgression } from '../core/progression';
 import type { LookState } from '../surface/geometry';
 import { windowLookLimits, viewHorizontalFov } from '../surface/geometry';
@@ -23,7 +23,7 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
   private panorama?: PanoramaScene;
   private look?: LookController;
   private surfaceHud?: SurfaceHud;
-  private activeSurface?: Surface;
+  private activeSurface?: ArrivalDef;
   private stopWatchingSave?: () => void;
   /** The picture this visit holds from the asset manager, released on leave. */
   private photoId?: AssetId;
@@ -57,24 +57,24 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
           const view = this.panorama?.viewFov();
           if (view) this.look?.turnToShow(az, el, view, ctx.reducedMotion());
         },
-        onDotFound: (id) => this.dotFound(surface.worldId, id),
-        onQuizFinished: (perfect) => this.quizFinished(surface.worldId, perfect),
-        onAnswered: (correct) => ctx.events.emit({ type: 'answered', place: surface.worldId as WorldId, correct }),
+        onDotFound: (id) => this.dotFound(surface.place, id),
+        onQuizFinished: (perfect) => this.quizFinished(surface.place, perfect),
+        onAnswered: (correct) => ctx.events.emit({ type: 'answered', place: surface.place as WorldId, correct }),
       },
       ctx.speech,
-      this.missionExtras(surface.worldId),
+      this.missionExtras(surface.place),
     );
     this.surfaceHud = hud;
     // Another window of the game earned something: show it here too, without a reload.
-    this.stopWatchingSave = ctx.save.onChange(() => hud.setProgress(this.progressView(surface.worldId)));
-    hud.setProgress(this.progressView(surface.worldId));
+    this.stopWatchingSave = ctx.save.onChange(() => hud.setProgress(this.progressView(surface.place)));
+    hud.setProgress(this.progressView(surface.place));
     hud.show();
     hud.setLoading(true);
 
     const panorama = (this.panorama ??= new PanoramaScene(ctx.renderer.renderer));
     panorama.setSize(ctx.stage.clientWidth, ctx.stage.clientHeight);
     // The asset manager picks the size: low quality, or a graphics card that cannot hold a 4096 picture, gets the small one.
-    const id = arrivalPhotoId(surface.worldId);
+    const id = arrivalPhotoId(surface.place);
     let texture: Texture;
     try {
       texture = await ctx.assets.acquire<Texture>(id);
@@ -87,7 +87,7 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
       return;
     }
     this.photoId = id;
-    if (surface.kind === 'window') panorama.showWindow(texture, surface.photo!);
+    if (isWindowLike(surface)) panorama.showWindow(texture, surface.photo!);
     else panorama.show(texture);
 
     this.look = new LookController(surface.start);
@@ -206,11 +206,11 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
     return progress.stars;
   }
 
-  /** In a window view you can only look as far as the photo reaches past the screen; a 360 degree picture has no limit. */
+  /** In a window or fly-by view you can only look as far as the photo reaches past the screen; a 360 degree picture has no limit. */
   private updateLookLimits(): void {
     const surface = this.activeSurface;
     if (!this.look || !this.panorama) return;
-    if (surface?.kind !== 'window' || !surface.photo) {
+    if (!surface || !isWindowLike(surface) || !surface.photo) {
       this.look.setLimits(undefined);
       return;
     }

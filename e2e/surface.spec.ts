@@ -3,10 +3,10 @@ import { fontsReady } from './fonts.ts';
 import { readFileSync } from 'node:fs';
 
 interface SurfaceFile {
-  surfaces: { worldId: string; hotspots: { id: string; label: string; title: string; text: string; azimuth: number }[] }[];
+  surfaces: { place: string; hotspots: { id: string; label: string; title: string; text: string; azimuth: number }[] }[];
 }
 const surfaces = JSON.parse(readFileSync('public/data/surfaces.json', 'utf8')) as SurfaceFile;
-const mars = surfaces.surfaces.find((s) => s.worldId === 'mars')!;
+const mars = surfaces.surfaces.find((s) => s.place === 'mars')!;
 
 interface DebugHandle {
   getMode(): string;

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 interface SurfaceFile {
   surfaces: {
-    worldId: string;
+    place: string;
     credit: string;
     creditNote: string;
     description: string;
@@ -13,7 +13,7 @@ interface SurfaceFile {
   }[];
 }
 const surfaces = JSON.parse(readFileSync('public/data/surfaces.json', 'utf8')) as SurfaceFile;
-const earth = surfaces.surfaces.find((s) => s.worldId === 'earth')!;
+const earth = surfaces.surfaces.find((s) => s.place === 'earth')!;
 
 interface DebugHandle {
   getMode(): string;

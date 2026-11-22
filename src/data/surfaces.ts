@@ -1,3 +1,4 @@
+import type { PlaceId } from './ids';
 import { isRealDate, isText, sentences, words } from './text';
 
 export interface Hotspot {
@@ -14,12 +15,21 @@ export interface Hotspot {
 }
 
 /**
+ * How a place looks when you arrive (docs/TECHNICAL_ARCHITECTURE.md sections 4.9 and 5.10).
  * "panorama": a 360 degree picture you stand inside (Mars).
  * "window": one ordinary wide photo seen through a window, with a little looking round (Earth from the space station).
+ * "flyby": the window view with a cockpit frame and a spacecraft photo (the Moon, Jupiter).
+ * "course": the Asteroid Belt Run. In the type only: the validator refuses it until the belt is built.
  */
-export type SurfaceKind = 'panorama' | 'window';
+export type ArrivalKind = 'panorama' | 'window' | 'flyby' | 'course';
 
-/** For a window view: the lens the photo was taken with. */
+/** What the arrival words say: the Sun and the giant planets (and the Moon's fly-by) say "flying past". */
+export type ArrivalWording = 'landed' | 'flyingPast';
+
+/**
+ * For a window or fly-by view. For a window, the lens the photo was taken with. For a fly-by, a chosen display angle
+ * (a planet portrait has no useful lens data): the world fills about two thirds of the window.
+ */
 export interface WindowPhoto {
   horizontalFov: number;
   verticalFov: number;
@@ -27,10 +37,13 @@ export interface WindowPhoto {
   aspect: number;
 }
 
-export interface Surface {
-  worldId: string;
-  kind: SurfaceKind;
-  /** Only for window views. */
+export interface ArrivalDef {
+  place: PlaceId;
+  kind: ArrivalKind;
+  /** The frame drawn round the photo: "station" for a window, "cockpit" for a fly-by, none for a panorama. */
+  frame?: 'station' | 'cockpit';
+  wording: ArrivalWording;
+  /** Only for window and fly-by views. */
   photo?: WindowPhoto;
   title: string;
   /** What the picture is, for people who cannot see it (read out for the picture). Must be true for this picture. */
@@ -44,9 +57,15 @@ export interface Surface {
   hotspots: Hotspot[];
 }
 
+/** Window and fly-by views show one flat photo through a frame; they share the same view code and limits. */
+export function isWindowLike(def: Pick<ArrivalDef, 'kind'>): boolean {
+  return def.kind === 'window' || def.kind === 'flyby';
+}
+
+/** surfaces.json as a whole. */
 export interface SurfaceData {
   lastChecked: string;
-  surfaces: Surface[];
+  surfaces: ArrivalDef[];
 }
 
 /** Short enough for an 8 to 10 year old to read in one go. */
@@ -65,34 +84,43 @@ export function validateSurfacesFile(raw: unknown): string[] {
 }
 
 /** Returns a list of problems in the surface data. An empty list means it is valid. */
-export function validateSurfaces(raw: unknown, worldIds: readonly string[]): string[] {
+export function validateSurfaces(raw: unknown, places: readonly string[]): string[] {
   const problems = validateSurfacesFile(raw);
   const surfaces = (raw as Record<string, unknown> | null)?.surfaces;
   if (!Array.isArray(surfaces)) return problems;
 
   const seenWorlds = new Set<string>();
   for (const surface of surfaces as Record<string, any>[]) {
-    const id = isText(surface?.worldId) ? surface.worldId : '(surface without a worldId)';
+    const id = isText(surface?.place) ? surface.place : '(surface without a place)';
     if (seenWorlds.has(id)) problems.push(`${id}: listed twice`);
     seenWorlds.add(id);
-    problems.push(...validateSurface(surface, worldIds));
+    problems.push(...validateSurface(surface, places));
   }
   return problems;
 }
 
 /**
- * The checks on one landing picture and its dots. `worldIds` are the worlds it may belong to. One bad dot makes the
+ * The checks on one arrival picture and its dots. `places` are the places it may belong to. One bad dot makes the
  * whole picture bad: dropping single dots comes with question pools.
  */
-export function validateSurface(raw: unknown, worldIds: readonly string[]): string[] {
+export function validateSurface(raw: unknown, places: readonly string[]): string[] {
   // Typed loosely on purpose: every read below allows for a missing field (or a missing picture).
   const surface = raw as Record<string, any>;
   const problems: string[] = [];
-  const id = isText(surface?.worldId) ? surface.worldId : '(surface without a worldId)';
-  if (!worldIds.includes(id)) problems.push(`${id}: not a world in planets.json`);
+  const id = isText(surface?.place) ? surface.place : '(surface without a place)';
+  if (!places.includes(id)) problems.push(`${id}: not a world in planets.json`);
 
-  if (surface?.kind !== 'panorama' && surface?.kind !== 'window') problems.push(`${id}: kind must be "panorama" or "window"`);
-  if (surface?.kind === 'window') {
+  const kind = surface?.kind;
+  if (kind === 'course') problems.push(`${id}: kind "course" comes with the asteroid belt and is not ready yet`);
+  else if (kind !== 'panorama' && kind !== 'window' && kind !== 'flyby') problems.push(`${id}: kind must be "panorama", "window" or "flyby"`);
+  const frameFor: Record<string, string | undefined> = { window: 'station', flyby: 'cockpit', panorama: undefined };
+  if (kind in frameFor && surface.frame !== frameFor[kind]) {
+    problems.push(frameFor[kind] ? `${id}: a ${kind} view needs frame "${frameFor[kind]}"` : `${id}: a ${kind} view has no frame`);
+  }
+  if (surface?.wording !== 'landed' && surface?.wording !== 'flyingPast') problems.push(`${id}: wording must be "landed" or "flyingPast"`);
+  else if (NO_SOLID_GROUND.has(id) && surface.wording !== 'flyingPast') problems.push(`${id}: has no solid ground, so wording must be "flyingPast"`);
+  const windowLike = kind === 'window' || kind === 'flyby';
+  if (windowLike) {
     const p = surface.photo;
     const sensible = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && n > 10 && n < 170;
     if (!p || !sensible(p.horizontalFov) || !sensible(p.verticalFov) || !isNumberIn(p.aspect, 0.2, 5)) {
@@ -128,7 +156,7 @@ export function validateSurface(raw: unknown, worldIds: readonly string[]): stri
     if (!isText(spot?.label)) problems.push(`${label}: label is required`);
     if (!isNumberIn(spot?.azimuth, 0, 360) || spot.azimuth === 360) problems.push(`${label}: azimuth must be from 0 to under 360`);
     if (!isNumberIn(spot?.elevation, -90, 90)) problems.push(`${label}: elevation must be from -90 to 90`);
-    if (surface.kind === 'window' && surface.photo && isNumberIn(spot?.azimuth, 0, 360) && isNumberIn(spot?.elevation, -90, 90)) {
+    if (windowLike && surface.photo && isNumberIn(spot?.azimuth, 0, 360) && isNumberIn(spot?.elevation, -90, 90)) {
       // In a window view the photo is the only picture: a dot beside it would float in the black.
       const fromMiddle = ((spot.azimuth + 540) % 360) - 180;
       if (Math.abs(fromMiddle) > surface.photo.horizontalFov / 2 || Math.abs(spot.elevation) > surface.photo.verticalFov / 2) {
@@ -149,16 +177,14 @@ export function validateSurface(raw: unknown, worldIds: readonly string[]): stri
   return problems;
 }
 
-/** What the arrival words say. The same literals as `ArrivalDef.wording` (docs/TECHNICAL_ARCHITECTURE.md section 4.9). */
-export type ArrivalWording = 'landed' | 'flyingPast';
-
 /**
  * Worlds with no solid ground to land on: the Sun and the giant planets (NASA: they have no true surface).
- * GAME_DESIGN.md: the words say "flying past", never "landed", on these. This list moves into the arrival data
- * (`ArrivalDef.wording`) when that data is built.
+ * GAME_DESIGN.md: the words say "flying past", never "landed", on these. The validator holds `ArrivalDef.wording` to it.
  */
 const NO_SOLID_GROUND = new Set(['sun', 'jupiter', 'saturn', 'uranus', 'neptune']);
 
-export function arrivalWording(worldId: string): ArrivalWording {
-  return NO_SOLID_GROUND.has(worldId) ? 'flyingPast' : 'landed';
+/** The words for a place: its arrival's `wording`, or (for a place with no arrival picture) this fallback. */
+export function arrivalWording(place: string, arrival?: Pick<ArrivalDef, 'wording'>): ArrivalWording {
+  if (arrival) return arrival.wording;
+  return NO_SOLID_GROUND.has(place) ? 'flyingPast' : 'landed';
 }

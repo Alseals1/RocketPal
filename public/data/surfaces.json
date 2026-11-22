@@ -2,8 +2,9 @@
   "lastChecked": "2026-10-23",
   "surfaces": [
     {
-      "worldId": "mars",
+      "place": "mars",
       "kind": "panorama",
+      "wording": "landed",
       "title": "Jezero Crater, Mars",
       "description": "A real 360 degree photo of Jezero Crater on Mars, taken by NASA's Perseverance rover. The sky above and the ground below the photographed band are filled in. Drag to look all the way around.",
       "images": {
@@ -83,8 +84,10 @@
       ]
     },
     {
-      "worldId": "earth",
+      "place": "earth",
       "kind": "window",
+      "frame": "station",
+      "wording": "landed",
       "title": "Earth from the Space Station",
       "description": "A real NASA astronaut photo of Earth taken from the International Space Station, seen through a window: a green aurora over a cloudy ocean, with dark space and stars below. Drag to look a little around.",
       "images": {

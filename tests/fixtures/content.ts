@@ -18,5 +18,5 @@ export function realFiles() {
   } satisfies RawContent;
 }
 
-/** The entry for `worldId` in a list of worlds, pictures, question pools or missions. */
-export const entry = (list: any[], worldId: string) => list.find((x) => (x.id ?? x.worldId ?? x.place) === worldId);
+/** The entry for `place` in a list of worlds, pictures, question pools or missions. */
+export const entry = (list: any[], place: string) => list.find((x) => (x.id ?? x.place) === place);
