@@ -9,7 +9,7 @@ Date: 2026-11-11. Decided by the Plan agent for issue #38 and approved at plan r
 
    | Field | Today | Becomes | With |
    | --- | --- | --- | --- |
-   | `arrivals` | `Map<PlaceId, Surface>` | `Map<PlaceId, ArrivalDef>` (with fly-by worlds and `wording` in the data) | #43 / #44 |
+   | `arrivals` | `Map<PlaceId, Surface>` | `Map<PlaceId, ArrivalDef>` (with fly-by worlds and `wording` in the data). **Done by #43** (see `2026-11-21-flyby-arrivals.md`) | #43 / #44 |
    | `quizzes` | `Map<PlaceId, Quiz>` (one quiz of 3 questions per world) | `Map<PlaceId, QuestionPool>` | #45 |
    | `missions` | `Map<PlaceId, Mission>` (one per world, keyed by world) | `Map<MissionId, MissionDef>` (with conditions). **Done by #39** (only `find` missions so far; see `2026-11-12-events-conditions-progression.md`) | #39 |
    | `places` | the 10 worlds | the 10 worlds and the belt (`kind: 'region'`) | #51 |

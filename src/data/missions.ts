@@ -64,7 +64,7 @@ export function validateMissions(raw: unknown, surfaces: SurfaceData, worldIds: 
 
   const ctx: MissionContext = {
     places: new Set(worldIds),
-    dotsAt: (place) => surfaces.surfaces.find((s) => s.worldId === place)?.hotspots.length,
+    dotsAt: (place) => surfaces.surfaces.find((s) => s.place === place)?.hotspots.length,
     quizPlaces: new Set(),
     missionIds: new Set(missions.map(missionLabel)),
     worldIds,

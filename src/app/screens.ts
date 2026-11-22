@@ -10,7 +10,7 @@ import type { Speaker } from '../core/speaker';
 import type { EventBus } from '../core/events';
 import type { ProgressionView } from '../core/progression';
 import type { Content } from '../data/content';
-import type { Surface } from '../data/surfaces';
+import type { ArrivalDef } from '../data/surfaces';
 import type { AssetManager } from '../platform/assets';
 import type { InputManager } from '../platform/input/inputManager';
 import type { SaveStore } from '../platform/saveStore';
@@ -60,5 +60,5 @@ export interface SpaceParams {
 
 /** `ArrivalScreen`: the world's photograph and its dots. */
 export interface ArrivalParams {
-  surface: Surface;
+  surface: ArrivalDef;
 }

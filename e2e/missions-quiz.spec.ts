@@ -15,10 +15,10 @@ interface MissionFile {
   missions: { id: string; place: string; title: string; done: string; teaser: { text: string; place: string } }[];
 }
 interface SurfaceFile {
-  surfaces: { worldId: string; hotspots: { id: string; title: string }[] }[];
+  surfaces: { place: string; hotspots: { id: string; title: string }[] }[];
 }
 const surfaceFile = JSON.parse(readFileSync('public/data/surfaces.json', 'utf8')) as SurfaceFile;
-const dotTitle = (world: string, id: string) => surfaceFile.surfaces.find((x) => x.worldId === world)!.hotspots.find((h) => h.id === id)!.title;
+const dotTitle = (world: string, id: string) => surfaceFile.surfaces.find((x) => x.place === world)!.hotspots.find((h) => h.id === id)!.title;
 const quizzes = JSON.parse(readFileSync('public/data/quizzes.json', 'utf8')) as QuizFile;
 const missions = JSON.parse(readFileSync('public/data/missions.json', 'utf8')) as MissionFile;
 const poolOf = (world: string) => quizzes.pools.find((p) => p.place === world)!.questions;

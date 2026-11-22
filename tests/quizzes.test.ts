@@ -8,7 +8,7 @@ import { checkPool, validateQuestionPools } from '../src/data/quizzes';
 import type { SurfaceData } from '../src/data/surfaces';
 
 const surfaces = surfacesJson as unknown as SurfaceData;
-const marsSurface = surfaces.surfaces.find((s) => s.worldId === 'mars')!;
+const marsSurface = surfaces.surfaces.find((s) => s.place === 'mars')!;
 const WORLDS = planetsJson.worlds.map((w) => w.id);
 const quizzes = () => structuredClone(quizzesJson) as any;
 const missions = () => structuredClone(missionsJson) as any;
@@ -51,8 +51,8 @@ describe('quizzes.json', () => {
 
   it('has a quiz pool for every world that has a landing picture', () => {
     for (const surface of surfaces.surfaces) {
-      const pool = quizzesJson.pools.find((p) => p.place === surface.worldId);
-      expect(pool, surface.worldId).toBeDefined();
+      const pool = quizzesJson.pools.find((p) => p.place === surface.place);
+      expect(pool, surface.place).toBeDefined();
       expect(pool!.format).toBe('quiz');
     }
   });
@@ -239,7 +239,7 @@ describe('quizzes.json', () => {
     // A pool with that problem is still kept: the answers are shuffled when it is drawn.
     const q = quizzes();
     rightLongestIn(earthPool(q), ['earth-air', 'earth-clouds']);
-    expect(checkPool(earthPool(q), surfaces.surfaces.find((s) => s.worldId === 'earth')).pool?.questions).toHaveLength(9);
+    expect(checkPool(earthPool(q), surfaces.surfaces.find((s) => s.place === 'earth')).pool?.questions).toHaveLength(9);
   });
 
   it('judges "longest" by characters, not words', () => {
@@ -277,13 +277,13 @@ describe('missions.json', () => {
 
   it('has a find mission for every world that has a landing picture, and a quiz to go with it', () => {
     for (const surface of surfaces.surfaces) {
-      expect(missionsJson.missions.some((m) => m.kind === 'find' && m.place === surface.worldId), `mission for ${surface.worldId}`).toBe(true);
-      expect(quizzesJson.pools.some((p) => p.place === surface.worldId), `quiz for ${surface.worldId}`).toBe(true);
+      expect(missionsJson.missions.some((m) => m.kind === 'find' && m.place === surface.place), `mission for ${surface.place}`).toBe(true);
+      expect(quizzesJson.pools.some((p) => p.place === surface.place), `quiz for ${surface.place}`).toBe(true);
     }
   });
 
   it('asks for a number of dots the world really has', () => {
-    const marsDots = surfaces.surfaces.find((s) => s.worldId === 'mars')!.hotspots.length;
+    const marsDots = surfaces.surfaces.find((s) => s.place === 'mars')!.hotspots.length;
     const tooMany = missions();
     mars(tooMany).goal.count = marsDots + 1;
     expect(check(tooMany)).toEqual([

@@ -51,7 +51,7 @@ export function assetUrl(id: AssetId): string | undefined {
   return ASSET_ENTRIES.find((e) => e.id === id)?.url.high;
 }
 
-/** The landing photo of a world. */
-export function arrivalPhotoId(worldId: string): AssetId {
-  return `photo/${worldId}`;
+/** The arrival photo of a place. */
+export function arrivalPhotoId(place: string): AssetId {
+  return `photo/${place}`;
 }

@@ -1,6 +1,6 @@
 import type { MissionDef } from '../data/missions';
 import type { QuizQuestion } from '../data/quizzes';
-import type { Hotspot, Surface } from '../data/surfaces';
+import type { ArrivalDef, Hotspot } from '../data/surfaces';
 import type { Speaker } from '../core/speaker';
 import type { ScreenPoint } from '../scene/spaceScene';
 import { createButton, ICONS } from './components/button';
@@ -69,7 +69,7 @@ export class SurfaceHud {
 
   constructor(
     parent: HTMLElement,
-    private readonly surface: Surface,
+    private readonly surface: ArrivalDef,
     private readonly callbacks: SurfaceCallbacks,
     private readonly speaker: Speaker,
     private readonly extras?: MissionExtras,

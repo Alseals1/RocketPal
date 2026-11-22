@@ -54,12 +54,12 @@ describe('the asset manifest', () => {
 
   it('covers every landing photo: each surface has a photo entry whose files are among its images', () => {
     const { surfaces } = JSON.parse(readFileSync('public/data/surfaces.json', 'utf8')) as {
-      surfaces: { worldId: string; images: { high: string; low: string } }[];
+      surfaces: { place: string; images: { high: string; low: string } }[];
     };
     expect(surfaces.length).toBeGreaterThan(0);
     for (const surface of surfaces) {
-      const entry = ASSET_ENTRIES.find((e) => e.id === arrivalPhotoId(surface.worldId));
-      expect(entry, `no manifest entry for ${arrivalPhotoId(surface.worldId)}`).toBeDefined();
+      const entry = ASSET_ENTRIES.find((e) => e.id === arrivalPhotoId(surface.place));
+      expect(entry, `no manifest entry for ${arrivalPhotoId(surface.place)}`).toBeDefined();
       expect(entry!.type).toBe('texture');
       for (const url of filesOf(entry!)) expect([surface.images.high, surface.images.low]).toContain(url);
     }

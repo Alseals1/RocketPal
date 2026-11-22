@@ -7,7 +7,7 @@
  */
 import type { PlaceId } from './ids';
 import { seededRandom, shuffled } from './random';
-import type { Surface, SurfaceData } from './surfaces';
+import type { ArrivalDef, SurfaceData } from './surfaces';
 import { contentWords, isRealDate, isText, plain, sentences, words } from './text';
 
 export interface QuizOption {
@@ -86,7 +86,7 @@ export function validateQuestionPools(raw: unknown, surfaces: SurfaceData): stri
     const place = placeOf(pool);
     if (seen.has(place)) problems.push(`${place}: has a quiz more than once`);
     seen.add(place);
-    problems.push(...checkPool(pool, surfaces.surfaces.find((s) => s.worldId === place)).problems);
+    problems.push(...checkPool(pool, surfaces.surfaces.find((s) => s.place === place)).problems);
   }
   return problems;
 }
@@ -112,7 +112,7 @@ const placeOf = (pool: unknown) => {
  * a bad format, no question list, or good questions at levels 1 and 2 on too few dots to fill a draw. The other problems are
  * reported and the pool is still kept.
  */
-export function checkPool(raw: unknown, surface: Surface | undefined): { pool?: QuestionPool; problems: string[] } {
+export function checkPool(raw: unknown, surface: ArrivalDef | undefined): { pool?: QuestionPool; problems: string[] } {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return { problems: ['a pool must be an object'] };
   const data = raw as Record<string, any>; // typed loosely: every read allows for a missing field
   const place = placeOf(data);
@@ -172,7 +172,7 @@ export function checkPool(raw: unknown, surface: Surface | undefined): { pool?: 
 }
 
 /** The checks on one question of `place`'s pool, against that world's landing picture. An empty list means it is good. */
-export function checkQuestion(raw: unknown, place: string, surface: Surface | undefined): string[] {
+export function checkQuestion(raw: unknown, place: string, surface: ArrivalDef | undefined): string[] {
   const q = raw as Record<string, any>; // typed loosely: every read allows for a missing field
   const problems: string[] = [];
   const label = `${place}/${isText(q?.id) ? q.id : '(question without an id)'}`;

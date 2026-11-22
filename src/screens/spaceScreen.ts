@@ -203,7 +203,7 @@ export class SpaceScreen implements Screen<SpaceParams> {
     this.autopilot = false;
     this.hud.setAutopilot(false);
     const surface = this.ctx.content.arrivals.get(layout.world.id as WorldId);
-    const showLanded = () => this.hud.showLanded(layout.world.name, arrivalWording(layout.world.id));
+    const showLanded = () => this.hud.showLanded(layout.world.name, arrivalWording(layout.world.id, surface));
     if (!surface) {
       showLanded();
       return;
@@ -236,7 +236,8 @@ export class SpaceScreen implements Screen<SpaceParams> {
       return;
     }
     if (this.ship.docked) {
-      const distance = arrivalWording(layout.world.id) === 'flyingPast' ? 'Great flying!' : 'Great landing!';
+      const wording = arrivalWording(layout.world.id, this.ctx.content.arrivals.get(layout.world.id as WorldId));
+      const distance = wording === 'flyingPast' ? 'Great flying!' : 'Great landing!';
       this.hud.setStats({ title: `You are at ${layout.world.name}`, distance, light: '', speed: '', speedNote: '', comparison: '' });
       return;
     }

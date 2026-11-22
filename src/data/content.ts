@@ -5,7 +5,7 @@ import { validatePlanetsFile, validateWorld, type World } from './planets';
 import { FALLBACK_RULES, validateProgression, type ProgressionRules } from './progression';
 import { checkPool, validateQuestionsFile, type QuestionPool } from './quizzes';
 import { validateSound, validateSoundsFile, type SoundDef } from './sounds';
-import { validateSurface, validateSurfacesFile, type Surface } from './surfaces';
+import { validateSurface, validateSurfacesFile, type ArrivalDef } from './surfaces';
 
 /** A Star Map destination (docs/TECHNICAL_ARCHITECTURE.md section 4.2). */
 export interface Place {
@@ -19,15 +19,15 @@ export interface Place {
 /**
  * Everything loaded from public/data/, validated, indexed. Read-only after start.
  *
- * Only the parts today's content uses (section 4.2 lists the rest, which come with their own issues). Arrivals keep
- * today's type for now: they become `ArrivalDef` later. Quizzes are `QuestionPool`s (decisions/2026-11-13-question-pools.md).
+ * Only the parts today's content uses (section 4.2 lists the rest, which come with their own issues). Arrivals are
+ * `ArrivalDef` (section 4.9, decisions/2026-11-21-flyby-arrivals.md). Quizzes are `QuestionPool`s (decisions/2026-11-13-question-pools.md).
  * Missions are `MissionDef`, with only `find` missions so far. See decisions/2026-11-11-content-loader-interim-types.md
  * and decisions/2026-11-12-events-conditions-progression.md.
  */
 export interface Content {
   places: Map<PlaceId, Place>;
   worlds: Map<WorldId, World>; // planets.json
-  arrivals: Map<PlaceId, Surface>; // surfaces.json
+  arrivals: Map<PlaceId, ArrivalDef>; // surfaces.json
   quizzes: Map<PlaceId, QuestionPool>; // quizzes.json: each place's question pool, holding only its good questions
   missions: Map<MissionId, MissionDef>; // missions.json
   progression: ProgressionRules; // progression.json: the XP table and the ranks
@@ -124,13 +124,13 @@ export function buildContent(raw: RawContent): Content {
   for (const [id, w] of worlds) places.set(id, { id, name: w.name, kind: 'world', order: WORLD_IDS.indexOf(id) });
 
   const worldIds = [...worlds.keys()];
-  const arrivals = keep<Surface>(
+  const arrivals = keep<ArrivalDef>(
     'surfaces',
     entriesOf('surfaces', validateSurfacesFile, 'surfaces'),
-    (s) => s.worldId,
+    (s) => s.place,
     (s) => validateSurface(s, worldIds),
     (id) => `${id}: listed twice (kept the first)`,
-  ) as Map<PlaceId, Surface>;
+  ) as Map<PlaceId, ArrivalDef>;
   const arrivalFor = (entry: unknown) => arrivals.get((entry as { place?: unknown } | null)?.place as PlaceId);
   // Question pools are checked question by question: a bad question is left out on its own, and a pool only when it
   // can no longer fill a draw.
