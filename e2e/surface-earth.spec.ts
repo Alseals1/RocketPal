@@ -408,7 +408,7 @@ test.describe('on small screens with the biggest text', () => {
         a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
       const title = await box('.surface-title');
       const back = await box('[data-testid="back-to-space"]');
-      const gear = await box('[data-testid="settings-button"]');
+      const gear = await box('[data-testid="menu-button"]');
       const orbit = await box('.orbit');
       expect(overlaps(title, back), `title over Back at ${size.width}`).toBe(false);
       expect(overlaps(back, gear), `Back over settings at ${size.width}`).toBe(false);

@@ -46,8 +46,10 @@ for (const size of SIZES) {
     await shot(page, size, 'picker');
     await page.keyboard.press('Escape');
 
-    await page.getByTestId('settings-button').click();
+    await page.getByTestId('menu-button').click();
+    await page.getByTestId('tab-settings').click();
     await expect(page.getByTestId('settings-panel')).toBeVisible();
+    await page.waitForTimeout(400); // the sheet has grown in
     await shot(page, size, 'settings');
     await page.keyboard.press('Escape');
 

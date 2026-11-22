@@ -10,6 +10,7 @@ import type { Speaker } from '../core/speaker';
 import type { EventBus } from '../core/events';
 import type { ProgressionView } from '../core/progression';
 import type { Content } from '../data/content';
+import type { WorldId } from '../data/ids';
 import type { Surface } from '../data/surfaces';
 import type { AssetManager } from '../platform/assets';
 import type { InputManager } from '../platform/input/inputManager';
@@ -49,13 +50,17 @@ export interface ScreenContext {
   layouts: BodyLayout[];
   /** → `settings` (SettingsStore) */
   reducedMotion(): boolean;
-  /** True while a panel (settings) covers the screen, so its own dialogs leave the keys alone. → `overlays` (OverlayStack) */
+  /** True while Mission Control is open over the screen, so its own dialogs leave the keys alone. → `overlays` (OverlayStack) */
   isCovered(): boolean;
 }
 
-/** `SpaceScreen`: `liftOff` lifts off from the world just visited (Back to space, Fly again). */
+/**
+ * `SpaceScreen`: `liftOff` lifts off from the world just visited (Back to space, Fly again). `course` then sets course
+ * to a world (Go in Mission Control's Missions tab, from a world's surface).
+ */
 export interface SpaceParams {
   liftOff?: boolean;
+  course?: WorldId;
 }
 
 /** `ArrivalScreen`: the world's photograph and its dots. */

@@ -144,12 +144,73 @@ describe('ScreenManager', () => {
     expect(log.at(-1)).toBe('arrival.update(0.016,1)');
   });
 
-  it('never pauses or resumes a screen yet (nothing asks it to)', async () => {
+  it('does not pause or resume a screen on its own: going between screens never does', async () => {
     const { log, arrival, manager } = setUp();
     const going = manager.go('arrival', {});
     arrival.finishEnter();
     await going;
     expect(log.some((l) => l.endsWith('.pause') || l.endsWith('.resume'))).toBe(false);
+    expect(manager.paused).toBe(false);
+  });
+
+  it('pausing pauses the active screen once, and pausing again does nothing', () => {
+    const { log, manager } = setUp();
+    manager.setPaused(true);
+    manager.setPaused(true);
+    expect(manager.paused).toBe(true);
+    expect(log).toEqual(['space.pause']);
+  });
+
+  it('sends no frames while paused', () => {
+    const { log, manager } = setUp();
+    manager.setPaused(true);
+    manager.update(0.016, 1);
+    manager.update(0.016, 2);
+    expect(log).toEqual(['space.pause']);
+  });
+
+  it('resuming resumes the active screen, and frames go on', () => {
+    const { log, manager } = setUp();
+    manager.setPaused(true);
+    manager.setPaused(false);
+    manager.setPaused(false);
+    manager.update(0.016, 3);
+    expect(manager.paused).toBe(false);
+    expect(log).toEqual(['space.pause', 'space.resume', 'space.update(0.016,3)']);
+  });
+
+  it('still sends a new size while paused, so the paused screen can draw itself again', () => {
+    const { log, manager } = setUp();
+    manager.setPaused(true);
+    manager.resize(640, 480);
+    expect(log).toEqual(['space.pause', 'space.resize(640,480)', 'arrival.resize(640,480)']);
+  });
+
+  it('pauses a screen that becomes active while paused, and gives it no frames until resumed', async () => {
+    const { log, arrival, manager } = setUp();
+    const going = manager.go('arrival', {});
+    manager.setPaused(true);
+    arrival.finishEnter();
+    await going;
+    expect(manager.activeId).toBe('arrival');
+    expect(log).toEqual(['arrival.enter({})', 'space.pause', 'arrival.pause', 'space.leave']);
+    manager.update(0.016, 4);
+    expect(log.at(-1)).toBe('space.leave');
+    manager.setPaused(false);
+    manager.update(0.016, 5);
+    expect(log.slice(-2)).toEqual(['arrival.resume', 'arrival.update(0.016,5)']);
+  });
+
+  it('never pauses an entering screen that is abandoned', async () => {
+    const { log, space, arrival, manager } = setUp();
+    space.enterAtOnce();
+    const first = manager.go('arrival', { n: 1 });
+    manager.setPaused(true);
+    const back = manager.go('space', {});
+    arrival.finishEnter();
+    await first;
+    await back;
+    expect(log.filter((l) => l === 'arrival.pause')).toEqual([]);
   });
 
   it('refuses a screen it does not have', async () => {

@@ -1,5 +1,6 @@
 @import './ui/styles/tokens.css';
 @import './ui/styles/components.css';
+@import './ui/styles/overlays.css';
 
 /* Today's screens, on the design tokens (src/ui/styles/tokens.css). Colours and fonts come only from tokens. */
 
@@ -157,7 +158,6 @@ button:focus-visible {
 
 /* Panels that cover the game are solid, so the text underneath cannot show through. */
 .picker,
-.settings-card,
 .landed-card {
   background: var(--text-on-accent);
 }
@@ -446,13 +446,9 @@ button:focus-visible {
 }
 
 @media (max-height: 520px) {
-  /* A short settings panel, so "Done" is on the screen without scrolling. */
-  .settings-card {
-    padding: 8px 16px;
-    line-height: 1.15; /* Lexend's own line height is taller than the old font's, and "Done" must still fit */
-  }
-  .settings-card h2 {
-    margin-bottom: 2px;
+  /* Short settings, so more of it is on the screen without scrolling. */
+  .settings-tab {
+    line-height: 1.15; /* Lexend's own line height is taller than the old font's */
   }
   .setting-group {
     margin-bottom: 8px;
@@ -512,70 +508,16 @@ button:focus-visible {
   }
 }
 
-/* ---- Settings ---- */
+/* ---- Settings (the Settings tab of Mission Control, src/ui/styles/overlays.css) ---- */
 
-.settings-button {
-  z-index: 8; /* above the window frame and the Back button */
-  position: absolute;
-  top: calc(var(--gap) + 70px);
-  right: var(--gap);
-  width: 56px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-}
-
-.settings-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 20;
-  display: flex;
-  padding: var(--gap);
-  background: var(--legacy-overlay);
-  overflow-y: auto;
-}
-
-.settings-overlay[hidden] {
-  display: none;
-}
-
-/* After the base rule, so it wins: a little more room for "Done" on a phone held sideways. */
-@media (max-height: 520px) {
-  .settings-overlay {
-    padding: 6px;
-  }
-}
-
-.settings-card {
-  width: min(30em, 100%);
-  /* "auto" on every side centres the card and keeps it only as tall as its content. When it is taller than the screen
-     (a phone held sideways, big text), the card scrolls inside the screen and Done stays at its bottom (#34). */
-  margin: auto;
-  box-sizing: border-box;
-  max-height: 100%;
-  overflow-y: auto;
-  padding-bottom: 0; /* the card's bottom padding is Done's footer, so nothing scrolls past under it */
-}
-
-/* Done is always on the screen: it stays at the bottom of a card that scrolls, on the card's own colour. */
 .settings-actions {
-  position: sticky;
-  bottom: 0;
   padding: 8px 0 12px;
-  background: var(--text-on-accent);
 }
 
 @media (max-height: 520px) {
   .settings-actions {
     padding-bottom: 8px;
   }
-}
-
-.settings-card h2 {
-  font-family: var(--font-display);
-  font-weight: 600;
-  margin: 0 0 10px;
-  color: var(--signal-gold);
 }
 
 .setting-group {
@@ -965,12 +907,12 @@ button:focus-visible {
     top: calc(var(--gap) * 2 + 4.2em + 56px);
     max-width: calc(100% - 2 * var(--gap));
   }
-  /* The two-line Back button is taller, so the settings gear sits lower to stay clear of it. */
-  .stage.is-surface .settings-button {
+  /* The two-line Back button is taller, so the menu button sits lower to stay clear of it. */
+  .stage.is-surface .menu-button {
     top: calc(var(--gap) + 4.2em);
   }
   /* The card sits under the buttons here, so its Listen goes in the free space just above its top-left corner, level
-     with the settings gear, and the card stays short enough to clear Orbit (#34). */
+     with the menu button, and the card stays short enough to clear Orbit (#34). */
   .mission-listen {
     position: absolute;
     float: none;

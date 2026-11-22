@@ -56,7 +56,7 @@ const TRACK_LISTENERS = `
     };
   })();`;
 
-/** The debug handle's members before #32, plus `getRenderMemory` and `getHeldAssets` (#40). Nothing is taken away or renamed. */
+/** The debug handle's members before #32, plus `getRenderMemory` and `getHeldAssets` (#40) and `isPaused` (#42). Nothing is taken away or renamed. */
 const DEBUG_MEMBERS = [
   'dockAt',
   'getFound',
@@ -77,6 +77,7 @@ const DEBUG_MEMBERS = [
   'hasShipModel',
   'isGlowVisible',
   'isLookTurning',
+  'isPaused',
   'isReducedMotion',
   'pickTarget',
   'setAutopilot',

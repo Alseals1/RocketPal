@@ -7,6 +7,8 @@ import type { Screen, ScreenId } from './screens';
  * - A failed `enter` leaves the new screen, keeps the old one, and rejects.
  * - A screen that is still entering when `go` is called again (Back while "Landing on Mars...") is left at once and
  *   never becomes active, even if its `enter` finishes later. A late failure of such a screen is swallowed.
+ * - While paused (Mission Control is open) no screen gets frames. The active screen hears `pause()` and `resume()`, and
+ *   a screen that becomes active while paused is paused at once, so it never gets a frame under Mission Control.
  */
 export class ScreenManager {
   private readonly screens = new Map<ScreenId, Screen>();
@@ -14,6 +16,7 @@ export class ScreenManager {
   private entering?: Screen;
   /** Counts calls to `go`. A call that is no longer the newest stops at its next step. */
   private ticket = 0;
+  private isPaused = false;
 
   constructor(screens: Screen[], first: ScreenId) {
     for (const screen of screens) this.screens.set(screen.id, screen);
@@ -28,6 +31,19 @@ export class ScreenManager {
   /** The screen the player is on: the one entering if there is one (it counts from the start), else the active one. */
   get currentId(): ScreenId {
     return (this.entering ?? this.active).id;
+  }
+
+  /** True while the game is paused (Mission Control is open): no screen gets frames. */
+  get paused(): boolean {
+    return this.isPaused;
+  }
+
+  /** Pauses or resumes the active screen. Asking for what is already so does nothing. */
+  setPaused(on: boolean): void {
+    if (on === this.isPaused) return;
+    this.isPaused = on;
+    if (on) this.active.pause();
+    else this.active.resume();
   }
 
   async go<P>(id: ScreenId, params: P): Promise<void> {
@@ -58,10 +74,12 @@ export class ScreenManager {
 
     this.entering = undefined;
     this.active = next;
+    if (this.isPaused) next.pause(); // it finished loading under Mission Control: it starts paused
     if (prev !== next) await prev.leave();
   }
 
   update(dt: number, now: number): void {
+    if (this.isPaused) return;
     this.active.update(dt, now);
   }
 

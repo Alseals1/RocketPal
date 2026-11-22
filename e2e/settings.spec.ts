@@ -23,15 +23,22 @@ async function start(page: Page, query = '') {
   await fontsReady(page);
 }
 
+/** Settings is a tab of Mission Control (#42): the menu button opens it on Missions, then the Settings tab. */
 const open = async (page: Page) => {
-  await page.getByTestId('settings-button').click();
+  await page.getByTestId('menu-button').click();
+  await expect(page.getByTestId('mission-control')).toBeVisible();
+  await page.getByTestId('tab-settings').click();
   await expect(page.getByTestId('settings-panel')).toBeVisible();
+  await sheetSettled(page);
 };
+/** Waits until the sheet has finished growing in (it scales from 0.98), so sizes can be measured. */
+const sheetSettled = (page: Page) =>
+  expect.poll(() => page.getByTestId('mission-control').evaluate((el) => getComputedStyle(el).transform)).toBe('none');
 /** Picks a choice by its words. `group` names the group when the words are in more than one ("Off", "Quiet"). */
 const choose = (page: Page, name: string, group?: string) =>
   (group ? page.getByRole('radiogroup', { name: group, exact: true }) : page).getByRole('radio', { name, exact: true }).click();
 
-test('the settings panel opens and closes with the button, Done, Escape, and a tap outside', async ({ page }) => {
+test('settings in Mission Control opens and closes with the menu button, Done, Escape, and a tap outside', async ({ page }) => {
   await start(page);
   await expect(page.getByTestId('settings-panel')).toBeHidden();
 
@@ -44,8 +51,9 @@ test('the settings panel opens and closes with the button, Done, Escape, and a t
   await expect(page.getByTestId('settings-panel')).toBeHidden();
 
   await open(page);
-  await page.mouse.click(5, 5); // outside the card
+  await page.mouse.click(5, 5); // outside the sheet
   await expect(page.getByTestId('settings-panel')).toBeHidden();
+  await expect(page.getByTestId('mission-control')).toBeHidden();
 });
 
 test('Space goes back to boosting after the settings panel is closed, however it was closed', async ({ page }) => {
@@ -71,11 +79,11 @@ test('Space goes back to boosting after the settings panel is closed, however it
 
 test('every settings control is a big target and the buttons do not overlap', async ({ page }) => {
   await start(page);
-  const gear = (await page.getByTestId('settings-button').boundingBox())!;
+  const menu = (await page.getByTestId('menu-button').boundingBox())!;
   const where = (await page.getByTestId('where-button').boundingBox())!;
-  expect(gear.width).toBeGreaterThanOrEqual(56);
-  expect(gear.height).toBeGreaterThanOrEqual(56);
-  expect(gear.y).toBeGreaterThanOrEqual(where.y + where.height); // sits under "Where to?"
+  expect(menu.width).toBeGreaterThanOrEqual(56);
+  expect(menu.height).toBeGreaterThanOrEqual(56);
+  expect(menu.y).toBeGreaterThanOrEqual(where.y + where.height); // sits under "Where to?"
 
   await open(page);
   const controls = [...(await page.getByRole('radio').all()), page.getByTestId('settings-done')];
@@ -86,16 +94,15 @@ test('every settings control is a big target and the buttons do not overlap', as
   }
 });
 
-test('the settings card is only as tall as its content and sits in the middle of a laptop screen', async ({ page }) => {
+test('Mission Control is a sheet down the right side of a laptop screen', async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await start(page);
   await open(page);
-  const overlay = (await page.locator('.settings-overlay').boundingBox())!;
-  const card = (await page.getByTestId('settings-panel').boundingBox())!;
-  expect(card.height).toBeLessThan(overlay.height - 100);
-  const above = card.y - overlay.y;
-  const below = overlay.y + overlay.height - (card.y + card.height);
-  expect(Math.abs(above - below)).toBeLessThanOrEqual(2);
+  const sheet = (await page.getByTestId('mission-control').boundingBox())!;
+  expect(Math.round(sheet.x + sheet.width)).toBe(1366);
+  expect(Math.round(sheet.y)).toBe(0);
+  expect(Math.round(sheet.height)).toBe(768);
+  expect(sheet.width).toBeLessThan(1366 / 2);
 });
 
 test('text size changes the real text size and is remembered after a reload', async ({ page }) => {
@@ -213,16 +220,12 @@ test.describe('phone-sized screens with the biggest text', () => {
       await open(page);
       await choose(page, 'Extra big');
 
-      // Checked before any scrolling: nobody should have to scroll to find "Done": the whole panel fits on a phone held sideways too.
-      if (viewport.height < 520) {
-        // The short-screen padding must win over the base rule, or "Done" loses that room.
-        expect(await page.locator('.settings-overlay').evaluate((e) => getComputedStyle(e).paddingTop)).toBe('6px');
-        const done = (await page.getByTestId('settings-done').boundingBox())!;
-        expect(done.y + done.height).toBeLessThanOrEqual(viewport.height);
-      }
+      // Checked before any scrolling: nobody should have to scroll to find "Done" (it stays at the bottom of the panel).
+      const done = (await page.getByTestId('settings-done').boundingBox())!;
+      expect(done.y + done.height).toBeLessThanOrEqual(viewport.height);
 
       // The panel can scroll, but its title must start on the screen and its buttons must all be reachable.
-      expect((await page.locator('#settings-title').boundingBox())!.y).toBeGreaterThanOrEqual(0);
+      expect((await page.locator('#mission-control-title').boundingBox())!.y).toBeGreaterThanOrEqual(0);
       for (const control of [...(await page.getByRole('radio').all()), page.getByTestId('settings-done')]) {
         await control.scrollIntoViewIfNeeded();
         const box = (await control.boundingBox())!;
@@ -244,9 +247,13 @@ test('everything in the settings panel works with the keyboard alone', async ({ 
   await start(page);
   const yawBefore = await page.evaluate(() => (window as unknown as { rocketPals: { getShip(): { yaw: number } } }).rocketPals.getShip().yaw);
 
-  await page.getByTestId('settings-button').focus();
+  await page.getByTestId('menu-button').focus();
   await page.keyboard.press('Enter');
+  await expect(page.getByTestId('tab-missions')).toBeFocused(); // Mission Control opens on Missions
+  await page.keyboard.press('ArrowRight'); // the next tab: Settings
+  await expect(page.getByTestId('tab-settings')).toBeFocused();
   await expect(page.getByTestId('settings-panel')).toBeVisible();
+  await page.keyboard.press('Tab');
   await expect(page.getByRole('radio', { name: 'Normal', exact: true })).toBeFocused();
 
   // Arrow keys move between the choices and pick them, and wrap around at the ends.
@@ -286,11 +293,11 @@ test('everything in the settings panel works with the keyboard alone', async ({ 
   await expect(voice.getByRole('radio', { name: 'Quiet', exact: true })).toBeChecked();
   expect(await debug(page, (h) => h.getSettings())).toMatchObject({ volume: { effects: 0.5, voice: 0.25 } });
 
-  // Tab stays inside the panel: Done, then back to the first choice; Shift+Tab goes back.
+  // Tab stays inside Mission Control: Done, then round to its close button; Shift+Tab goes back.
   await page.keyboard.press('Tab');
   await expect(page.getByTestId('settings-done')).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('radio', { name: 'Extra big', exact: true })).toBeFocused();
+  await expect(page.getByTestId('mission-control-close')).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(page.getByTestId('settings-done')).toBeFocused();
 
@@ -337,11 +344,11 @@ test("before the game has started, the computer's reduced-motion setting already
   expect(await durationFor('reduce')).toBe('0s');
 });
 
-test('the first Tab after closing the settings panel with Escape starts at the top of the page', async ({ page }) => {
+test('the first Tab after closing Mission Control with Escape starts at the top of the page', async ({ page }) => {
   await start(page);
-  await page.getByTestId('settings-button').focus();
+  await page.getByTestId('menu-button').focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByTestId('settings-panel')).toBeVisible();
+  await expect(page.getByTestId('mission-control')).toBeVisible();
   await page.keyboard.press('Escape');
   await page.keyboard.press('Tab');
   await expect(page.getByTestId('where-button')).toBeFocused(); // not the page body
@@ -357,13 +364,18 @@ test('the first Tab after closing the destination picker with Escape starts at t
   await expect(page.getByTestId('where-button')).toBeFocused();
 });
 
-test('the settings panel tells screen readers it is a modal dialog', async ({ page }) => {
+test('Mission Control tells screen readers it is a modal dialog, and the menu button says it is open', async ({ page }) => {
   await start(page);
-  await expect(page.getByTestId('settings-panel')).toHaveAttribute('aria-modal', 'true');
-  await expect(page.getByTestId('settings-panel')).toHaveAttribute('role', 'dialog');
+  await expect(page.getByTestId('menu-button')).toHaveAccessibleName('Mission Control');
+  await expect(page.getByTestId('menu-button')).toHaveAttribute('aria-expanded', 'false');
+  await open(page);
+  await expect(page.getByTestId('mission-control')).toHaveAttribute('aria-modal', 'true');
+  await expect(page.getByTestId('mission-control')).toHaveAttribute('role', 'dialog');
+  await expect(page.getByTestId('mission-control')).toHaveAccessibleName('Mission Control');
+  await expect(page.getByTestId('menu-button')).toHaveAttribute('aria-expanded', 'true');
 });
 
-test('while the settings panel is open the rocket does not steer or boost behind it', async ({ page }) => {
+test('while Mission Control is open the rocket does not steer or boost behind it', async ({ page }) => {
   await start(page);
   const yaw = () => page.evaluate(() => (window as unknown as { rocketPals: { getShip(): { yaw: number } } }).rocketPals.getShip().yaw);
   const speed = () => page.evaluate(() => (window as unknown as { rocketPals: { getShip(): { speed: number } } }).rocketPals.getShip().speed);
@@ -383,10 +395,10 @@ test('while the settings panel is open the rocket does not steer or boost behind
   await page.keyboard.down('Space');
   await page.waitForTimeout(1200);
   expect(await speed()).toBeLessThan(60);
-  await page.keyboard.up('Space');
+  await page.keyboard.up('Space'); // Space on the focused Done presses it
 
   // Closed again: steering works again.
-  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('mission-control')).toBeHidden();
   await page.keyboard.down('KeyD');
   await page.waitForTimeout(500);
   await page.keyboard.up('KeyD');

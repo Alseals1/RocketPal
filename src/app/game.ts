@@ -8,7 +8,7 @@ import { chooseQuality } from '../quality/quality';
 import type { WebRendererHost } from '../render/rendererHost';
 import { layoutWorlds } from '../scene/layout';
 import { SpaceScene } from '../scene/spaceScene';
-import { SettingsPanel, applySettingsToPage } from '../ui/settingsPanel';
+import { applySettingsToPage } from '../ui/settingsPanel';
 import type { ScreenContext } from './screens';
 import type { GameOptions } from './gameOptions';
 import { ScreenManager } from './screenManager';
@@ -16,6 +16,7 @@ import { exposeDebugHandle } from './debugHandle';
 import { createGameAssets, createRendererHost, watchContextLoss } from './rendering';
 import { connectProgression } from './progression';
 import { startGameSound, type GameSound } from './sound';
+import { connectMissionControl } from './missionControl';
 import { SpaceScreen } from '../screens/spaceScreen';
 import { ArrivalScreen } from '../screens/arrivalScreen';
 
@@ -39,7 +40,7 @@ export class Game {
   /** The graphics card dropped the picture: screens wait until it is back. */
   private paused = false;
   private reportedError = false;
-  private settingsPanel?: SettingsPanel;
+  private missionControl?: { isOpen(): boolean };
   private readonly save: SaveStore; // what the kid has done, remembered in this browser only
   private readonly speaker = createSpeaker();
   private reducedMotion: boolean;
@@ -59,7 +60,8 @@ export class Game {
     const host = (this.host = createRendererHost(stage, options));
     const assets = createGameAssets(host); // every texture and model goes through it (src/assets/manifest.ts)
     this.scene = new SpaceScene(host, layouts, host.quality, this.reducedMotion);
-    const isBlocked = () => (this.settingsPanel?.isOpen ?? false) || this.arrival.isCardOpen;
+    const covered = () => this.missionControl?.isOpen() ?? false;
+    const isBlocked = () => covered() || this.arrival.isCardOpen;
     this.input = createInputManager({ controls: buildTouchControls(stage), showTouchControls: options.touchControls, isBlocked });
     const { events, progression, onRecorded } = connectProgression(this.save, content);
     this.sound = startGameSound({ stage, content, volumes: settings.volume, speaker: this.speaker, events, onRecorded, debug: options.debug });
@@ -68,20 +70,17 @@ export class Game {
       events, progression, assets, // the recorder is already listening (src/app/progression.ts)
       speech: this.speaker,
       go: (id, params) => this.screens.go(id, params),
-      stage,
-      renderer: host,
-      scene: this.scene,
-      input: this.input,
-      content,
-      layouts,
+      stage, content, layouts,
+      renderer: host, scene: this.scene, input: this.input,
       reducedMotion: () => this.reducedMotion,
-      isCovered: () => this.settingsPanel?.isOpen ?? false,
+      isCovered: covered,
     };
-    this.space = new SpaceScreen(ctx); // its HUD goes on the page before the settings panel, as before
+    this.space = new SpaceScreen(ctx); // its HUD goes on the page before Mission Control's menu button
     this.arrival = new ArrivalScreen(ctx);
     this.screens = new ScreenManager([this.space, this.arrival], 'space');
 
-    this.settingsPanel = new SettingsPanel(stage, settings, (next) => this.changeSettings(next));
+    const { screens, space, arrival, input, speaker: speech } = this; // Mission Control: Missions, Settings, the pause
+    this.missionControl = connectMissionControl({ stage, content, settings, onSettings: (next) => this.changeSettings(next), progression, screens, space, arrival, input, speech });
     // "Same as my computer" keeps following the computer if it changes while we are playing.
     this.systemMotion.addEventListener('change', () => this.changeSettings(options.settings.get(), false));
 
@@ -106,7 +105,7 @@ export class Game {
     requestAnimationFrame((t) => this.frame(t));
   }
 
-  /** Called when the player picks something in the settings panel (or the computer's motion setting changes). */
+  /** Called when the player picks something in Settings (or the computer's motion setting changes). */
   private changeSettings(next: Settings, save = true): void {
     const settings = save ? this.options.settings.set(next) : next;
     this.sound.setVolumes(settings.volume);
@@ -130,10 +129,11 @@ export class Game {
   private tick(now: number): void {
     if (this.paused) return;
     const dt = this.lastFrame ? Math.min((now - this.lastFrame) / 1000, 0.1) : 1 / 60;
-    if (this.lastFrame) this.monitor.add(now - this.lastFrame);
+    const counts = this.lastFrame > 0 && !this.screens.paused; // a paused frame draws nothing: it says nothing about speed
+    if (counts) this.monitor.add(now - this.lastFrame);
     this.lastFrame = now;
     this.screens.update(dt, now);
-    this.qualityCheck(now);
+    if (counts) this.qualityCheck(now);
   }
 
   private qualityCheck(now: number): void {

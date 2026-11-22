@@ -9,7 +9,7 @@ export interface HudCallbacks {
   onSelect(worldId: string): void;
   onAutopilot(on: boolean): void;
   onFlyAgain(): void;
-  /** True while another panel (settings) is open on top of the HUD: the landing card then leaves the keys to it. */
+  /** True while Mission Control is open on top of the HUD: the landing card then leaves the keys to it. */
   isCovered?(): boolean;
 }
 
@@ -197,6 +197,16 @@ export class Hud {
     this.els.autopilot.hidden = true;
     // With settings open on top, focus stays in settings: the card is reached once settings closes.
     if (!this.callbacks.isCovered?.()) this.els['fly-again'].focus();
+  }
+
+  /** True while the plain landing card shows. */
+  get isLandedOpen(): boolean {
+    return !this.els.landed.hidden;
+  }
+
+  /** True while the "Where to?" list is open. */
+  get isPickerOpen(): boolean {
+    return !this.els.picker.hidden;
   }
 
   hideLanded(): void {

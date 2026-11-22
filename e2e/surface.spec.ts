@@ -392,7 +392,8 @@ test('a keyboard "Fly again" also hands focus back to the game', async ({ page }
 test('with settings open when the rocket arrives, Escape closes only settings, and the card waits underneath', async ({ page }) => {
   const errors = watchForErrors(page);
   await start(page);
-  await page.getByTestId('settings-button').click();
+  await page.getByTestId('menu-button').click();
+  await page.getByTestId('tab-settings').click();
   await expect(page.getByTestId('settings-panel')).toBeVisible();
   await debug(page, (h) => h.dockAt('moon'));
   await expect(page.getByTestId('landed')).toBeVisible();
@@ -476,7 +477,7 @@ test.describe('on a touch screen', () => {
     await expect(page.getByTestId('stick')).toBeHidden();
     await expect(page.getByTestId('boost-button')).toBeHidden();
 
-    for (const id of ['back-to-space', 'settings-button']) {
+    for (const id of ['back-to-space', 'menu-button']) {
       const box = (await page.getByTestId(id).boundingBox())!;
       expect(box.height, id).toBeGreaterThanOrEqual(56);
       expect(box.width, id).toBeGreaterThanOrEqual(56);
@@ -510,7 +511,7 @@ test.describe('on a touch screen', () => {
       const title = await box('.surface-title');
       const back = await box('[data-testid="back-to-space"]');
       const orbit = await box('.orbit');
-      const gear = await box('[data-testid="settings-button"]');
+      const gear = await box('[data-testid="menu-button"]');
       expect(overlaps(title, back), `title over Back at ${size.width}`).toBe(false);
       expect(overlaps(back, gear), `Back over the settings button at ${size.width}`).toBe(false);
       expect(overlaps(title, gear), `title over the settings button at ${size.width}`).toBe(false);
@@ -535,7 +536,8 @@ test.describe('on a touch screen', () => {
 
 test('the settings panel still works while you stand on Mars, and the view does not turn behind it', async ({ page }) => {
   await landOnMars(page);
-  await page.getByTestId('settings-button').click();
+  await page.getByTestId('menu-button').click();
+  await page.getByTestId('tab-settings').click();
   await expect(page.getByTestId('settings-panel')).toBeVisible();
   const before = await debug(page, (h) => h.getLook());
   await page.keyboard.down('KeyD');
@@ -877,7 +879,8 @@ test.describe('Listen everywhere (#34)', () => {
     expect((await lastSpoken(page))!.volume).toBe(1); // Loud, the default
     await page.getByTestId('orbit-listen').click(); // stop
 
-    await page.getByTestId('settings-button').click();
+    await page.getByTestId('menu-button').click();
+    await page.getByTestId('tab-settings').click();
     await page.getByRole('radiogroup', { name: 'Reading voice', exact: true }).getByRole('radio', { name: 'Quiet', exact: true }).click();
     await page.getByTestId('settings-done').click();
     await page.getByTestId('orbit-listen').click();

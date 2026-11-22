@@ -24,6 +24,8 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
   private look?: LookController;
   private surfaceHud?: SurfaceHud;
   private activeSurface?: Surface;
+  /** Mission Control is open: see `pause`. */
+  private paused = false;
   private stopWatchingSave?: () => void;
   /** The picture this visit holds from the asset manager, released on leave. */
   private photoId?: AssetId;
@@ -116,8 +118,14 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
     ctx.input.setSources(['keyboard', 'touchStick']);
   }
 
-  pause(): void {} // nothing pauses a screen yet
-  resume(): void {}
+  /** Mission Control opened: no frames come (the view does not turn) until `resume`. */
+  pause(): void {
+    this.paused = true;
+  }
+
+  resume(): void {
+    this.paused = false;
+  }
 
   /** Looks around with the same keys as flying: left and right turn, up and down tilt. Waits until the picture is in. */
   update(dt: number): void {
@@ -133,6 +141,13 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
   resize(width: number, height: number): void {
     this.panorama?.setSize(width, height);
     this.updateLookLimits(); // a taller or wider screen can look further round a window view
+    // A resized canvas is blank until the next frame, and no frame comes while paused: draw the picture once now.
+    if (this.paused && this.panorama?.isLoaded) this.panorama.render();
+  }
+
+  /** The world you are standing on, if any. */
+  get place(): string | null {
+    return this.activeSurface?.worldId ?? null;
   }
 
   // For the debug handle and the game's key handling.

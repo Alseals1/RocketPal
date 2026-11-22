@@ -881,7 +881,7 @@ test.describe('on small screens with the biggest text', () => {
         const title = await box('.surface-title');
         const quiz = await box('[data-testid="quiz-time"]');
         const back = await box('[data-testid="back-to-space"]');
-        const gear = await box('[data-testid="settings-button"]');
+        const gear = await box('[data-testid="menu-button"]');
         const orbit = await box('.orbit');
         expect(overlaps(title, orbit), `${world}: title over Orbit`).toBe(false);
         expect(overlaps(title, back), `${world}: title over Back`).toBe(false);
@@ -913,7 +913,7 @@ test.describe('on small screens with the biggest text', () => {
         const quiz = await box('[data-testid="quiz-time"]');
         const orbit = await box('.orbit');
         const back = await box('[data-testid="back-to-space"]');
-        const gear = await box('[data-testid="settings-button"]');
+        const gear = await box('[data-testid="menu-button"]');
         expect(overlaps(title, orbit), `${world}: title over Orbit (title ${JSON.stringify(title)}, orbit ${JSON.stringify(orbit)})`).toBe(false);
         expect(overlaps(title, quiz), `${world}: title over Quiz time`).toBe(false);
         expect(overlaps(title, back), `${world}: title over Back`).toBe(false);

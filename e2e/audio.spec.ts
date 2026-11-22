@@ -151,7 +151,8 @@ test('after the first key the sounds load once, and play on docking, finds, answ
 test('with Sound effects off nothing plays, and Off is remembered', async ({ page }) => {
   const { errors, soundOff } = watch(page);
   await start(page);
-  await page.getByTestId('settings-button').click();
+  await page.getByTestId('menu-button').click();
+  await page.getByTestId('tab-settings').click();
   const effects = page.getByRole('radiogroup', { name: 'Sound effects', exact: true });
   await effects.getByRole('radio', { name: 'Off', exact: true }).click();
   await page.getByTestId('settings-done').click();
@@ -164,7 +165,8 @@ test('with Sound effects off nothing plays, and Off is remembered', async ({ pag
 
   await page.reload();
   await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
-  await page.getByTestId('settings-button').click();
+  await page.getByTestId('menu-button').click();
+  await page.getByTestId('tab-settings').click();
   await expect(effects.getByRole('radio', { name: 'Off', exact: true })).toHaveAttribute('aria-checked', 'true');
   expect(errors).toEqual([]);
   expect(soundOff).toEqual([]);
