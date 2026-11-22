@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { fontsReady } from './fonts.ts';
+import { openStarMap } from './starMap.ts';
 import { readFileSync } from 'node:fs';
 
 interface SurfaceFile {
@@ -371,8 +372,8 @@ test('Back to space lifts off, and Earth is then "you\'re here"', async ({ page 
   expect(await debug(page, (h) => h.getMode())).toBe('space');
   expect(await debug(page, (h) => h.hasPanorama())).toBe(false); // the photo is thrown away
   expect((await debug(page, (h) => h.getShip())).docked).toBe(false);
-  await page.getByTestId('where-button').click();
-  await expect(page.getByRole('button', { name: /Earth/ })).toBeDisabled();
+  await openStarMap(page);
+  await expect(page.getByTestId('star-map-node-earth')).toHaveAccessibleName(/, you are here$/);
 });
 
 test('going from Earth to Mars and back swaps the view each time, with the right credit', async ({ page }) => {

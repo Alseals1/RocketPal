@@ -10,7 +10,7 @@ import { fontsReady } from './fonts.ts';
  *
  * VISUAL_BASELINE_DIR changes where they go (for example a git-ignored folder, to compare two commits).
  */
-const OUT = process.env.VISUAL_BASELINE_DIR ?? 'docs/visual-baseline/m3';
+const OUT = process.env.VISUAL_BASELINE_DIR ?? 'docs/visual-baseline/m4';
 const SIZES = [
   { width: 1366, height: 768 },
   { width: 390, height: 844 },
@@ -41,16 +41,24 @@ for (const size of SIZES) {
     await start(page);
     await shot(page, size, 'start');
 
-    await page.getByTestId('where-button').click();
-    await page.waitForTimeout(300);
-    await shot(page, size, 'picker');
+    await page.getByTestId('star-map-button').click();
+    await page.waitForTimeout(1000); // the sheet has risen in and the nodes have come in
+    await shot(page, size, 'star-map');
+    await page.getByTestId('real-distance-toggle').click();
+    await page.waitForTimeout(800); // the 600 ms move
+    await shot(page, size, 'star-map-real');
+    await page.keyboard.press('Escape');
+
+    await page.getByTestId('menu-button').click();
+    await page.waitForTimeout(400); // the sheet has grown in
+    await shot(page, size, 'mission-control-missions');
     await page.keyboard.press('Escape');
 
     await page.getByTestId('menu-button').click();
     await page.getByTestId('tab-settings').click();
     await expect(page.getByTestId('settings-panel')).toBeVisible();
     await page.waitForTimeout(400); // the sheet has grown in
-    await shot(page, size, 'settings');
+    await shot(page, size, 'mission-control-settings');
     await page.keyboard.press('Escape');
 
     await debug(page, "dockAt('mars')");

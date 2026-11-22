@@ -67,9 +67,9 @@ For each page:
    window.rpResults ??= []; window.measure = (label, seconds = 20, delay = 5) => { console.log(`"${label}" starts in ${delay} s and runs ${seconds} s. Close DevTools now (Ctrl+Shift+J).`); setTimeout(() => { const gaps = []; let last = performance.now(); const end = last + seconds * 1000; const step = (now) => { gaps.push(now - last); last = now; if (now < end) { requestAnimationFrame(step); return; } const s = [...gaps].sort((a, b) => a - b); const at = (p) => s[Math.min(s.length - 1, Math.floor(p * s.length))]; rpResults.push({ label, page: location.search || '(auto)', frames: gaps.length, avgFps: +(gaps.length / seconds).toFixed(1), medianFps: +(1000 / at(0.5)).toFixed(1), slowFps: +(1000 / at(0.95)).toFixed(1), longestMs: Math.round(s[s.length - 1]) }); console.table(rpResults); }; requestAnimationFrame(step); }, delay * 1000); };
    ```
 
-2. **Idle near Earth.** Press "Where to?", pick Earth, press "Autopilot: fly me there!". The rocket lands. Press "Back to space". Then run `measure('idle near Earth', 20, 5)`, close DevTools, and keep your hands off the keyboard and touchpad for 20 seconds.
+2. **Idle near Earth.** Press "Star Map", tap Earth, press "Set course", then press "Autopilot: fly me there!". The rocket lands. Press "Back to space". Then run `measure('idle near Earth', 20, 5)`, close DevTools, and keep your hands off the keyboard and touchpad for 20 seconds.
 3. **Boosting.** Reopen DevTools and run `measure('boosting', 10, 5)`. Close DevTools, click the game once, and hold Space for the whole 10 seconds.
-4. **Autopilot to Neptune.** Reopen DevTools and run `measure('autopilot to Neptune', 30, 8)`. Close DevTools, pick Neptune in "Where to?", and press Autopilot.
+4. **Autopilot to Neptune.** Reopen DevTools and run `measure('autopilot to Neptune', 30, 8)`. Close DevTools, pick Neptune on the Star Map ("Star Map", Neptune, "Set course"), and press Autopilot.
 5. Reopen DevTools and run `console.table(rpResults)`. Copy `medianFps`, `slowFps` and `longestMs` for each row into the Frame rate table.
 
 What the columns mean:
@@ -151,7 +151,7 @@ If you can, do this with a child. On `/`:
 
 - Can you steer with the touchpad alone, with no keyboard?
 - On a touchscreen model, do the on-screen controls appear by themselves? If not, try `/?touch`.
-- Can a finger and the touchpad hit all of these: the "Where to?" picker, Autopilot, glowing dots, Listen, "Back to space", and the quiz answers?
+- Can a finger and the touchpad hit all of these: the Star Map (its worlds, Set course and the real-distance switch), the Mission Control button and tabs, Autopilot, glowing dots, Listen, "Back to space", and the quiz answers?
 - Can you drag to look around the photo?
 
 Write yes or no for each, and one line about what got in the way.

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { fontsReady } from './fonts.ts';
+import { openStarMap, pickWorld } from './starMap.ts';
 
 /** The test handle that `?debug=1` adds to the page. */
 interface DebugHandle {
@@ -108,8 +109,7 @@ test('tap-only: pick Earth, tap Autopilot, and land', async ({ page }) => {
   await start(page);
 
   await expect(page.locator('[data-testid="autopilot-button"]')).toBeHidden(); // nothing to fly to yet
-  await page.getByTestId('where-button').click();
-  await page.getByRole('button', { name: 'Earth' }).click();
+  await pickWorld(page, 'earth');
 
   await expect(page.locator('.stats-title')).toHaveText('Flying to Earth');
   const lines = page.locator('.stats-line');
@@ -139,19 +139,22 @@ test('tap-only: pick Earth, tap Autopilot, and land', async ({ page }) => {
   await expect(page.locator('.surface-title')).toContainText('Earth from the Space Station');
   expect((await ship(page)).docked).toBe(true);
 
-  // Back to space: the rocket lifts off and Earth is now "you're here".
+  // Back to space: the rocket lifts off and Earth is now "You are here", with no Set course.
   await page.getByTestId('back-to-space').click();
   await expect(page.locator('.surface-title')).toBeHidden();
   expect((await ship(page)).docked).toBe(false);
-  await page.getByTestId('where-button').click();
-  await expect(page.getByRole('button', { name: /Earth/ })).toBeDisabled();
+  await openStarMap(page);
+  const earth = page.getByTestId('star-map-node-earth');
+  await expect(earth).toHaveAccessibleName(/^Earth, 4th of 10, \d stars? of 3, you are here$/);
+  await earth.click();
+  await expect(page.getByTestId('star-map-detail')).toContainText('You are here');
+  await expect(page.getByTestId('set-course')).toBeHidden();
   expect(errors).toEqual([]);
 });
 
 test('steering by hand takes over from autopilot', async ({ page }) => {
   await start(page);
-  await page.getByTestId('where-button').click();
-  await page.getByRole('button', { name: 'Neptune' }).click();
+  await pickWorld(page, 'neptune');
   await page.getByTestId('autopilot-button').click();
   await expect(page.getByTestId('autopilot-button')).toHaveAttribute('aria-pressed', 'true');
 
@@ -222,14 +225,12 @@ test.describe('on a touch screen', () => {
 
   test('every button is a big, easy target (56 px or more)', async ({ page }) => {
     await start(page, '&touch=1');
-    await page.getByTestId('where-button').click();
-    const buttons = [page.getByTestId('where-button'), page.getByTestId('boost-button'), ...(await page.locator('.world-button').all())];
-    for (const button of buttons) {
+    for (const button of [page.getByTestId('star-map-button'), page.getByTestId('boost-button')]) {
       const box = (await button.boundingBox())!;
       expect(box.height, await button.innerText()).toBeGreaterThanOrEqual(56);
       expect(box.width).toBeGreaterThanOrEqual(56);
     }
-    await page.getByRole('button', { name: 'Earth' }).click();
+    await pickWorld(page, 'earth');
     expect((await page.getByTestId('autopilot-button').boundingBox())!.height).toBeGreaterThanOrEqual(56);
   });
 });
@@ -248,7 +249,8 @@ test('on a Chromebook-sized screen with the biggest text, the speed lesson stays
     a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
   const stats = await box('.stats');
   expect(overlaps(stats, await box('[data-testid="autopilot-button"]'))).toBe(false);
-  expect(overlaps(stats, await box('[data-testid="where-button"]'))).toBe(false);
+  expect(overlaps(stats, await box('[data-testid="star-map-button"]'))).toBe(false);
+  expect(overlaps(stats, await box('[data-testid="menu-button"]'))).toBe(false);
   expect(stats.y + stats.height).toBeLessThanOrEqual(768);
   expect(errors).toEqual([]);
 });
@@ -290,15 +292,13 @@ test('changing your mind mid-flight gives a sensible, shrinking distance', async
   test.setTimeout(120_000);
   await start(page);
   const start0 = await ship(page);
-  await page.getByTestId('where-button').click();
-  await page.getByRole('button', { name: 'Neptune' }).click();
+  await pickWorld(page, 'neptune');
   await page.getByTestId('autopilot-button').click();
   // Fly until the rocket is well away from where it started (how long that takes depends on how busy the computer is).
   await until(page, (s) => Math.hypot(s.position.x - start0.position.x, s.position.z - start0.position.z)).toBeGreaterThan(500);
 
   // Now pick Earth from the middle of space.
-  await page.getByTestId('where-button').click();
-  await page.getByRole('button', { name: 'Earth' }).click();
+  await pickWorld(page, 'earth');
   const first = await distanceShown(page);
   expect(first).toBeGreaterThan(0);
   await page.getByTestId('autopilot-button').click();
@@ -308,25 +308,24 @@ test('changing your mind mid-flight gives a sensible, shrinking distance', async
   await expect.poll(() => distanceShown(page), { timeout: 15_000 }).toBeLessThan(second);
 });
 
-test('Escape closes the picker, and Space goes back to boosting after a click', async ({ page }) => {
+test('Escape closes the Star Map, and Space goes back to boosting after a click', async ({ page }) => {
   test.setTimeout(120_000); // slowing back down to cruising can take a while on a busy computer
   await start(page);
-  await page.getByTestId('where-button').click();
-  await expect(page.locator('.picker')).toBeVisible();
+  await openStarMap(page);
   await page.keyboard.press('Escape');
-  await expect(page.locator('.picker')).toBeHidden();
+  await expect(page.getByTestId('star-map')).toBeHidden();
+  await expect(page.getByTestId('mission-control')).toBeHidden(); // the closing Escape did not open Mission Control
   await page.keyboard.down('Space'); // Escape must not leave the button holding on to the Space bar either
   await until(page, (s) => s.speed).toBeGreaterThan(80);
-  await expect(page.locator('.picker')).toBeHidden();
+  await expect(page.getByTestId('star-map')).toBeHidden();
   await page.keyboard.up('Space');
   await until(page, (s) => s.speed, 60_000).toBeLessThan(60); // back to cruising, so the next part starts from a fair place
 
   // A mouse click must not leave the button holding on to the Space bar.
-  await page.getByTestId('where-button').click();
-  await page.getByRole('button', { name: 'Mars' }).click();
+  await pickWorld(page, 'mars');
   await page.keyboard.down('Space');
   await until(page, (s) => s.speed).toBeGreaterThan(100);
-  await expect(page.locator('.picker')).toBeHidden();
+  await expect(page.getByTestId('star-map')).toBeHidden();
   await page.keyboard.up('Space');
 });
 

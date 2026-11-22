@@ -2,11 +2,13 @@ import type { BodyLayout } from '../scene/layout';
 import type { ScreenPoint } from '../scene/spaceScene';
 import type { ArrivalWording } from '../data/surfaces';
 import type { Speaker } from '../core/speaker';
+import { createButton } from './components/button';
 import { focusGameArea, keepTabInside } from './focus';
 import { bindListen } from './listen';
 
 export interface HudCallbacks {
-  onSelect(worldId: string): void;
+  /** The Star Map button was pressed. */
+  onStarMap(opener: HTMLButtonElement): void;
   onAutopilot(on: boolean): void;
   onFlyAgain(): void;
   /** True while Mission Control is open on top of the HUD: the landing card then leaves the keys to it. */
@@ -26,6 +28,9 @@ export interface HudStats {
 
 const EDGE_MARGIN = 64;
 
+/** What the stats card says while no world is picked. */
+export const PICK_A_WORLD = 'Tap "Star Map" and pick a world.';
+
 interface TagState {
   shown: boolean;
   isTarget: boolean;
@@ -41,9 +46,8 @@ interface TagState {
 export class Hud {
   private readonly tags = new Map<string, HTMLElement>();
   private readonly tagState = new Map<string, TagState>();
-  private readonly pickerButtons = new Map<string, HTMLButtonElement>();
   private readonly els: Record<string, HTMLElement>;
-  private readonly whereButton: HTMLButtonElement;
+  private readonly starMapButton: HTMLButtonElement;
   private readonly landedListen: { refresh(): void };
   private targetId: string | null = null;
   private pointerShown = false;
@@ -63,17 +67,12 @@ export class Hud {
       <p class="visually-hidden" role="status" aria-live="polite" data-el="announce"></p>
       <section class="card stats">
         <p class="stats-title" data-el="title">Where to, pilot?</p>
-        <p class="stats-line" data-el="distance">Tap "Where to?" and pick a world.</p>
+        <p class="stats-line" data-el="distance">${PICK_A_WORLD}</p>
         <p class="stats-line" data-el="light"></p>
         <p class="stats-line" data-el="speed"></p>
         <p class="stats-note" data-el="note" hidden></p>
         <p class="stats-note stats-compare" data-el="compare" hidden></p>
       </section>
-      <button class="big-button where-button" data-testid="where-button" type="button" aria-expanded="false">Where to?</button>
-      <div class="card picker" data-el="picker" hidden>
-        <p class="picker-title">Pick a place to fly to</p>
-        <div class="picker-grid" data-el="grid"></div>
-      </div>
       <button class="big-button autopilot-button" data-testid="autopilot-button" data-el="autopilot" type="button" hidden>Autopilot: fly me there!</button>
       <div class="pointer" data-el="pointer" hidden><span class="pointer-arrow"></span><span class="pointer-name" data-el="pointer-name"></span></div>
       <div class="tags" data-el="tags" aria-hidden="true"></div>
@@ -91,9 +90,14 @@ export class Hud {
 
     this.els = {};
     overlay.querySelectorAll<HTMLElement>('[data-el]').forEach((el) => (this.els[el.dataset.el!] = el));
-    this.whereButton = overlay.querySelector<HTMLButtonElement>('.where-button')!;
-
-    this.onPress(this.whereButton, () => this.togglePicker());
+    // The Star Map button (7.2): top right, the one main action while no world is picked. It opens the Star Map.
+    this.starMapButton = createButton({ kind: 'primary', label: 'Star Map' });
+    this.starMapButton.classList.add('star-map-button');
+    this.starMapButton.dataset.testid = 'star-map-button';
+    this.starMapButton.setAttribute('aria-haspopup', 'dialog');
+    this.starMapButton.setAttribute('aria-expanded', 'false');
+    overlay.querySelector('.stats')!.after(this.starMapButton);
+    this.onPress(this.starMapButton, () => this.callbacks.onStarMap(this.starMapButton));
     this.onPress(this.els.autopilot, () => this.callbacks.onAutopilot(this.els.autopilot.getAttribute('aria-pressed') !== 'true'));
     this.onPress(this.els['fly-again'], () => this.callbacks.onFlyAgain());
     // Listen reads the card's title and words (#34).
@@ -101,37 +105,14 @@ export class Hud {
       `${this.els['landed-title'].textContent ?? ''} ${this.els['landed-text'].textContent ?? ''}`,
     );
     window.addEventListener('keydown', (e) => {
-      // The landing card is a dialog: Tab stays on it and Escape does what "Fly again" does. Not while settings is on top.
+      // The landing card is a dialog: Tab stays on it and Escape does what "Fly again" does. Not while Mission Control is on top.
       if (!this.els.landed.hidden && !this.callbacks.isCovered?.()) {
         if (e.code === 'Escape') this.callbacks.onFlyAgain();
         else if (e.key === 'Tab') keepTabInside(this.els.landed, e);
-        return;
       }
-      if (e.code === 'Escape' && !this.els.picker.hidden) this.closePicker();
     });
 
     for (const layout of layouts) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'world-button';
-      button.dataset.world = layout.world.id;
-      const dot = document.createElement('span');
-      dot.className = 'dot';
-      dot.style.background = layout.world.color;
-      const name = document.createElement('span');
-      name.className = 'world-name';
-      name.textContent = layout.world.name;
-      const here = document.createElement('small');
-      here.textContent = "you're here";
-      name.appendChild(here);
-      button.append(dot, name);
-      this.onPress(button, () => {
-        this.closePicker();
-        this.callbacks.onSelect(layout.world.id);
-      });
-      this.els.grid.appendChild(button);
-      this.pickerButtons.set(layout.world.id, button);
-
       const tag = document.createElement('div');
       tag.className = 'tag';
       tag.textContent = layout.world.name;
@@ -147,14 +128,9 @@ export class Hud {
     this.height = height;
   }
 
-  /** Marks the world you are at (it cannot be picked) and the one you are heading to. */
-  setPlaces(currentId: string | null, targetId: string | null): void {
+  /** The world you are heading to: its tag is highlighted, the pointer names it, and the autopilot button shows. */
+  setPlaces(targetId: string | null): void {
     this.targetId = targetId;
-    for (const [id, button] of this.pickerButtons) {
-      button.disabled = id === currentId;
-      button.classList.toggle('is-here', id === currentId);
-      button.classList.toggle('is-target', id === targetId);
-    }
     this.els.autopilot.hidden = targetId === null || !this.els.landed.hidden;
     this.els['pointer-name'].textContent = this.layouts.find((l) => l.world.id === targetId)?.world.name ?? '';
   }
@@ -187,12 +163,8 @@ export class Hud {
     this.els['landed-text'].textContent = flyingPast
       ? 'There is no solid ground to land on here. Fact cards and missions are coming soon.'
       : 'Great flying! Fact cards and missions are coming soon.';
-    // The picker must not stay open under the card. Focus is not moved here: the card takes it just below.
-    if (!this.els.picker.hidden) {
-      this.els.picker.hidden = true;
-      this.whereButton.setAttribute('aria-expanded', 'false');
-    }
     this.els.landed.hidden = false;
+    this.starMapButton.hidden = true; // the card's own buttons are the way on
     this.landedListen.refresh(); // one false alarm earlier must not leave "No voice" on every later card
     this.els.autopilot.hidden = true;
     // With settings open on top, focus stays in settings: the card is reached once settings closes.
@@ -204,15 +176,11 @@ export class Hud {
     return !this.els.landed.hidden;
   }
 
-  /** True while the "Where to?" list is open. */
-  get isPickerOpen(): boolean {
-    return !this.els.picker.hidden;
-  }
-
   hideLanded(): void {
     if (!this.els.landed.hidden) this.speaker.stop(); // the card may still be reading
     const hadFocus = this.els.landed.contains(document.activeElement);
     this.els.landed.hidden = true;
+    this.starMapButton.hidden = false;
     // Like the other panels: focus goes to the game area, so Space boosts and the next Tab starts at the top.
     if (hadFocus) focusGameArea(this.root);
   }
@@ -273,22 +241,5 @@ export class Hud {
       handler();
       if (e.detail > 0) button.blur();
     });
-  }
-
-  private togglePicker(): void {
-    if (this.els.picker.hidden) {
-      this.els.picker.hidden = false;
-      this.whereButton.setAttribute('aria-expanded', 'true');
-      this.els.grid.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
-    } else {
-      this.closePicker();
-    }
-  }
-
-  /** Focus is not handed back to the button: Space is the boost key, and must not press it again. */
-  private closePicker(): void {
-    this.els.picker.hidden = true;
-    this.whereButton.setAttribute('aria-expanded', 'false');
-    focusGameArea(this.root);
   }
 }

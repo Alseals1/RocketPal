@@ -25,7 +25,7 @@ for (const query of ['?debug=0', '?debug', '?debug=true']) {
 
     await page.goto(`/${query}&quality=high`);
     await expect(page.locator('#game-canvas canvas')).toBeVisible();
-    await expect(page.getByTestId('where-button')).toBeVisible(); // the game has started
+    await expect(page.getByTestId('star-map-button')).toBeVisible(); // the game has started
     expect(await page.evaluate(() => (window as unknown as { rocketPals?: unknown }).rocketPals)).toBeUndefined();
     expect(errors).toEqual([]);
   });

@@ -803,8 +803,14 @@ test.describe('when the data is missing', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(planets) }),
     );
     await start(page);
-    await expect(page.locator('[data-world="mars"]')).toHaveCount(1);
-    await expect(page.locator('[data-world="neptune"]')).toHaveCount(0);
+    // The Star Map lists the nine good worlds, and counts nine.
+    await page.getByTestId('star-map-button').click();
+    await expect(page.getByTestId('star-map-node-mars')).toHaveCount(1);
+    await expect(page.getByTestId('star-map-node-neptune')).toHaveCount(0);
+    await expect(page.locator('.star-map__node')).toHaveCount(9);
+    await expect(page.getByTestId('star-map-node-mars')).toHaveAccessibleName(/^Mars, 6th of 9, /);
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('star-map')).toBeHidden();
     await land(page, 'mars');
     await expect(page.getByTestId('mission')).toHaveText(`Mission: ${missionOf('mars').title}`);
     expect(errors).toEqual([]);

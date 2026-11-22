@@ -61,7 +61,7 @@ export class Game {
     const assets = createGameAssets(host); // every texture and model goes through it (src/assets/manifest.ts)
     this.scene = new SpaceScene(host, layouts, host.quality, this.reducedMotion);
     const covered = () => this.missionControl?.isOpen() ?? false;
-    const isBlocked = () => covered() || this.arrival.isCardOpen;
+    const isBlocked = () => covered() || this.arrival.isCardOpen || this.space.isStarMapOpen; // steering and keys wait
     this.input = createInputManager({ controls: buildTouchControls(stage), showTouchControls: options.touchControls, isBlocked });
     const { events, progression, onRecorded } = connectProgression(this.save, content);
     this.sound = startGameSound({ stage, content, volumes: settings.volume, speaker: this.speaker, events, onRecorded, debug: options.debug });

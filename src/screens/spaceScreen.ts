@@ -1,6 +1,7 @@
 import type { Group } from 'three';
 import type { ArrivalParams, Screen, ScreenContext, SpaceParams } from '../app/screens';
-import type { WorldId } from '../data/ids';
+import { assetUrl, thumbnailId } from '../assets/manifest';
+import { WORLD_IDS, type WorldId } from '../data/ids';
 import type { World } from '../data/planets';
 import { arrivalWording } from '../data/surfaces';
 import { DEFAULT_FLIGHT, createShip, dockDistance, stepFlight, type Body, type FlightInput, type ShipState } from '../flight/flightModel';
@@ -18,7 +19,9 @@ import { planLeg } from '../scale/leg';
 import { AssetLoadError } from '../platform/assets';
 import type { BodyLayout } from '../scene/layout';
 import { toShipModel } from '../scene/shipModel';
-import { Hud } from '../ui/hud';
+import { Hud, PICK_A_WORLD } from '../ui/hud';
+import { StarMap } from '../ui/starMap';
+import { buildStarMapModel } from '../ui/starMapModel';
 
 const START_POSITION = { x: 0, y: 40, z: 330 }; // near the Sun, facing it
 const STATS_EVERY_MS = 250;
@@ -33,6 +36,10 @@ export class SpaceScreen implements Screen<SpaceParams> {
   readonly id = 'space';
   private readonly layouts: BodyLayout[];
   private readonly hud: Hud;
+  /** The Star Map (7.4). It does not pause the game: the scene keeps moving behind it, and steering is blocked. */
+  private readonly starMap: StarMap;
+  /** True while this is the screen on show (from the start, and between `enter` and `leave`): M opens the Star Map only then. */
+  private active = true;
   private ship: ShipState;
   private targetId: string | null = null;
   /** The world the rocket is right next to, if any. You cannot pick it as a destination. */
@@ -49,14 +56,18 @@ export class SpaceScreen implements Screen<SpaceParams> {
   constructor(private readonly ctx: ScreenContext) {
     this.layouts = ctx.layouts;
     this.ship = this.startFacing('earth');
+    this.starMap = new StarMap(ctx.stage, { onSetCourse: (id) => this.pickTarget(id) });
     this.hud = new Hud(ctx.stage, this.layouts, {
-      onSelect: (id) => this.pickTarget(id),
+      onStarMap: (opener) => this.openStarMap(opener),
       onAutopilot: (on) => this.setAutopilot(on),
       onFlyAgain: () => this.flyAgain(), // the plain landing card: no screen to change
       isCovered: () => ctx.isCovered(),
     }, ctx.speech);
     this.refreshHere();
     this.hud.setAutopilot(false);
+    ctx.input.onAction('starMap', () => {
+      if (this.active) this.openStarMap();
+    });
 
     // The Blender rocket loads after the first frame and is held for the whole run.
     // If it cannot load, the simple rocket stays and the game carries on.
@@ -81,12 +92,16 @@ export class SpaceScreen implements Screen<SpaceParams> {
 
   /** `liftOff`: after landing, lift off again. `course`: then set course to that world. On start there is nothing to do. */
   async enter({ liftOff, course }: SpaceParams): Promise<void> {
+    this.active = true;
     if (liftOff) this.flyAgain();
     if (course) this.pickTarget(course);
   }
 
   /** Nothing of its own to free: the ship and HUD stay for the run, and the scene belongs to the game. */
-  async leave(): Promise<void> {}
+  async leave(): Promise<void> {
+    this.active = false;
+    this.starMap.close();
+  }
 
   /** Mission Control opened: the boost (and its sound) stops. No frames come until `resume`. */
   pause(): void {
@@ -150,9 +165,28 @@ export class SpaceScreen implements Screen<SpaceParams> {
     return this.hereId;
   }
 
-  /** True while the space HUD has a panel of its own open (the landing card, the picker): Escape is then its own. */
+  /** True while the space HUD has a panel of its own open (the landing card, the Star Map): Escape is then its own. */
   get isBusy(): boolean {
-    return this.hud.isLandedOpen || this.hud.isPickerOpen;
+    return this.hud.isLandedOpen || this.starMap.isOpen;
+  }
+
+  get isStarMapOpen(): boolean {
+    return this.starMap.isOpen;
+  }
+
+  /** Opens the Star Map: not while docked (the landing card is up) or while Mission Control is open. */
+  openStarMap(opener?: HTMLElement): void {
+    if (this.ship.docked || this.starMap.isOpen || this.ctx.isCovered()) return;
+    const { ctx } = this;
+    const worlds = WORLD_IDS.map((id) => ctx.content.worlds.get(id)).filter((w): w is World => w !== undefined);
+    const model = buildStarMapModel({
+      worlds,
+      stars: ctx.progression().stars.byPlace,
+      hereId: this.hereId,
+      targetId: this.targetId,
+      thumbnail: (id) => assetUrl(thumbnailId(id)),
+    });
+    this.starMap.open(model, opener);
   }
 
   /** Go in Mission Control: sets course to a world, lifting off first when docked at the plain landing card. */
@@ -172,7 +206,7 @@ export class SpaceScreen implements Screen<SpaceParams> {
     const leg = planLeg(this.ship.position, this.layouts, id);
     this.legKm = leg.legKm;
     this.sceneLeg = leg.sceneLeg;
-    this.hud.setPlaces(this.hereId, id);
+    this.hud.setPlaces(id);
     this.updateStats();
   }
 
@@ -226,6 +260,7 @@ export class SpaceScreen implements Screen<SpaceParams> {
 
   /** The rocket has docked: stand on the world if it has a real photograph, or show the plain landing card. */
   private onDocked(layout: BodyLayout): void {
+    this.starMap.close(); // the autopilot can arrive with the map open
     this.setBoosting(false);
     this.ctx.events.emit({ type: 'arrived', place: layout.world.id as WorldId });
     this.autopilot = false;
@@ -242,7 +277,7 @@ export class SpaceScreen implements Screen<SpaceParams> {
     });
   }
 
-  /** Finds the world the rocket is right next to (if any), so the picker can say "you're here". */
+  /** Finds the world the rocket is right next to (if any), so the Star Map can say "You are here". */
   private refreshHere(): void {
     let found: string | null = null;
     for (const layout of this.layouts) {
@@ -253,14 +288,14 @@ export class SpaceScreen implements Screen<SpaceParams> {
     }
     if (found !== this.hereId) {
       this.hereId = found;
-      this.hud.setPlaces(this.hereId, this.targetId);
+      this.hud.setPlaces(this.targetId);
     }
   }
 
   private updateStats(): void {
     const layout = this.targetId ? this.layout(this.targetId) : undefined;
     if (!layout) {
-      this.hud.setStats({ title: 'Where to, pilot?', distance: 'Tap "Where to?" and pick a world.', light: '', speed: '', speedNote: '', comparison: '' });
+      this.hud.setStats({ title: 'Where to, pilot?', distance: PICK_A_WORLD, light: '', speed: '', speedNote: '', comparison: '' });
       return;
     }
     if (this.ship.docked) {

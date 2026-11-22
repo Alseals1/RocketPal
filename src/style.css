@@ -150,89 +150,9 @@ button:focus-visible {
   box-shadow: 0 2px 0 var(--signal-gold-deep);
 }
 
-.where-button {
-  position: absolute;
-  top: var(--gap);
-  right: var(--gap);
-}
-
 /* Panels that cover the game are solid, so the text underneath cannot show through. */
-.picker,
 .landed-card {
   background: var(--text-on-accent);
-}
-
-.picker {
-  position: absolute;
-  top: calc(var(--gap) + 140px);
-  right: var(--gap);
-  width: min(26em, calc(100% - 2 * var(--gap)));
-  max-height: calc(100% - 100px);
-  overflow-y: auto;
-  z-index: 5;
-}
-
-.picker-title {
-  font-family: var(--font-display);
-  margin: 0 0 10px;
-  font-weight: 600;
-  color: var(--signal-gold);
-}
-
-.picker-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-
-.world-button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 56px;
-  padding: 6px 12px;
-  border: 3px solid transparent;
-  border-radius: 16px;
-  background: var(--legacy-tile);
-  font-weight: 700;
-  text-align: left;
-}
-
-.world-button:hover:not(:disabled) {
-  background: var(--legacy-tile-hover);
-}
-
-.world-button.is-target {
-  border-color: var(--holo-cyan);
-}
-
-.world-button:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-.world-name {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.15;
-}
-
-.world-name small {
-  display: none;
-  font-size: 0.7em;
-  font-weight: 600;
-}
-
-.world-button.is-here .world-name small {
-  display: block;
-}
-
-.dot {
-  flex: none;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 3px solid var(--text-primary);
 }
 
 .autopilot-button {
@@ -459,16 +379,6 @@ button:focus-visible {
   .choice {
     min-height: 56px;
     padding: 4px 10px;
-  }
-  /* Short screens (a phone held sideways): the picker uses the whole height and sits beside the button. */
-  .picker {
-    top: var(--gap);
-    right: calc(var(--gap) * 2 + 9em);
-    width: min(34em, calc(100% - 11em));
-    max-height: calc(100% - 2 * var(--gap));
-  }
-  .picker-grid {
-    grid-template-columns: repeat(3, 1fr);
   }
   .stick {
     width: 120px;
