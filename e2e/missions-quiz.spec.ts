@@ -207,7 +207,8 @@ test.describe('the mission', () => {
     await expect.poll(() => debug(page, (h) => h.getMode())).toBe('space');
 
     await land(page, 'mars');
-    await expect(page.getByTestId('found')).toHaveText('Found 0 of 5'); // the HUD still counts this visit
+    await expect(page.getByTestId('found')).toHaveText('Found 2 of 5'); // found dots are remembered between visits
+    await expect(page.getByTestId('spot-rim')).toHaveClass(/is-found/);
     await expect(page.getByTestId('mission')).toHaveText(`Mission: ${missionOf('mars').title}`);
     await findDot(page, 'rim'); // found on the last visit: not a new find
     await expect(page.getByTestId('quiz-time')).toBeHidden();
@@ -577,7 +578,7 @@ test.describe('remembering', () => {
     expect(await starsText(page)).toBe('3 of 3 stars');
     await expect(page.getByTestId('mission')).toHaveText(`✓ ${missionOf('mars').title}`);
     await expect(page.getByTestId('quiz-time')).toBeVisible();
-    await expect(page.getByTestId('found')).toHaveText('Found 0 of 5'); // dots start fresh each visit
+    await expect(page.getByTestId('found')).toHaveText('Found 3 of 5'); // found dots are remembered after a reload
   });
 
   test('saves the v2 record, under the progress key and its backup, and nothing else', async ({ page }) => {

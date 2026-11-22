@@ -4,6 +4,7 @@ import type { ArrivalDef, Hotspot } from '../data/surfaces';
 import type { Speaker } from '../core/speaker';
 import type { ScreenPoint } from '../scene/spaceScene';
 import { createButton, ICONS } from './components/button';
+import { foundView } from './foundDots';
 import { keepTabInside } from './focus';
 import { bindListen, type ListenBinding } from './listen';
 import { QuizPanel } from './quizPanel';
@@ -14,8 +15,8 @@ export interface SurfaceCallbacks {
   /** A dot that is off the screen got keyboard focus: swing the view round to it. */
   onTurnTo(azimuth: number, elevation: number): void;
   /**
-   * The kid found a dot for the first time on this visit. The game records it and calls `setProgress`.
-   * Returns true when this find finished the mission.
+   * The kid opened a dot for the first time on this visit (it may be found already from an earlier visit: the game
+   * counts that as a repeat). The game records it and calls `setProgress`. Returns true when this find finished the mission.
    */
   onDotFound(id: string): boolean;
   /** The kid finished the quiz. The game saves it and returns the stars they now have on this world. */
@@ -47,13 +48,17 @@ const ORBIT_FACES = (['neutral', 'happy', 'thinking'] as const)
   .map((mood) => `<img class="mood-${mood}" src="/images/orbit-${mood}.png" alt="" width="64" height="64" draggable="false" decoding="async">`)
   .join('');
 
+/** Orbit's first words on a picture where every dot was found on an earlier visit. */
+const ALL_FOUND_BEFORE = 'You found everything here! Tap a dot to read it again.';
+
 /** The layer on top of a surface picture: glowing dots, Orbit, the fact card, and the credit for the photo. */
 export class SurfaceHud {
   private readonly root: HTMLElement;
   private readonly els: Record<string, HTMLElement> = {};
   private readonly spotButtons = new Map<string, HTMLButtonElement>();
   private readonly spotState = new Map<string, SpotState>();
-  private readonly found = new Set<string>();
+  /** Dots opened on this visit. The first open of each one on every visit is reported to the game. */
+  private readonly openedThisVisit = new Set<string>();
   private openedBy: HTMLButtonElement | null = null;
   private focusReturns = false;
   private current: Hotspot | null = null;
@@ -73,6 +78,8 @@ export class SurfaceHud {
     private readonly callbacks: SurfaceCallbacks,
     private readonly speaker: Speaker,
     private readonly extras?: MissionExtras,
+    /** The dot ids (without the place) the save already has as found: they show as found from the start. */
+    private savedFound: readonly string[] = [],
   ) {
     this.root = document.createElement('div');
     this.root.className = 'surface-hud';
@@ -189,17 +196,23 @@ export class SurfaceHud {
     return this.found.size;
   }
 
-  /** Starts a visit from scratch (nothing found yet). */
+  /** Found from the save, or opened on this visit. */
+  private get found(): ReadonlySet<string> {
+    return foundView(this.savedFound, this.openedThisVisit, this.surface.hotspots.map((h) => h.id)).found;
+  }
+
+  /** Starts a visit: dots the save has are found, nothing is opened yet. */
   reset(): void {
-    this.found.clear();
+    this.openedThisVisit.clear();
     this.missionJustDone = false;
-    for (const [id, button] of this.spotButtons) {
-      button.classList.remove('is-found');
-      const spot = this.surface.hotspots.find((h) => h.id === id)!;
-      button.setAttribute('aria-label', `${spot.label}: tap to learn more`);
-    }
-    this.updateProgress();
-    this.say(this.surface.orbitHint);
+    this.showFound();
+    this.say(this.found.size >= this.surface.hotspots.length ? ALL_FOUND_BEFORE : this.surface.orbitHint);
+  }
+
+  /** The save changed (this window or another one found a dot): show those dots as found too. */
+  setSavedFound(ids: readonly string[]): void {
+    this.savedFound = ids;
+    this.showFound();
   }
 
   show(): void {
@@ -267,13 +280,11 @@ export class SurfaceHud {
     this.speaker.reset(); // one false alarm earlier must not hide Listen on every later card
     this.setListenLabel(false);
     this.setMood('happy'); // a find makes Orbit happy for the rest of the visit
-    if (!this.found.has(spot.id)) {
-      this.found.add(spot.id);
+    if (!this.openedThisVisit.has(spot.id)) {
+      this.openedThisVisit.add(spot.id);
       if (this.callbacks.onDotFound(spot.id) && this.extras) this.missionJustDone = true;
     }
-    button.classList.add('is-found');
-    button.setAttribute('aria-label', `${spot.label}: found. Tap to read again`);
-    this.updateProgress();
+    this.showFound();
     this.listenButton.focus();
   }
 
@@ -320,8 +331,16 @@ export class SurfaceHud {
     this.listenButton.setAttribute('aria-pressed', String(speaking));
   }
 
-  private updateProgress(): void {
-    this.els.found.textContent = `Found ${this.found.size} of ${this.surface.hotspots.length}`;
+  /** Marks each dot found or not, and updates "Found N of M". */
+  private showFound(): void {
+    const found = this.found;
+    for (const spot of this.surface.hotspots) {
+      const button = this.spotButtons.get(spot.id)!;
+      const isFound = found.has(spot.id);
+      button.classList.toggle('is-found', isFound);
+      button.setAttribute('aria-label', isFound ? `${spot.label}: found. Tap to read again` : `${spot.label}: tap to learn more`);
+    }
+    this.els.found.textContent = `Found ${found.size} of ${this.surface.hotspots.length}`;
   }
 
   private setMood(mood: OrbitMood): void {
