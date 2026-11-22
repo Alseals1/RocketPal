@@ -191,12 +191,12 @@ test.describe('opening and closing', () => {
     await expect(sheet(page)).toBeHidden();
   });
 
-  test('Escape with the destination list open closes the list, not opens Mission Control', async ({ page }) => {
+  test('Escape with the Star Map open closes the map, not opens Mission Control', async ({ page }) => {
     await start(page);
-    await page.getByTestId('where-button').click();
-    await expect(page.locator('.picker')).toBeVisible();
+    await page.getByTestId('star-map-button').click();
+    await expect(page.getByTestId('star-map')).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.locator('.picker')).toBeHidden();
+    await expect(page.getByTestId('star-map')).toBeHidden();
     await page.waitForTimeout(300);
     await expect(sheet(page)).toBeHidden();
   });

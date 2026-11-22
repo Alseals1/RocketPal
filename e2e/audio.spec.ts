@@ -77,7 +77,7 @@ async function missionAndFirstAnswers(page: Page) {
 async function start(page: Page, query = '') {
   await page.goto(`/?debug=1&quality=high${query}`);
   await page.waitForFunction(() => (window as unknown as { rocketPals?: unknown }).rocketPals !== undefined);
-  await expect(page.getByTestId('where-button')).toBeVisible();
+  await expect(page.getByTestId('star-map-button')).toBeVisible();
 }
 
 test('the sound player is not downloaded until the first key, then once', async ({ page }) => {
@@ -138,7 +138,7 @@ test('after the first key the sounds load once, and play on docking, finds, answ
   // Back in space, holding Space boosts: one whoosh when it starts.
   await page.getByTestId('quiz-close').click();
   await page.getByTestId('back-to-space').click();
-  await expect(page.getByTestId('where-button')).toBeVisible();
+  await expect(page.getByTestId('star-map-button')).toBeVisible();
   await page.keyboard.down('Space');
   await page.waitForTimeout(400);
   await page.keyboard.up('Space');

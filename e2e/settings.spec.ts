@@ -80,10 +80,10 @@ test('Space goes back to boosting after the settings panel is closed, however it
 test('every settings control is a big target and the buttons do not overlap', async ({ page }) => {
   await start(page);
   const menu = (await page.getByTestId('menu-button').boundingBox())!;
-  const where = (await page.getByTestId('where-button').boundingBox())!;
+  const starMap = (await page.getByTestId('star-map-button').boundingBox())!;
   expect(menu.width).toBeGreaterThanOrEqual(56);
   expect(menu.height).toBeGreaterThanOrEqual(56);
-  expect(menu.y).toBeGreaterThanOrEqual(where.y + where.height); // sits under "Where to?"
+  expect(menu.y).toBeGreaterThanOrEqual(starMap.y + starMap.height); // sits under the Star Map button
 
   await open(page);
   const controls = [...(await page.getByRole('radio').all()), page.getByTestId('settings-done')];
@@ -236,9 +236,9 @@ test.describe('phone-sized screens with the biggest text', () => {
 
       // The stats card must not run off the left edge or under the buttons on the right.
       const stats = (await page.locator('.stats').boundingBox())!;
-      const where = (await page.getByTestId('where-button').boundingBox())!;
+      const starMap = (await page.getByTestId('star-map-button').boundingBox())!;
       expect(stats.x).toBeGreaterThanOrEqual(0);
-      expect(stats.x + stats.width).toBeLessThanOrEqual(where.x);
+      expect(stats.x + stats.width).toBeLessThanOrEqual(starMap.x);
     });
   }
 });
@@ -308,11 +308,11 @@ test('everything in the settings panel works with the keyboard alone', async ({ 
   await page.keyboard.press('Enter'); // Done
   await expect(page.getByTestId('settings-panel')).toBeHidden();
   await page.keyboard.press('Tab'); // the first Tab starts at the top of the page
-  await expect(page.getByTestId('where-button')).toBeFocused();
+  await expect(page.getByTestId('star-map-button')).toBeFocused();
 });
 
 test('turning reduced motion on really switches the animations off in the page', async ({ page }) => {
-  const duration = () => page.getByTestId('where-button').evaluate((el) => getComputedStyle(el).transitionDuration);
+  const duration = () => page.getByTestId('star-map-button').evaluate((el) => getComputedStyle(el).transitionDuration);
   await start(page);
   expect(await duration()).not.toBe('0s'); // buttons ease when pressed
 
@@ -351,17 +351,18 @@ test('the first Tab after closing Mission Control with Escape starts at the top 
   await expect(page.getByTestId('mission-control')).toBeVisible();
   await page.keyboard.press('Escape');
   await page.keyboard.press('Tab');
-  await expect(page.getByTestId('where-button')).toBeFocused(); // not the page body
+  await expect(page.getByTestId('star-map-button')).toBeFocused(); // not the page body
 });
 
-test('the first Tab after closing the destination picker with Escape starts at the top of the page', async ({ page }) => {
+test('the first Tab after closing the Star Map with Escape starts at the top of the page', async ({ page }) => {
   await start(page);
-  await page.getByTestId('where-button').focus();
+  await page.getByTestId('star-map-button').focus();
   await page.keyboard.press('Enter');
-  await expect(page.locator('.picker')).toBeVisible();
-  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('star-map')).toBeVisible();
+  await page.keyboard.press('Escape'); // no panel is open, so one Escape closes the map
+  await expect(page.getByTestId('star-map')).toBeHidden();
   await page.keyboard.press('Tab');
-  await expect(page.getByTestId('where-button')).toBeFocused();
+  await expect(page.getByTestId('star-map-button')).toBeFocused();
 });
 
 test('Mission Control tells screen readers it is a modal dialog, and the menu button says it is open', async ({ page }) => {

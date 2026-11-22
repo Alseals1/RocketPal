@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { fontsReady } from './fonts.ts';
+import { openStarMap, pickWorld } from './starMap.ts';
 import { readFileSync } from 'node:fs';
 
 interface SurfaceFile {
@@ -101,7 +102,7 @@ test('landing at Mars puts you inside the real NASA photo', async ({ page }) => 
   await expect(page.getByTestId('orbit')).toContainText("I'm Orbit");
   await expect(page.getByTestId('back-to-space')).toBeVisible();
   // The space screen's own buttons are gone while you stand on Mars.
-  await expect(page.getByTestId('where-button')).toBeHidden();
+  await expect(page.getByTestId('star-map-button')).toBeHidden();
 
   // The credit says plainly that the sky above and the ground below are filled in.
   await expect(page.getByTestId('photo-credit')).toContainText('filled in');
@@ -121,8 +122,7 @@ test('landing at Mars puts you inside the real NASA photo', async ({ page }) => 
 test('flying to Mars on autopilot ends with you standing on it', async ({ page }) => {
   test.setTimeout(180_000);
   await start(page);
-  await page.getByTestId('where-button').click();
-  await page.getByRole('button', { name: 'Mars' }).click();
+  await pickWorld(page, 'mars');
   await page.getByTestId('autopilot-button').click();
   await expect(page.locator('.surface-title')).toBeVisible({ timeout: 150_000 });
   await expect(page.locator('.surface-loading')).toBeHidden({ timeout: 20_000 });
@@ -310,7 +310,7 @@ test('Back to space lifts off again, and you can land again with a fresh count',
   await expect(page.locator('.surface-title')).toBeHidden();
   expect(await debug(page, (h) => h.getMode())).toBe('space');
   expect((await debug(page, (h) => h.getShip())).docked).toBe(false);
-  await expect(page.getByTestId('where-button')).toBeVisible();
+  await expect(page.getByTestId('star-map-button')).toBeVisible();
   await expect(page.getByTestId('landed')).toBeHidden();
 
   // Pick Mars again from where we are: Mars is now "you're here", so go somewhere else and come back by dock.
@@ -375,7 +375,7 @@ test('the landing card is a proper dialog: Tab stays on it, Escape flies again, 
   await page.keyboard.up('Space');
   await expect(page.getByTestId('landed')).toBeHidden();
   await page.keyboard.press('Tab');
-  await expect(page.getByTestId('where-button')).toBeFocused();
+  await expect(page.getByTestId('star-map-button')).toBeFocused();
   expect(errors).toEqual([]);
 });
 
@@ -386,7 +386,7 @@ test('a keyboard "Fly again" also hands focus back to the game', async ({ page }
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('landed')).toBeHidden();
   await page.keyboard.press('Tab');
-  await expect(page.getByTestId('where-button')).toBeFocused();
+  await expect(page.getByTestId('star-map-button')).toBeFocused();
 });
 
 test('with settings open when the rocket arrives, Escape closes only settings, and the card waits underneath', async ({ page }) => {
@@ -412,14 +412,13 @@ test('with settings open when the rocket arrives, Escape closes only settings, a
   expect(errors).toEqual([]);
 });
 
-test('arriving closes the destination picker', async ({ page }) => {
+test('arriving closes the Star Map', async ({ page }) => {
   await start(page);
-  await page.getByTestId('where-button').click();
-  await expect(page.locator('.picker')).toBeVisible();
+  await openStarMap(page);
   await debug(page, (h) => h.dockAt('moon'));
   await expect(page.getByTestId('landed')).toBeVisible();
-  await expect(page.locator('.picker')).toBeHidden();
-  await expect(page.getByTestId('where-button')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByTestId('star-map')).toBeHidden();
+  await expect(page.getByTestId('star-map-button')).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByTestId('fly-again')).toBeFocused();
 });
 
