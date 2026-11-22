@@ -56,5 +56,7 @@ export function exposeDebugHandle({ host, scene, monitor, screens, space, arriva
     getHeldAssets: () => assets.held(),
     /** The sound effects that really started (#34), oldest first. Empty before the first tap or key. */
     getSoundsPlayed: () => soundsPlayed(),
+    /** True while Mission Control is open and the game is paused (#42). */
+    isPaused: () => screens.paused,
   };
 }

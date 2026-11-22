@@ -144,6 +144,33 @@ test.describe('keyboard', () => {
     expect(transform).not.toBe('none');
   });
 
+  test('the tabs move with Left, Right, Home and End, show one panel, and are one Tab stop', async ({ page }) => {
+    await openGallery(page);
+    const tabs = page.getByTestId('tabs');
+    const tab = (name: string) => tabs.getByRole('tab', { name, exact: true });
+    await expect(tab('Missions')).toHaveAttribute('aria-selected', 'true');
+    await expect(tabs.getByRole('tabpanel')).toHaveText('Find 3 things on Mars');
+    await tab('Missions').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(tab('Settings')).toBeFocused();
+    await expect(tab('Settings')).toHaveAttribute('aria-selected', 'true');
+    await expect(tabs.getByRole('tabpanel')).toHaveText('Text size, sounds and motion');
+    await page.keyboard.press('ArrowRight'); // wraps round
+    await expect(tab('Missions')).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(tab('Settings')).toBeFocused();
+    await page.keyboard.press('Home');
+    await expect(tab('Missions')).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('End');
+    await expect(tab('Settings')).toHaveAttribute('aria-selected', 'true');
+    // Each panel is named by its tab, and only the selected tab is a Tab stop.
+    await expect(tabs.getByRole('tabpanel')).toHaveAccessibleName('Settings');
+    const stops = await tabs.getByRole('tab').evaluateAll((els) => els.map((el) => (el as HTMLElement).tabIndex));
+    expect(stops).toEqual([-1, 0]);
+    await tab('Missions').click();
+    await expect(tabs.getByRole('tabpanel')).toHaveText('Find 3 things on Mars');
+  });
+
   test('the dialog keeps Tab inside, Escape closes it, and focus goes back to the opener', async ({ page }) => {
     const errors = watchForErrors(page);
     await openGallery(page);

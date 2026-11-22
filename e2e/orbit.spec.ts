@@ -212,8 +212,8 @@ test('a dot is drawn above Orbit, and the fact card is above both', async ({ pag
   expect(order.face).toBeGreaterThanOrEqual(0);
   expect(order.spot, 'dot is on top of Orbit').toBeLessThan(order.face);
 
-  // Back to space and the settings gear stay on top of a dot parked over them (a dot must never hide the way out).
-  for (const button of ['[data-testid="back-to-space"]', '#settings-button, [data-testid="settings-button"]']) {
+  // Back to space and the menu button stay on top of a dot parked over them (a dot must never hide the way out).
+  for (const button of ['[data-testid="back-to-space"]', '[data-testid="menu-button"]']) {
     const buttonOnTop = await page.evaluate((selector) => {
       const target = document.querySelector<HTMLElement>(selector)!;
       const r = target.getBoundingClientRect();

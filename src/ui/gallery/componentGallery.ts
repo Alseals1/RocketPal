@@ -11,6 +11,7 @@ import './gallery.css';
 import { createButton, ICONS } from '../components/button';
 import { openDialog } from '../components/dialog';
 import { createSegmented } from '../components/segmented';
+import { createTabs } from '../components/tabs';
 import { createToaster } from '../components/toast';
 import { createChip } from '../components/chip';
 import { createHotspot } from '../components/hotspot';
@@ -107,6 +108,22 @@ function tid<T extends HTMLElement>(el: T, id: string): T {
   control.element.style.width = 'min(100%, 28em)';
   status.textContent = control.value;
   row.append(control.element, status);
+}
+
+// ---- Tabs ----
+{
+  const row = section('tabs', 'Tabs');
+  const panel = (text: string) => Object.assign(document.createElement('p'), { textContent: text });
+  const tabs = createTabs({
+    label: 'Mission Control',
+    tabs: [
+      { id: 'missions', label: 'Missions', panel: panel('Find 3 things on Mars') },
+      { id: 'settings', label: 'Settings', panel: panel('Text size, sounds and motion') },
+    ],
+  });
+  tid(tabs.element, 'tabs');
+  tabs.element.style.width = 'min(100%, 28em)';
+  row.append(tabs.element);
 }
 
 // ---- Dialog ----

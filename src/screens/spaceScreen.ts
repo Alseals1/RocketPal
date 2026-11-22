@@ -36,7 +36,9 @@ export class SpaceScreen implements Screen<SpaceParams> {
   private ship: ShipState;
   private targetId: string | null = null;
   /** The world the rocket is right next to, if any. You cannot pick it as a destination. */
-  private here: string | null = null;
+  private hereId: string | null = null;
+  /** Mission Control is open: no frames come, and the screen must draw itself again after a resize. */
+  private paused = false;
   private autopilot = false;
   /** Whether the boost is on, as last told to the event bus (`boost` events play the whoosh). */
   private boosting = false;
@@ -77,19 +79,29 @@ export class SpaceScreen implements Screen<SpaceParams> {
     }
   }
 
-  /** `liftOff`: after landing, lift off again. On start there is nothing to do. */
-  async enter({ liftOff }: SpaceParams): Promise<void> {
+  /** `liftOff`: after landing, lift off again. `course`: then set course to that world. On start there is nothing to do. */
+  async enter({ liftOff, course }: SpaceParams): Promise<void> {
     if (liftOff) this.flyAgain();
+    if (course) this.pickTarget(course);
   }
 
   /** Nothing of its own to free: the ship and HUD stay for the run, and the scene belongs to the game. */
   async leave(): Promise<void> {}
 
-  pause(): void {} // nothing pauses a screen yet
-  resume(): void {}
+  /** Mission Control opened: the boost (and its sound) stops. No frames come until `resume`. */
+  pause(): void {
+    this.setBoosting(false);
+    this.paused = true;
+  }
+
+  resume(): void {
+    this.paused = false;
+  }
 
   resize(width: number, height: number): void {
     this.hud.setViewport(width, height);
+    // A resized canvas is blank until the next frame, and no frame comes while paused: draw the scene once now.
+    if (this.paused) this.ctx.scene.render();
   }
 
   update(dt: number, now: number): void {
@@ -133,9 +145,25 @@ export class SpaceScreen implements Screen<SpaceParams> {
     return this.layout(id)?.world;
   }
 
+  /** The world the rocket is right next to, if any. */
+  get here(): string | null {
+    return this.hereId;
+  }
+
+  /** True while the space HUD has a panel of its own open (the landing card, the picker): Escape is then its own. */
+  get isBusy(): boolean {
+    return this.hud.isLandedOpen || this.hud.isPickerOpen;
+  }
+
+  /** Go in Mission Control: sets course to a world, lifting off first when docked at the plain landing card. */
+  setCourse(id: string): void {
+    if (this.ship.docked) this.flyAgain();
+    this.pickTarget(id);
+  }
+
   pickTarget(id: string): void {
     const layout = this.layout(id);
-    if (!layout || this.ship.docked || id === this.here) return;
+    if (!layout || this.ship.docked || id === this.hereId) return;
     this.targetId = id;
     this.autopilot = false;
     this.hud.setAutopilot(false);
@@ -144,7 +172,7 @@ export class SpaceScreen implements Screen<SpaceParams> {
     const leg = planLeg(this.ship.position, this.layouts, id);
     this.legKm = leg.legKm;
     this.sceneLeg = leg.sceneLeg;
-    this.hud.setPlaces(this.here, id);
+    this.hud.setPlaces(this.hereId, id);
     this.updateStats();
   }
 
@@ -223,9 +251,9 @@ export class SpaceScreen implements Screen<SpaceParams> {
         break;
       }
     }
-    if (found !== this.here) {
-      this.here = found;
-      this.hud.setPlaces(this.here, this.targetId);
+    if (found !== this.hereId) {
+      this.hereId = found;
+      this.hud.setPlaces(this.hereId, this.targetId);
     }
   }
 

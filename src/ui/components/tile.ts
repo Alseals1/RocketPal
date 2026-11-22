@@ -18,17 +18,19 @@ export interface TileOptions {
   /** What unlocks a locked tile, in words ("Find 3 things on Mars"). Shown and read. */
   condition?: string;
   onPress?: () => void;
+  /** A tile that shows something but does nothing when pressed (a mission row, whose Go button sits beside it). */
+  static?: boolean;
 }
 
 export interface Tile {
-  element: HTMLButtonElement;
+  element: HTMLElement;
   setState(state: TileState, condition?: string): void;
 }
 
-export function createTile({ title, line, picture, state = 'rest', condition, onPress }: TileOptions): Tile {
-  const tile = document.createElement('button');
-  tile.type = 'button';
-  tile.className = 'rp-tile rp-pressable';
+export function createTile({ title, line, picture, state = 'rest', condition, onPress, static: isStatic = false }: TileOptions): Tile {
+  const tile = document.createElement(isStatic ? 'div' : 'button');
+  if (tile instanceof HTMLButtonElement) tile.type = 'button';
+  tile.className = isStatic ? 'rp-tile rp-tile--static' : 'rp-tile rp-pressable';
 
   if (picture) {
     const img = document.createElement('img');
@@ -61,14 +63,16 @@ export function createTile({ title, line, picture, state = 'rest', condition, on
   tile.append(badge);
 
   let current: TileState = state;
-  tile.addEventListener('click', () => {
-    if (current !== 'locked') onPress?.();
-  });
+  if (!isStatic) {
+    tile.addEventListener('click', () => {
+      if (current !== 'locked') onPress?.();
+    });
+  }
 
   function setState(next: TileState, nextCondition = condition): void {
     current = next;
     tile.dataset.state = next;
-    tile.setAttribute('aria-pressed', String(next === 'selected'));
+    if (!isStatic) tile.setAttribute('aria-pressed', String(next === 'selected'));
     if (next === 'locked') tile.setAttribute('aria-disabled', 'true');
     else tile.removeAttribute('aria-disabled');
 
