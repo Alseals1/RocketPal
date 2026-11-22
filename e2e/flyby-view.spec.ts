@@ -147,6 +147,12 @@ test.describe('by touch', () => {
     await page.getByTestId('photo-credit-info').tap();
     const dialog = page.getByTestId('photo-credit-dialog');
     await expect(dialog).toBeVisible();
+    // A long web address wraps: nothing in the dialog runs off the phone screen.
+    for (const p of await dialog.locator('p').all()) {
+      const box = (await p.boundingBox())!;
+      expect(box.x + box.width).toBeLessThanOrEqual(390);
+      expect(await p.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    }
     await dialog.getByRole('button', { name: 'Got it' }).tap();
     await expect(dialog).toHaveCount(0);
   });
