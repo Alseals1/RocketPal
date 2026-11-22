@@ -186,6 +186,11 @@ export function validateSurface(raw: unknown, places: readonly string[]): string
  */
 const NO_SOLID_GROUND = new Set(['sun', 'jupiter', 'saturn', 'uranus', 'neptune']);
 
+/** The Sun and the giant planets have no solid ground; every other world does. */
+export function hasSolidGround(place: string): boolean {
+  return !NO_SOLID_GROUND.has(place);
+}
+
 /** The words for a place: its arrival's `wording`, or (for a place with no arrival picture) this fallback. */
 export function arrivalWording(place: string, arrival?: Pick<ArrivalDef, 'wording'>): ArrivalWording {
   if (arrival) return arrival.wording;

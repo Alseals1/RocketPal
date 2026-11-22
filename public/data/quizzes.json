@@ -1,5 +1,5 @@
 {
-  "lastChecked": "2026-10-23",
+  "lastChecked": "2026-11-22",
   "pools": [
     {
       "place": "mars",
@@ -384,6 +384,150 @@
           "because": "It also shields us from much of the harmful radiation from the Sun.",
           "hotspot": "air",
           "evidence": "shields us from much of the harmful radiation"
+        }
+      ]
+    },
+    {
+      "place": "moon",
+      "format": "postcard",
+      "questions": [
+        {
+          "id": "moon-seas",
+          "level": 1,
+          "question": "What are the Moon's dark patches made of?",
+          "options": [
+            {
+              "text": "Old lava",
+              "correct": true
+            },
+            {
+              "text": "Deep water",
+              "correct": false
+            },
+            {
+              "text": "Green grass",
+              "correct": false
+            }
+          ],
+          "because": "The dark patches are old lava that filled giant holes.",
+          "hotspot": "seas",
+          "evidence": "old lava"
+        },
+        {
+          "id": "moon-tycho",
+          "level": 1,
+          "question": "What is the bright spot with white streaks?",
+          "options": [
+            {
+              "text": "A snowy mountain",
+              "correct": false
+            },
+            {
+              "text": "Tycho Crater",
+              "correct": true
+            },
+            {
+              "text": "A city light",
+              "correct": false
+            }
+          ],
+          "because": "That bright spot with white streaks is Tycho Crater.",
+          "hotspot": "tycho",
+          "evidence": "Tycho Crater"
+        },
+        {
+          "id": "moon-orientale",
+          "level": 2,
+          "question": "How wide is Orientale basin?",
+          "options": [
+            {
+              "text": "About 6 miles",
+              "correct": false
+            },
+            {
+              "text": "About 60 miles",
+              "correct": false
+            },
+            {
+              "text": "Nearly 600 miles",
+              "correct": true
+            }
+          ],
+          "because": "Orientale basin is a crater nearly 600 miles wide.",
+          "hotspot": "orientale",
+          "evidence": "nearly 600 miles wide"
+        }
+      ]
+    },
+    {
+      "place": "jupiter",
+      "format": "postcard",
+      "questions": [
+        {
+          "id": "jupiter-red-spot",
+          "level": 1,
+          "question": "What is the Great Red Spot?",
+          "options": [
+            {
+              "text": "A red volcano",
+              "correct": false
+            },
+            {
+              "text": "A giant storm",
+              "correct": true
+            },
+            {
+              "text": "A big lake",
+              "correct": false
+            }
+          ],
+          "because": "It is a giant storm bigger than Earth.",
+          "hotspot": "red-spot",
+          "evidence": "a giant storm"
+        },
+        {
+          "id": "jupiter-stripes",
+          "level": 1,
+          "question": "What are Jupiter's stripes made of?",
+          "options": [
+            {
+              "text": "Painted rock",
+              "correct": false
+            },
+            {
+              "text": "Melted metal",
+              "correct": false
+            },
+            {
+              "text": "Clouds",
+              "correct": true
+            }
+          ],
+          "because": "Jupiter's stripes are clouds, pushed by strong winds.",
+          "hotspot": "stripes",
+          "evidence": "stripes are clouds"
+        },
+        {
+          "id": "jupiter-white-oval",
+          "level": 2,
+          "question": "What are the small white ovals?",
+          "options": [
+            {
+              "text": "Storms",
+              "correct": true
+            },
+            {
+              "text": "Snowballs",
+              "correct": false
+            },
+            {
+              "text": "Moons",
+              "correct": false
+            }
+          ],
+          "because": "These small white ovals are storms too.",
+          "hotspot": "white-oval",
+          "evidence": "white ovals are storms"
         }
       ]
     }

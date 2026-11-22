@@ -64,7 +64,7 @@ describe('v1 saves keep their stars and missions (acceptance 1)', () => {
 });
 
 describe('XP for the content that exists (acceptance 2)', () => {
-  /** Every dot found, both find missions, both quizzes perfect on the first try. */
+  /** Every dot found, every find mission, every quiz and postcard perfect on the first try. */
   function playEverythingOnce(): SaveData {
     let s = emptySave();
     for (const place of content.places.keys()) s = record(s, { type: 'arrived', place }, content);
@@ -73,21 +73,21 @@ describe('XP for the content that exists (acceptance 2)', () => {
     return s;
   }
 
-  it('playing everything once is 155 XP: 11 x 5 + 2 x 20 + 2 x 20 + 2 x 10, rank 2', () => {
-    expect(ALL_DOTS()).toHaveLength(11);
+  it('playing everything once is 285 XP: 17 x 5 + 4 x 20 + 4 x 20 + 4 x 10, rank 3', () => {
+    expect(ALL_DOTS()).toHaveLength(17); // Mars 5, Earth 6, the Moon 3, Jupiter 3
     const view = deriveProgression(playEverythingOnce(), content);
-    expect(view.xp).toBe(11 * 5 + 2 * 20 + 2 * 20 + 2 * 10);
-    expect(view.xp).toBe(155);
-    expect(view.rank).toEqual({ rank: 2, name: 'Junior Pilot', xpIntoRank: 95, xpForNext: 5 });
-    expect(view.stars.total).toBe(6);
+    expect(view.xp).toBe(17 * 5 + 4 * 20 + 4 * 20 + 4 * 10);
+    expect(view.xp).toBe(285);
+    expect(view.rank).toEqual({ rank: 3, name: 'Pilot', xpIntoRank: 125, xpForNext: 15 });
+    expect(view.stars.total).toBe(12);
     expect([...view.missions.values()].every((m) => m.done)).toBe(true);
   });
 
-  it('replays add their "again" XP, capped: 10 x 1 + 3 x 5 = 25 more, 180 XP, rank 3', () => {
+  it('replays add their "again" XP, capped: 10 x 1 + 3 x 5 = 25 more, 310 XP, rank 4', () => {
     const s = { ...playEverythingOnce(), repeats: { 'dot:mars/rim': 12, 'quiz:mars': 3 } };
     const view = deriveProgression(s, content);
-    expect(view.xp).toBe(180);
-    expect(view.rank).toEqual({ rank: 3, name: 'Pilot', xpIntoRank: 20, xpForNext: 120 });
+    expect(view.xp).toBe(310);
+    expect(view.rank).toEqual({ rank: 4, name: 'Navigator', xpIntoRank: 10, xpForNext: 170 });
   });
 
   it('replays of things the content does not have give nothing', () => {
@@ -105,7 +105,7 @@ describe('XP for the content that exists (acceptance 2)', () => {
     const view = deriveProgression(playEverythingOnce(), noRules);
     expect(view.xp).toBe(0);
     expect(view.rank).toEqual({ rank: 1, name: 'Cadet', xpIntoRank: 0, xpForNext: null });
-    expect(view.stars.total).toBe(6);
+    expect(view.stars.total).toBe(12);
   });
 });
 
@@ -135,7 +135,7 @@ describe('deriveProgression shapes (D8)', () => {
 
   it('has a mission entry for each mission, with its progress', () => {
     const view = deriveProgression(save({ dots: ['mars/rim', 'mars/sky'] }), content);
-    expect([...view.missions.keys()]).toEqual(['find-3-mars', 'find-3-earth']);
+    expect([...view.missions.keys()]).toEqual(['find-3-mars', 'find-3-earth', 'find-3-moon', 'find-3-jupiter']);
     expect(view.missions.get('find-3-mars')).toEqual({ done: false, progress: { done: 2, of: 3 } });
     expect(view.missions.get('find-3-earth')).toEqual({ done: false, progress: { done: 0, of: 3 } });
   });

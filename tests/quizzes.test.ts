@@ -53,17 +53,30 @@ describe('quizzes.json', () => {
     for (const surface of surfaces.surfaces) {
       const pool = quizzesJson.pools.find((p) => p.place === surface.place);
       expect(pool, surface.place).toBeDefined();
-      expect(pool!.format).toBe('quiz');
+      // A fly-by world gets a postcard (one question); a world you land on gets a full quiz.
+      expect(pool!.format, surface.place).toBe(surface.kind === 'flyby' ? 'postcard' : 'quiz');
     }
   });
 
   it('ships 8 questions for Mars and 9 for Earth, at every level, with enough at levels 1 and 2 for a new pilot', () => {
     expect(marsPool(quizzes()).questions).toHaveLength(8);
     expect(earthPool(quizzes()).questions).toHaveLength(9);
-    for (const pool of quizzesJson.pools) {
+    for (const pool of quizzesJson.pools.filter((p) => p.format === 'quiz')) {
       const levels = pool.questions.map((q) => q.level);
       expect(new Set(levels), pool.place).toEqual(new Set([1, 2, 3]));
       expect(levels.filter((l) => l <= 2).length, pool.place).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('ships a postcard of 2 to 4 questions for the Moon and Jupiter, mostly at levels 1 and 2, one per dot', () => {
+    for (const place of ['moon', 'jupiter']) {
+      const pool = quizzesJson.pools.find((p) => p.place === place)!;
+      expect(pool.format, place).toBe('postcard');
+      expect(pool.questions.length, place).toBeGreaterThanOrEqual(2);
+      expect(pool.questions.length, place).toBeLessThanOrEqual(4);
+      expect(pool.questions.filter((q) => q.level === 3).length, place).toBeLessThanOrEqual(1);
+      const dots = surfaces.surfaces.find((s) => s.place === place)!.hotspots.map((h) => h.id);
+      for (const q of pool.questions) expect(dots, q.id).toContain(q.hotspot);
     }
   });
 
@@ -85,7 +98,7 @@ describe('quizzes.json', () => {
   });
 
   it('only has pools for worlds that have a landing picture, once each', () => {
-    expect(problemsWith((q) => q.pools.push({ ...structuredClone(q.pools[0]), place: 'moon' }))).toEqual(['moon: has a quiz but no landing picture']);
+    expect(problemsWith((q) => q.pools.push({ ...structuredClone(q.pools[0]), place: 'saturn' }))).toEqual(['saturn: has a quiz but no landing picture']);
     expect(problemsWith((q) => q.pools.push(structuredClone(q.pools[0])))).toEqual(['mars: has a quiz more than once']);
   });
 
@@ -328,8 +341,8 @@ describe('missions.json', () => {
 
   it('only has missions for worlds with a landing picture, once each, one find per place, and points its teaser at a real world', () => {
     const extra = missions();
-    extra.missions.push({ ...structuredClone(extra.missions[0]), id: 'find-3-moon', place: 'moon', goal: { type: 'dotsFound', place: 'moon', count: 3 } });
-    expect(check(extra).join()).toMatch(/find-3-moon: has a mission but no landing picture/);
+    extra.missions.push({ ...structuredClone(extra.missions[0]), id: 'find-3-saturn', place: 'saturn', goal: { type: 'dotsFound', place: 'saturn', count: 3 } });
+    expect(check(extra).join()).toMatch(/find-3-saturn: has a mission but no landing picture/);
     const nowhere = missions();
     mars(nowhere).place = 'pluto';
     expect(check(nowhere)).toContain('find-3-mars: place must be a world in planets.json');

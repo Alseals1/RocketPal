@@ -70,6 +70,20 @@ describe('the asset manifest', () => {
     expect(earth.url).toEqual({ high: '/textures/surfaces/earth-iss-2048.jpg' });
   });
 
+  it('never gives a window or fly-by view a 4096 photo: fly-bys get 2048 (high) and 1024 (low) at most', () => {
+    const { surfaces } = JSON.parse(readFileSync('public/data/surfaces.json', 'utf8')) as { surfaces: { place: string; kind: string }[] };
+    const windowLike = surfaces.filter((s) => s.kind === 'window' || s.kind === 'flyby');
+    expect(windowLike.map((s) => s.place)).toEqual(expect.arrayContaining(['earth', 'moon', 'jupiter']));
+    for (const surface of windowLike) {
+      const entry = ASSET_ENTRIES.find((e) => e.id === arrivalPhotoId(surface.place))!;
+      for (const url of filesOf(entry)) expect(url, surface.place).not.toMatch(/4096/);
+      if (surface.kind === 'flyby') {
+        expect(entry.url.high, surface.place).toMatch(/-2048\.jpg$/);
+        expect(entry.url.low, surface.place).toMatch(/-1024\.jpg$/);
+      }
+    }
+  });
+
   it('names the landing photo of a world', () => {
     expect(arrivalPhotoId('mars')).toBe('photo/mars');
   });

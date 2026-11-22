@@ -6,18 +6,64 @@
       "kind": "find",
       "place": "mars",
       "title": "Find 3 things on Mars",
-      "goal": { "type": "dotsFound", "place": "mars", "count": 3 },
+      "goal": {
+        "type": "dotsFound",
+        "place": "mars",
+        "count": 3
+      },
       "done": "Mission complete! Ready for the quiz?",
-      "teaser": { "text": "Next stop: Jupiter, the biggest planet. It has a storm bigger than Earth!", "place": "jupiter" }
+      "teaser": {
+        "text": "Next stop: Jupiter, the biggest planet. It has a storm bigger than Earth!",
+        "place": "jupiter"
+      }
     },
     {
       "id": "find-3-earth",
       "kind": "find",
       "place": "earth",
       "title": "Find 3 things out the window",
-      "goal": { "type": "dotsFound", "place": "earth", "count": 3 },
+      "goal": {
+        "type": "dotsFound",
+        "place": "earth",
+        "count": 3
+      },
       "done": "Mission complete! Ready for the quiz?",
-      "teaser": { "text": "Next stop: Mars! A robot explorer is waiting for you there.", "place": "mars" }
+      "teaser": {
+        "text": "Next stop: Mars! A robot explorer is waiting for you there.",
+        "place": "mars"
+      }
+    },
+    {
+      "id": "find-3-moon",
+      "kind": "find",
+      "place": "moon",
+      "title": "Find 3 things on the Moon",
+      "goal": {
+        "type": "dotsFound",
+        "place": "moon",
+        "count": 3
+      },
+      "done": "Mission complete! Ready for the quiz?",
+      "teaser": {
+        "text": "Next stop: Jupiter, the biggest planet. It has a storm bigger than Earth!",
+        "place": "jupiter"
+      }
+    },
+    {
+      "id": "find-3-jupiter",
+      "kind": "find",
+      "place": "jupiter",
+      "title": "Find 3 things on Jupiter",
+      "goal": {
+        "type": "dotsFound",
+        "place": "jupiter",
+        "count": 3
+      },
+      "done": "Mission complete! Ready for the quiz?",
+      "teaser": {
+        "text": "Next stop: Mars! A robot explorer is waiting for you there.",
+        "place": "mars"
+      }
     }
   ]
 }

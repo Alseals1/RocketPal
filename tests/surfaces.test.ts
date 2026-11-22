@@ -160,6 +160,73 @@ describe('the Earth window view from the International Space Station', () => {
   });
 });
 
+describe('the fly-by views of the Moon and Jupiter', () => {
+  const arrival = (place: string) => surfacesJson.surfaces.find((s) => s.place === place)! as any;
+  // Where each feature is in the SHIPPED photo (fractions of its width and height), read off the picture by eye and
+  // checked by brightness and colour. The Moon photo is cropped to the Moon; Jupiter's is the whole NASA file.
+  const FEATURES: Record<string, Record<string, [number, number]>> = {
+    moon: {
+      tycho: [0.454, 0.683], // the bright crater with rays at the bottom
+      seas: [0.493, 0.444], // the big dark area (old lava)
+      orientale: [0.325, 0.46], // the dark patch at the left edge
+    },
+    jupiter: {
+      'red-spot': [0.49, 0.67], // the Great Red Spot
+      stripes: [0.35, 0.4], // the dark orange belt north of the equator
+      'white-oval': [0.35, 0.788], // a white oval in the row below the Great Red Spot
+    },
+  };
+
+  for (const place of ['moon', 'jupiter']) {
+    describe(place, () => {
+      it('is a fly-by through a cockpit window that says "flying past"', () => {
+        expect(arrival(place).kind).toBe('flyby');
+        expect(arrival(place).frame).toBe('cockpit');
+        expect(arrival(place).wording).toBe('flyingPast');
+        expect(arrival(place).title).toMatch(/^Flying past /);
+        expect(JSON.stringify(arrival(place))).not.toMatch(/\bland(ed|ing)\b/i);
+      });
+
+      it('has a vertical field of view that follows from the photo\'s shape', () => {
+        const { horizontalFov, verticalFov, aspect } = arrival(place).photo;
+        const want = (2 * Math.atan(Math.tan((horizontalFov * Math.PI) / 360) / aspect) * 180) / Math.PI;
+        expect(verticalFov).toBeCloseTo(want, 1);
+      });
+
+      it('has three dots, each checked against NASA pages', () => {
+        expect(arrival(place).hotspots).toHaveLength(3);
+        for (const spot of arrival(place).hotspots) {
+          for (const url of spot.sources) expect(url).toMatch(/^https:\/\/(www\.|science\.)?nasa\.gov\//);
+        }
+      });
+
+      it('puts every dot on the thing its words are about', () => {
+        const photo = { horizontalFov: arrival(place).photo.horizontalFov, aspect: arrival(place).photo.aspect };
+        for (const [id, [x, y]] of Object.entries(FEATURES[place])) {
+          const want = rectilinearPhotoToAzEl(x, y, photo);
+          const spot = arrival(place).hotspots.find((h: any) => h.id === id)!;
+          expect(spot, id).toBeDefined();
+          expect(Math.abs(((spot.azimuth - want.azimuth + 540) % 360) - 180), `${id} azimuth`).toBeLessThan(2);
+          expect(Math.abs(spot.elevation - want.elevation), `${id} elevation`).toBeLessThan(2);
+        }
+      });
+
+      it('can put every dot on the screen, on every screen shape from very tall and thin to very wide and short', () => {
+        const photo = arrival(place).photo;
+        for (const aspect of [0.3, 0.46, 0.5625, 0.75, 1, 1.33, 1.78, 2.16, 2.37, 2.5, 3, 4]) {
+          const fov = windowCameraFov(photo, aspect);
+          const view = { horizontalFov: viewHorizontalFov(fov, aspect), verticalFov: fov };
+          const limits = windowLookLimits(photo, view, 0);
+          for (const spot of arrival(place).hotspots) {
+            const look = lookToShow(limits, view, spot.azimuth, spot.elevation);
+            expect(directionOnScreen(look, view, spot.azimuth, spot.elevation), `${spot.id} at aspect ${aspect}`).toBe(true);
+          }
+        }
+      });
+    });
+  }
+});
+
 describe('validateSurfaces', () => {
   it('rejects data that is not an object', () => {
     expect(validateSurfaces(null, WORLDS).length).toBeGreaterThan(0);

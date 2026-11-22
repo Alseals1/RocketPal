@@ -20,6 +20,21 @@ export const ASSET_ENTRIES: readonly AssetEntry[] = [
   // A window view only fills part of the screen, so it never needs the big picture (#31): earth-iss-4096.jpg stays on
   // disk and in CREDITS.md, but is left out here on purpose.
   { id: 'photo/earth', type: 'texture', url: { high: '/textures/surfaces/earth-iss-2048.jpg' }, bytes: 546539, credit: 'earth-iss' },
+  // Fly-by photos (#43): 2048 for high quality (no 4096: a fly-by is a window view), 1024 for low quality.
+  {
+    id: 'photo/moon',
+    type: 'texture',
+    url: { high: '/textures/surfaces/moon-art002e009057-2048.jpg', low: '/textures/surfaces/moon-art002e009057-1024.jpg' },
+    bytes: 279775,
+    credit: 'moon-art002e009057',
+  },
+  {
+    id: 'photo/jupiter',
+    type: 'texture',
+    url: { high: '/textures/surfaces/jupiter-pia04866-2048.jpg', low: '/textures/surfaces/jupiter-pia04866-1024.jpg' },
+    bytes: 257915,
+    credit: 'jupiter-pia04866',
+  },
   // The sound effects (#34): made by tools/make-sounds.ts, played through the AudioManager, which preloads them after
   // the first tap or key.
   { id: 'sound/boost', type: 'sound', url: { high: '/sounds/boost.wav' }, bytes: 19890, credit: 'sounds' },

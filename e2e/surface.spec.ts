@@ -322,16 +322,16 @@ test('Back to space lifts off again, and you can land again with the found dots 
 
 test('other worlds without a photo yet still get the plain landing card', async ({ page }) => {
   await start(page);
-  await debug(page, (h) => h.dockAt('moon'));
+  await debug(page, (h) => h.dockAt('mercury'));
   await expect(page.getByTestId('landed')).toBeVisible();
-  await expect(page.locator('#landed-title')).toHaveText('You landed on The Moon!');
+  await expect(page.locator('#landed-title')).toHaveText('You landed on Mercury!');
   expect(await debug(page, (h) => h.getMode())).toBe('space');
 });
 
 test('the Sun and the giant planets say "flying past", never "landed"', async ({ page }) => {
   const errors = watchForErrors(page);
   for (const [id, name] of [
-    ['jupiter', 'Jupiter'],
+    ['saturn', 'Saturn'],
     ['sun', 'The Sun'],
   ]) {
     await start(page);
@@ -349,7 +349,7 @@ test('the landing card is a proper dialog: Tab stays on it, Escape flies again, 
   test.setTimeout(90_000);
   const errors = watchForErrors(page);
   await start(page);
-  await debug(page, (h) => h.dockAt('moon'));
+  await debug(page, (h) => h.dockAt('mercury'));
   const flyAgain = page.getByTestId('fly-again');
   const listen = page.getByTestId('landed-listen');
   await expect(flyAgain).toBeFocused();
@@ -382,7 +382,7 @@ test('the landing card is a proper dialog: Tab stays on it, Escape flies again, 
 
 test('a keyboard "Fly again" also hands focus back to the game', async ({ page }) => {
   await start(page);
-  await debug(page, (h) => h.dockAt('moon'));
+  await debug(page, (h) => h.dockAt('mercury'));
   await expect(page.getByTestId('fly-again')).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('landed')).toBeHidden();
@@ -395,7 +395,7 @@ test('with settings open when the rocket arrives, Escape closes only settings, a
   await start(page);
   await page.getByTestId('settings-button').click();
   await expect(page.getByTestId('settings-panel')).toBeVisible();
-  await debug(page, (h) => h.dockAt('moon'));
+  await debug(page, (h) => h.dockAt('mercury'));
   await expect(page.getByTestId('landed')).toBeVisible();
   await expect(page.getByTestId('fly-again')).not.toBeFocused(); // settings keeps the focus
 
@@ -416,7 +416,7 @@ test('arriving closes the destination picker', async ({ page }) => {
   await start(page);
   await page.getByTestId('where-button').click();
   await expect(page.locator('.picker')).toBeVisible();
-  await debug(page, (h) => h.dockAt('moon'));
+  await debug(page, (h) => h.dockAt('mercury'));
   await expect(page.getByTestId('landed')).toBeVisible();
   await expect(page.locator('.picker')).toBeHidden();
   await expect(page.getByTestId('where-button')).toHaveAttribute('aria-expanded', 'false');
@@ -854,14 +854,14 @@ test.describe('Listen everywhere (#34)', () => {
   test('the landing card has Listen first, and it reads the card', async ({ page }) => {
     const errors = watchForErrors(page);
     await start(page);
-    await debug(page, (h) => h.dockAt('jupiter'));
+    await debug(page, (h) => h.dockAt('saturn'));
     const listen = page.getByTestId('landed-listen');
     await expect(page.locator('.landed-card button').first()).toHaveAttribute('data-testid', 'landed-listen');
     await expect(listen).toHaveText('Listen');
     expect((await listen.boundingBox())!.height).toBeGreaterThanOrEqual(56);
     await listen.click();
     await expect(listen).toHaveText('Stop');
-    expect((await lastSpoken(page))!.text).toContain('You are flying past Jupiter!');
+    expect((await lastSpoken(page))!.text).toContain('You are flying past Saturn!');
     expect((await lastSpoken(page))!.text).toContain('There is no solid ground to land on here.');
     await listen.click();
     await expect(listen).toHaveText('Listen');

@@ -218,7 +218,7 @@ Needs the astronaut model from `ASSETS.md` (2,500 triangles). The astronaut appe
 | Sun, Mercury, Venus, Jupiter, Saturn, Uranus, Neptune | **Fly-by view**: a real spacecraft photo seen through the cockpit window, 3 dots | New (MVP) |
 | Asteroid belt | The Asteroid Belt Run (section 7) | New (MVP) |
 
-The fly-by view reuses the window view built for Earth, with a photo from the mission that visited: the Solar Dynamics Observatory (Sun), MESSENGER (Mercury), Magellan or another NASA mission (Venus), Juno (Jupiter), Cassini (Saturn), Voyager 2 (Uranus, Neptune). Each photo's licence is recorded in `CREDITS.md`. The words say "flying past", never "landed", on the Sun and the giant planets.
+The fly-by view reuses the window view built for Earth, with a photo from the mission that visited: the Solar Dynamics Observatory (Sun), MESSENGER (Mercury), Magellan or another NASA mission (Venus), Cassini (Jupiter and Saturn), Voyager 2 (Uranus, Neptune). Each photo's licence is recorded in `CREDITS.md`. The words say "flying past", never "landed", on the Sun and the giant planets, and on the Moon's fly-by (its photo is from a passing spacecraft). The Moon (Artemis II) and Jupiter (Cassini) photos were approved on 2026-11-21 (`decisions/2026-11-21-flyby-arrivals.md`).
 
 ### 6.2 Finding dots (exists today, extended)
 - **What the player does:** looks around the photo and taps glowing dots to open fact cards (with Listen).
