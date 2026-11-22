@@ -69,7 +69,10 @@ const nodeBoxes = (page: Page) =>
     [...document.querySelectorAll<HTMLElement>('.star-map__node')].map((el) => {
       const r = el.getBoundingClientRect();
       const track = el.closest('ol')!.getBoundingClientRect();
-      return { id: el.dataset.world!, x: r.x, y: r.y, width: r.width, height: r.height, onTrack: r.x - track.x };
+      // Where it sits on the track, from its list item: the item only moves sideways, while the node itself may still
+      // be scaling in (the first-open stagger).
+      const item = el.parentElement!.getBoundingClientRect();
+      return { id: el.dataset.world!, x: r.x, y: r.y, width: r.width, height: r.height, onTrack: item.x - track.x };
     }),
   );
 
@@ -355,16 +358,16 @@ test.describe('real distances', () => {
     await expect(toggle).toHaveAttribute('aria-checked', 'true');
     await expect(map(page)).toHaveAttribute('data-scale', 'real');
     await expect(page.getByTestId('scale-note')).toHaveText(/^Real distances!.*Sizes are not to scale\.$/);
-    // Wait for the move to finish: Neptune stops changing.
+    const gap = (boxes: { onTrack: number }[]) => boxes[9].onTrack - boxes[7].onTrack;
+    // The outer worlds spread out: Neptune ends up much further from Saturn than before (polled: the move takes 600 ms,
+    // and longer on a busy computer). Then wait until nothing moves any more.
+    await expect.poll(async () => gap(await nodeBoxes(page)), { timeout: 10_000 }).toBeGreaterThan(2 * gap(even));
     await expect.poll(async () => {
       const a = (await nodeBoxes(page))[9].onTrack;
       await page.waitForTimeout(150);
       return Math.abs((await nodeBoxes(page))[9].onTrack - a);
     }).toBeLessThan(0.5);
     const real = await nodeBoxes(page);
-    const at = (boxes: { onTrack: number }[], i: number) => boxes[i].onTrack;
-    // The outer worlds spread out: Neptune is much further from Saturn than before.
-    expect(at(real, 9) - at(real, 7)).toBeGreaterThan(2 * (at(even, 9) - at(even, 7)));
     for (const boxes of [even, real]) {
       for (let i = 0; i < boxes.length; i++) {
         for (let j = i + 1; j < boxes.length; j++) expect(overlaps(boxes[i], boxes[j]), `${boxes[i].id} / ${boxes[j].id}`).toBe(false);
