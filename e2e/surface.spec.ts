@@ -300,7 +300,7 @@ test.describe('read aloud', () => {
   });
 });
 
-test('Back to space lifts off again, and you can land again with a fresh count', async ({ page }) => {
+test('Back to space lifts off again, and you can land again with the found dots remembered', async ({ page }) => {
   await landOnMars(page);
   await (await reachSpot(page, 'rim')).press('Enter');
   await page.getByTestId('close-card').click();
@@ -316,7 +316,8 @@ test('Back to space lifts off again, and you can land again with a fresh count',
   // Pick Mars again from where we are: Mars is now "you're here", so go somewhere else and come back by dock.
   await debug(page, (h) => h.dockAt('mars'));
   await expect(page.locator('.surface-loading')).toBeHidden({ timeout: 20_000 });
-  await expect(page.getByTestId('found')).toHaveText('Found 0 of 5');
+  await expect(page.getByTestId('found')).toHaveText('Found 1 of 5');
+  await expect(page.getByTestId('spot-rim')).toHaveClass(/is-found/);
 });
 
 test('other worlds without a photo yet still get the plain landing card', async ({ page }) => {

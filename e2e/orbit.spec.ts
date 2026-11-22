@@ -116,7 +116,7 @@ test('landing on the same world again: Orbit thinks, then is calm, not still hap
   await expect(page.locator('.surface-loading')).toBeVisible();
   await expect(face(page)).toHaveAttribute('data-mood', 'thinking'); // not the happy face left over from before
   await expect(page.locator('.surface-loading')).toBeHidden({ timeout: 20_000 });
-  await expect(page.getByTestId('found')).toHaveText('Found 0 of 5'); // a fresh visit
+  await expect(page.getByTestId('found')).toHaveText('Found 1 of 5'); // a fresh visit: the dot found before is remembered
   await expect(face(page)).toHaveAttribute('data-mood', 'neutral');
 });
 

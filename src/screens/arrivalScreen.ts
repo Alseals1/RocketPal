@@ -5,6 +5,8 @@ import { findMissionAt } from '../data/missions';
 import { drawDifferent, type QuestionPool, type QuizQuestion } from '../data/quizzes';
 import type { AssetId, DotId, PlaceId, WorldId } from '../data/ids';
 import { isWindowLike, type ArrivalDef } from '../data/surfaces';
+import { dotsFoundAt } from '../core/conditions';
+import type { SaveData } from '../core/save/schema';
 import { diffProgression } from '../core/progression';
 import type { LookState } from '../surface/geometry';
 import { windowLookLimits, viewHorizontalFov } from '../surface/geometry';
@@ -63,10 +65,14 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
       },
       ctx.speech,
       this.missionExtras(surface.place),
+      this.savedDots(surface.place),
     );
     this.surfaceHud = hud;
-    // Another window of the game earned something: show it here too, without a reload.
-    this.stopWatchingSave = ctx.save.onChange(() => hud.setProgress(this.progressView(surface.place)));
+    // Another window of the game earned something or found a dot: show it here too, without a reload.
+    this.stopWatchingSave = ctx.save.onChange((save) => {
+      hud.setSavedFound(this.savedDots(surface.place, save));
+      hud.setProgress(this.progressView(surface.place));
+    });
     hud.setProgress(this.progressView(surface.place));
     hud.show();
     hud.setLoading(true);
@@ -179,6 +185,11 @@ export class ArrivalScreen implements Screen<ArrivalParams> {
     this.quizSeed = seed + 1;
     this.lastDraw.set(pool.place, questions);
     return questions;
+  }
+
+  /** The dots on this place the save has as found (from any visit), as the HUD names them (without the place). */
+  private savedDots(place: PlaceId, save: SaveData = this.ctx.save.read()): string[] {
+    return dotsFoundAt(save, this.ctx.content, place).map((dot) => dot.slice(place.length + 1));
   }
 
   /** The world's mission and stars, worked out from the save. */
