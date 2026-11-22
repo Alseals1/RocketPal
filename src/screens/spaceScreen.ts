@@ -2,7 +2,7 @@ import type { Group } from 'three';
 import type { ArrivalParams, Screen, ScreenContext, SpaceParams } from '../app/screens';
 import type { WorldId } from '../data/ids';
 import type { World } from '../data/planets';
-import { arrivalWording } from '../data/surfaces';
+import { arrivalWording, hasSolidGround } from '../data/surfaces';
 import { DEFAULT_FLIGHT, createShip, dockDistance, stepFlight, type Body, type FlightInput, type ShipState } from '../flight/flightModel';
 import {
   formatDistanceKm,
@@ -203,7 +203,7 @@ export class SpaceScreen implements Screen<SpaceParams> {
     this.autopilot = false;
     this.hud.setAutopilot(false);
     const surface = this.ctx.content.arrivals.get(layout.world.id as WorldId);
-    const showLanded = () => this.hud.showLanded(layout.world.name, arrivalWording(layout.world.id, surface));
+    const showLanded = () => this.hud.showLanded(layout.world.name, arrivalWording(layout.world.id, surface), hasSolidGround(layout.world.id));
     if (!surface) {
       showLanded();
       return;

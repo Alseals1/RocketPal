@@ -181,12 +181,15 @@ export class Hud {
   }
 
   /** The Sun and the giant planets have no ground, so there the card says "flying past" instead of "landed". */
-  showLanded(worldName: string, wording: ArrivalWording): void {
+  /**
+   * The plain card for a world with no photo yet (or whose photo could not load). `solidGround` is false for the Sun and
+   * the giant planets; the Moon flies past (its photo is from a passing spacecraft) but does have solid ground.
+   */
+  showLanded(worldName: string, wording: ArrivalWording, solidGround = wording === 'landed'): void {
     const flyingPast = wording === 'flyingPast';
     this.els['landed-title'].textContent = flyingPast ? `You are flying past ${worldName}!` : `You landed on ${worldName}!`;
-    this.els['landed-text'].textContent = flyingPast
-      ? 'There is no solid ground to land on here. Fact cards and missions are coming soon.'
-      : 'Great flying! Fact cards and missions are coming soon.';
+    const first = !flyingPast ? 'Great flying!' : solidGround ? 'We are zooming past for a look.' : 'There is no solid ground to land on here.';
+    this.els['landed-text'].textContent = `${first} Fact cards and missions are coming soon.`;
     // The picker must not stay open under the card. Focus is not moved here: the card takes it just below.
     if (!this.els.picker.hidden) {
       this.els.picker.hidden = true;

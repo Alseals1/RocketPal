@@ -1,5 +1,5 @@
 {
-  "lastChecked": "2026-10-23",
+  "lastChecked": "2026-11-22",
   "surfaces": [
     {
       "place": "mars",
@@ -182,6 +182,135 @@
             "https://images.nasa.gov/details/iss073e0247726"
           ],
           "lastChecked": "2026-10-23"
+        }
+      ]
+    },
+    {
+      "place": "moon",
+      "kind": "flyby",
+      "frame": "cockpit",
+      "wording": "flyingPast",
+      "photo": {
+        "horizontalFov": 50,
+        "verticalFov": 50,
+        "aspect": 1
+      },
+      "title": "Flying past the Moon",
+      "description": "A real NASA photo of the Moon, taken on the Artemis II mission from the Orion spacecraft, seen through a drawn cockpit window. It shows the side of the Moon we always see from Earth. Drag to look a little around.",
+      "images": {
+        "high": "/textures/surfaces/moon-art002e009057-2048.jpg",
+        "low": "/textures/surfaces/moon-art002e009057-1024.jpg"
+      },
+      "credit": "NASA",
+      "creditNote": "Taken on the Artemis II mission (April 4, 2026): photo art002e009057, \"The Nearside of the Moon\". Cropped to the Moon. The cockpit window is drawn.",
+      "sourceUrl": "https://www.nasa.gov/image-detail/amf-art002e009057/",
+      "start": {
+        "azimuth": 0,
+        "elevation": 0
+      },
+      "orbitHint": "Hi, I'm Orbit! We're flying past the Moon. Tap the glowing dots to explore!",
+      "hotspots": [
+        {
+          "id": "seas",
+          "label": "Dark gray patches",
+          "azimuth": 359.63,
+          "elevation": 2.99,
+          "title": "The Moon's dark seas",
+          "text": "The dark patches are called maria, which means seas. But there is no water there! They are old lava that filled giant holes in the Moon long ago.",
+          "sources": [
+            "https://science.nasa.gov/moon/facts/",
+            "https://www.nasa.gov/image-detail/amf-art002e009057/"
+          ],
+          "lastChecked": "2026-11-22"
+        },
+        {
+          "id": "tycho",
+          "label": "Bright crater with rays",
+          "azimuth": 357.54,
+          "elevation": -9.68,
+          "title": "Tycho Crater",
+          "text": "That bright spot with white streaks is Tycho Crater. It is more than 52 miles wide. It is young for a crater: about 108 million years old!",
+          "sources": [
+            "https://www.nasa.gov/image-detail/amf-art002e009057/",
+            "https://science.nasa.gov/moon/facts/"
+          ],
+          "lastChecked": "2026-11-22"
+        },
+        {
+          "id": "orientale",
+          "label": "Dark spot at the edge",
+          "azimuth": 350.73,
+          "elevation": 2.11,
+          "title": "Orientale, a giant crater",
+          "text": "This dark spot at the edge is Orientale basin. It is a crater nearly 600 miles wide! Part of it is on the far side of the Moon, which we never see from Earth.",
+          "sources": [
+            "https://www.nasa.gov/image-detail/amf-art002e009057/"
+          ],
+          "lastChecked": "2026-11-22"
+        }
+      ]
+    },
+    {
+      "place": "jupiter",
+      "kind": "flyby",
+      "frame": "cockpit",
+      "wording": "flyingPast",
+      "photo": {
+        "horizontalFov": 50,
+        "verticalFov": 60.47,
+        "aspect": 0.8
+      },
+      "title": "Flying past Jupiter",
+      "description": "A real NASA photo of Jupiter, made from 27 pictures taken by the Cassini spacecraft as it flew past in December 2000, seen through a drawn cockpit window. Jupiter has no solid ground. Drag to look up and down.",
+      "images": {
+        "high": "/textures/surfaces/jupiter-pia04866-2048.jpg",
+        "low": "/textures/surfaces/jupiter-pia04866-1024.jpg"
+      },
+      "credit": "NASA/JPL/Space Science Institute",
+      "creditNote": "A true colour picture made from 27 photos taken by Cassini on December 29, 2000: PIA04866, \"Cassini Jupiter Portrait\". The cockpit window is drawn.",
+      "sourceUrl": "https://science.nasa.gov/photojournal/cassini-jupiter-portrait/",
+      "start": {
+        "azimuth": 0,
+        "elevation": -4
+      },
+      "orbitHint": "Hi, I'm Orbit! Jupiter has no ground to land on, so we fly past. Tap the glowing dots!",
+      "hotspots": [
+        {
+          "id": "red-spot",
+          "label": "Big reddish oval",
+          "azimuth": 359.47,
+          "elevation": -11.21,
+          "title": "The Great Red Spot",
+          "text": "This reddish oval is the Great Red Spot. It is a giant storm bigger than Earth! It has been swirling for hundreds of years.",
+          "sources": [
+            "https://science.nasa.gov/jupiter/facts/"
+          ],
+          "lastChecked": "2026-11-22"
+        },
+        {
+          "id": "stripes",
+          "label": "Orange and white stripes",
+          "azimuth": 352.04,
+          "elevation": 6.59,
+          "title": "Stripes made of clouds",
+          "text": "Jupiter's stripes are clouds. The dark orange stripes are called belts, and the light ones are called zones. Strong winds push them east and west in opposite directions.",
+          "sources": [
+            "https://science.nasa.gov/jupiter/facts/",
+            "https://science.nasa.gov/photojournal/cassini-jupiter-portrait/"
+          ],
+          "lastChecked": "2026-11-22"
+        },
+        {
+          "id": "white-oval",
+          "label": "Small white ovals",
+          "azimuth": 352.04,
+          "elevation": -18.39,
+          "title": "White oval storms",
+          "text": "These small white ovals are storms too. Even the smallest storms in this picture are about as big as the biggest hurricanes on Earth!",
+          "sources": [
+            "https://science.nasa.gov/photojournal/cassini-jupiter-portrait/"
+          ],
+          "lastChecked": "2026-11-22"
         }
       ]
     }

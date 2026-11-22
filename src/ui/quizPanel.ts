@@ -207,7 +207,9 @@ export class QuizPanel {
     this.announce(
       stars >= MAX_STARS
         ? run.perfect
-          ? 'All three right on the first try! You earned the bonus star!'
+          ? run.position.of === 1
+            ? 'Right on the first try! You earned the bonus star!' // a postcard has one question
+            : 'All three right on the first try! You earned the bonus star!'
           : 'You have all 3 stars on this world!'
         : `You earned ${stars} ${stars === 1 ? 'star' : 'stars'}! Play again to try for the bonus star.`,
     );

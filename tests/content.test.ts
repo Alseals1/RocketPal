@@ -29,9 +29,9 @@ describe('buildContent with the shipped files', () => {
   it('fills every map', () => {
     expect(content.worlds.size).toBe(10);
     expect(content.places.size).toBe(10);
-    expect(keys(content.arrivals).sort()).toEqual(['earth', 'mars']);
-    expect(keys(content.quizzes).sort()).toEqual(['earth', 'mars']);
-    expect(keys(content.missions)).toEqual(['find-3-mars', 'find-3-earth']);
+    expect(keys(content.arrivals).sort()).toEqual(['earth', 'jupiter', 'mars', 'moon']);
+    expect(keys(content.quizzes).sort()).toEqual(['earth', 'jupiter', 'mars', 'moon']);
+    expect(keys(content.missions)).toEqual(['find-3-mars', 'find-3-earth', 'find-3-moon', 'find-3-jupiter']);
   });
 
   it('keeps the worlds in file order, which is the journey order the planets are laid out by', () => {
@@ -65,21 +65,21 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
     expect(content.problems).toEqual(['planets.json: neptune: hook is required', 'planets.json: neptune: world is missing']);
     expect(keys(content.worlds)).toEqual(WORLD_IDS.filter((id) => id !== 'neptune'));
     expect(content.places.has('neptune')).toBe(false);
-    expect(content.arrivals.size).toBe(2);
-    expect(content.quizzes.size).toBe(2);
-    expect(content.missions.size).toBe(2);
+    expect(content.arrivals.size).toBe(4);
+    expect(content.quizzes.size).toBe(4);
+    expect(content.missions.size).toBe(4);
   });
 
-  it('a broken Earth takes the Moon (its parent is gone) and every Earth entry with it; Mars stays', () => {
+  it('a broken Earth takes the Moon (its parent is gone) and every Earth and Moon entry with it; Mars and Jupiter stay', () => {
     const files = realFiles();
     entry(files.planets.worlds, 'earth').diameterKm = -5;
     const content = buildContent(files);
     expect(content.worlds.size).toBe(8);
     expect(content.worlds.has('earth')).toBe(false);
     expect(content.worlds.has('moon')).toBe(false);
-    expect(keys(content.arrivals)).toEqual(['mars']);
-    expect(keys(content.quizzes)).toEqual(['mars']);
-    expect(keys(content.missions)).toEqual(['find-3-mars']);
+    expect(keys(content.arrivals)).toEqual(['mars', 'jupiter']);
+    expect(keys(content.quizzes)).toEqual(['mars', 'jupiter']);
+    expect(keys(content.missions)).toEqual(['find-3-mars', 'find-3-jupiter']);
     expect(content.problems).toEqual(
       expect.arrayContaining([
         'planets.json: earth: diameterKm must be a positive number',
@@ -89,6 +89,7 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
         'surfaces.json: earth: not a world in planets.json',
         'quizzes.json: earth: has a quiz but no landing picture',
         'missions.json: find-3-earth: place must be a world in planets.json',
+        'surfaces.json: moon: not a world in planets.json',
       ]),
     );
   });
@@ -97,9 +98,9 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
     const files = realFiles();
     entry(files.surfaces.surfaces, 'mars').credit = '';
     const content = buildContent(files);
-    expect(keys(content.arrivals)).toEqual(['earth']);
-    expect(keys(content.quizzes)).toEqual(['earth']);
-    expect(keys(content.missions)).toEqual(['find-3-earth']);
+    expect(keys(content.arrivals)).toEqual(['earth', 'moon', 'jupiter']);
+    expect(keys(content.quizzes)).toEqual(['earth', 'moon', 'jupiter']);
+    expect(keys(content.missions)).toEqual(['find-3-earth', 'find-3-moon', 'find-3-jupiter']);
     expect(content.worlds.size).toBe(10);
     expect(content.problems).toContain('surfaces.json: mars: credit is required (say who took the picture)');
   });
@@ -120,9 +121,9 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
       'quizzes.json: mars: needs 6 to 9 questions (has 0)',
       'quizzes.json: mars: needs good questions on at least 3 different dots at level 1 or 2 to make a quiz (has 0)',
     ]);
-    expect(keys(content.quizzes)).toEqual(['earth']);
-    expect(content.missions.size).toBe(2);
-    expect(content.arrivals.size).toBe(2);
+    expect(keys(content.quizzes)).toEqual(['earth', 'moon', 'jupiter']);
+    expect(content.missions.size).toBe(4);
+    expect(content.arrivals.size).toBe(4);
   });
 
   it('a bad question: only that question is missing, and the rest of its quiz still loads', () => {
@@ -131,10 +132,10 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
     mars.questions.find((q: any) => q.id === 'mars-sky').hotspot = 'no-such-dot';
     const content = buildContent(files);
     expect(content.problems).toEqual(['quizzes.json: mars/mars-sky: hotspot "no-such-dot" is not a dot on mars']);
-    expect(keys(content.quizzes).sort()).toEqual(['earth', 'mars']);
+    expect(keys(content.quizzes).sort()).toEqual(['earth', 'jupiter', 'mars', 'moon']);
     const ids = content.quizzes.get('mars')!.questions.map((q) => q.id);
     expect(ids).toEqual(mars.questions.map((q: any) => q.id).filter((id: string) => id !== 'mars-sky'));
-    expect(content.missions.size).toBe(2);
+    expect(content.missions.size).toBe(4);
     expect(error.mock.calls.map((c) => String(c[0]))).toEqual(['Some quizzes were left out:\nmars/mars-sky: hotspot "no-such-dot" is not a dot on mars']);
   });
 
@@ -145,8 +146,8 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
     expect(content.problems).toEqual([
       'missions.json: find-3-mars: goal: dotsFound count must be a whole number from 1 to the number of dots on the picture (5)',
     ]);
-    expect(keys(content.missions)).toEqual(['find-3-earth']);
-    expect(content.quizzes.size).toBe(2);
+    expect(keys(content.missions)).toEqual(['find-3-earth', 'find-3-moon', 'find-3-jupiter']);
+    expect(content.quizzes.size).toBe(4);
   });
 
   it('rejects a mission of another kind, with a goal elsewhere, or with no teaser', () => {
@@ -154,7 +155,7 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
     entry(files.missions.missions, 'find-3-mars').kind = 'tour';
     entry(files.missions.missions, 'find-3-earth').goal.place = 'mars';
     const content = buildContent(files);
-    expect(content.missions.size).toBe(0);
+    expect(keys(content.missions)).toEqual(['find-3-moon', 'find-3-jupiter']);
     expect(content.problems).toEqual([
       'missions.json: find-3-mars: kind must be "find" (other kinds come with their own issues)',
       "missions.json: find-3-earth: a find mission's goal must be dotsFound at its own place",
@@ -186,7 +187,7 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
         'missions.json: find-3-earth: goal: dotsFound place must be a world with a landing picture',
       ]),
     );
-    expect(keys(content.missions)).toEqual(['find-3-mars']);
+    expect(keys(content.missions)).toEqual(['find-3-mars', 'find-3-moon', 'find-3-jupiter']);
   });
 
   it('a goal that names another mission must name one in the file', () => {
@@ -195,7 +196,7 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
     entry(files.missions.missions, 'find-3-earth').available = { type: 'missionDone', mission: 'find-3-venus' };
     const content = buildContent(files);
     expect(content.problems).toEqual(['missions.json: find-3-earth: available: missionDone mission must be a mission in missions.json']);
-    expect(keys(content.missions)).toEqual(['find-3-mars']);
+    expect(keys(content.missions)).toEqual(['find-3-mars', 'find-3-moon', 'find-3-jupiter']);
   });
 
   it('keeps the first copy of a quiz or mission that is listed twice, and the first find mission at a place', () => {
@@ -208,7 +209,7 @@ describe('buildContent leaves out a broken entry, and only what depends on it', 
     const content = buildContent(files);
     expect(content.quizzes.get('mars')).toEqual(marsQuiz); // the first copy: all 8 questions
     expect(content.missions.get('find-3-mars')).toBe(marsMission);
-    expect(keys(content.missions)).toEqual(['find-3-mars', 'find-3-earth']);
+    expect(keys(content.missions)).toEqual(['find-3-mars', 'find-3-earth', 'find-3-moon', 'find-3-jupiter']);
     expect(content.problems).toEqual([
       'quizzes.json: mars: has a quiz more than once (kept the first)',
       'missions.json: find-3-mars: listed twice (kept the first)',
@@ -247,7 +248,7 @@ describe('buildContent with a file that is unusable as a whole', () => {
     const content = buildContent({ ...files, quizzes: 'x', missions: undefined });
     expect(content.quizzes.size).toBe(0);
     expect(content.missions.size).toBe(0);
-    expect(content.arrivals.size).toBe(2);
+    expect(content.arrivals.size).toBe(4);
     expect(content.worlds.size).toBe(10);
     expect(content.problems).toEqual(['quizzes.json: quiz data must be an object', 'missions.json: could not be loaded']);
   });
@@ -299,7 +300,7 @@ describe('buildContent with the progression rules', () => {
     expect(content.progression).toEqual(FALLBACK_RULES);
     expect(content.problems).toEqual(['progression.json: could not be loaded']);
     expect(error).not.toHaveBeenCalled();
-    expect(content.missions.size).toBe(2);
+    expect(content.missions.size).toBe(4);
   });
 
   it('a broken file gives no XP, is logged once, and the rest still loads', () => {
@@ -316,7 +317,7 @@ describe('buildContent with the progression rules', () => {
       'Bad progression data:\nxp.dot must have "first" and "again", each a whole number of 0 or more\nranks[0]: the first rank starts at 0 xp',
     ]);
     expect(content.worlds.size).toBe(10);
-    expect(content.missions.size).toBe(2);
+    expect(content.missions.size).toBe(4);
   });
 
   it('the fallback is a copy, so changing one content cannot change another', () => {
@@ -380,7 +381,7 @@ describe('sounds', () => {
     const content = buildContent({ ...realFiles(), sounds: undefined });
     expect(content.sounds.size).toBe(0);
     expect(content.worlds.size).toBe(10);
-    expect(content.missions.size).toBe(2);
+    expect(content.missions.size).toBe(4);
     expect(content.problems).toEqual(['sounds.json: could not be loaded']);
   });
 
@@ -418,7 +419,7 @@ describe('loadContent', () => {
     const content = await loading;
     expect(content.problems).toEqual([]);
     expect(content.worlds.size).toBe(10);
-    expect(content.missions.size).toBe(2);
+    expect(content.missions.size).toBe(4);
     expect(error).not.toHaveBeenCalled();
   });
 
@@ -432,7 +433,7 @@ describe('loadContent', () => {
     );
     const content = await loadContent();
     expect(content.missions.size).toBe(0);
-    expect(content.quizzes.size).toBe(2);
+    expect(content.quizzes.size).toBe(4);
     expect(content.worlds.size).toBe(10);
     expect(content.problems).toEqual(['missions.json: could not be loaded']);
     expect(error.mock.calls.map((c) => String(c[0]))).toEqual(['Could not load /data/missions.json (Failed to fetch)']);

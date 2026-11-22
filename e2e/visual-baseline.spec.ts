@@ -64,6 +64,28 @@ for (const size of SIZES) {
 }
 
 for (const size of SIZES) {
+  test(`the Moon and Jupiter fly-bys at ${size.width}x${size.height}`, async ({ page }) => {
+    test.setTimeout(90_000);
+    mkdirSync(OUT, { recursive: true });
+    await page.setViewportSize(size);
+    await start(page);
+    for (const place of ['moon', 'jupiter']) {
+      await debug(page, `dockAt('${place}')`);
+      await expect(page.locator('.surface-loading')).toBeHidden({ timeout: 20_000 });
+      await page.waitForTimeout(500);
+      await shot(page, size, `${place}-flyby`);
+      await page.getByTestId('photo-credit-info').click();
+      await expect(page.getByTestId('photo-credit-dialog')).toBeVisible();
+      await page.waitForTimeout(400);
+      await shot(page, size, `${place}-credit`);
+      await page.keyboard.press('Escape');
+      await page.getByTestId('back-to-space').click();
+      await page.waitForTimeout(300);
+    }
+  });
+}
+
+for (const size of SIZES) {
   test(`the component test page at ${size.width}x${size.height}`, async ({ page }) => {
     mkdirSync(OUT, { recursive: true });
     await page.setViewportSize(size);
