@@ -70,6 +70,8 @@ export const COLORS = {
   legacySpotGlow: 'rgba(255, 209, 102, 0.85)',
   legacySpotFoundGlow: 'rgba(123, 223, 242, 0.7)',
   legacyArrowShadow: '#000000',
+  cockpitGlint: 'rgba(255, 255, 255, 0.07)',
+  cockpitGlintSoft: 'rgba(255, 255, 255, 0.04)',
 } as const;
 
 export type ColorToken = keyof typeof COLORS;

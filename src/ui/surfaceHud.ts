@@ -1,9 +1,11 @@
 import type { MissionDef } from '../data/missions';
 import type { QuizQuestion } from '../data/quizzes';
-import type { ArrivalDef, Hotspot } from '../data/surfaces';
+import { isWindowLike, type ArrivalDef, type Hotspot } from '../data/surfaces';
 import type { Speaker } from '../core/speaker';
 import type { ScreenPoint } from '../scene/spaceScene';
 import { createButton, ICONS } from './components/button';
+import { openDialog, type DialogHandle } from './components/dialog';
+import { createProgressBar, type ProgressBar } from './components/progressBar';
 import { foundView } from './foundDots';
 import { keepTabInside } from './focus';
 import { bindListen, type ListenBinding } from './listen';
@@ -48,6 +50,20 @@ const ORBIT_FACES = (['neutral', 'happy', 'thinking'] as const)
   .map((mood) => `<img class="mood-${mood}" src="/images/orbit-${mood}.png" alt="" width="64" height="64" draggable="false" decoding="async">`)
   .join('');
 
+/** The cockpit window of a fly-by: a rounded window, two struts and a faint reflection. Drawn only; never takes a tap. */
+const COCKPIT_FRAME = `
+  <div class="window-frame is-cockpit" aria-hidden="true">
+    <span class="cockpit-strut is-left"></span>
+    <span class="cockpit-strut is-right"></span>
+    <span class="cockpit-reflection"></span>
+  </div>`;
+
+/** The words while the photo loads: "Flying to Jupiter..." on a fly-by, "Landing on Mars..." otherwise. */
+export function loadingLine(arrival: Pick<ArrivalDef, 'title' | 'wording'>): string {
+  if (arrival.wording === 'flyingPast') return `${arrival.title.replace(/^Flying past /, 'Flying to ')}...`;
+  return `Landing on ${arrival.title.split(',')[0]}...`;
+}
+
 /** Orbit's first words on a picture where every dot was found on an earlier visit. */
 const ALL_FOUND_BEFORE = 'You found everything here! Tap a dot to read it again.';
 
@@ -71,6 +87,9 @@ export class SurfaceHud {
   private missionDone = false;
   private readonly listens: ListenBinding[] = [];
   private readonly orbitListen: HTMLButtonElement;
+  /** Fly-by only (VISUAL_DESIGN 7.5): the progress pips for the dots, and the full credit dialog. */
+  private readonly pips?: ProgressBar;
+  private creditDialog?: DialogHandle;
 
   constructor(
     parent: HTMLElement,
@@ -84,10 +103,14 @@ export class SurfaceHud {
     this.root = document.createElement('div');
     this.root.className = 'surface-hud';
     this.root.hidden = true;
-    this.root.classList.toggle('is-window', surface.kind === 'window');
+    const flyby = surface.kind === 'flyby';
+    this.root.classList.toggle('is-window', isWindowLike(surface));
+    this.root.classList.toggle('is-flyby', flyby); // the VISUAL_DESIGN 7.5 look; Earth and Mars move to it in #55
+    if (flyby) this.root.style.setProperty('--rp-world', `var(--world-${surface.place})`);
     this.root.innerHTML = `
       ${surface.kind === 'window' ? '<div class="window-frame" aria-hidden="true"></div>' : ''}
-      <div class="surface-loading" data-el="loading" role="status">Landing on ${this.escape(surface.title.split(',')[0])}...</div>
+      ${flyby ? COCKPIT_FRAME : ''}
+      <div class="surface-loading" data-el="loading" role="status">${this.escape(loadingLine(surface))}</div>
       <section class="card surface-title" data-el="titleCard">
         <p class="stats-title" data-el="title"></p>
         <p class="stats-line mission-line" data-el="mission" data-testid="mission" hidden></p>
@@ -95,8 +118,9 @@ export class SurfaceHud {
           <p class="stats-line" data-el="found" data-testid="found"></p>
           <p class="stats-line" data-el="starsLine" hidden>Stars: <span class="stars" data-el="stars" data-testid="stars"></span></p>
         </div>
-        <p class="photo-credit" data-el="credit" data-testid="photo-credit"></p>
+        ${flyby ? '' : '<p class="photo-credit" data-el="credit" data-testid="photo-credit"></p>'}
       </section>
+      ${flyby ? '<div class="flyby-credit" data-el="creditRow"><p class="photo-credit" data-el="credit" data-testid="photo-credit"></p></div>' : ''}
       <button class="big-button back-button" data-testid="back-to-space" type="button">Back to space</button>
       <div class="orbit">
         <div class="orbit-side" data-el="orbitSide">
@@ -123,7 +147,22 @@ export class SurfaceHud {
     this.root.querySelectorAll<HTMLElement>('[data-el]').forEach((el) => (this.els[el.dataset.el!] = el));
 
     this.els.title.textContent = surface.title;
-    this.els.credit.textContent = `Photo: ${surface.credit}. ${surface.creditNote}`;
+    if (flyby) {
+      // One line, with the full credit one tap away. The source page is plain text: nothing here leaves the game.
+      this.els.credit.textContent = `Photo: ${surface.credit}`;
+      this.els.credit.title = `Photo: ${surface.credit}`;
+      const info = createButton({ kind: 'icon', label: 'About this photo', icon: ICONS.info });
+      info.dataset.testid = 'photo-credit-info';
+      info.classList.add('photo-credit-info');
+      info.addEventListener('click', () => this.openCredit(info));
+      this.els.creditRow.append(info);
+      const total = surface.hotspots.length;
+      this.pips = createProgressBar({ label: 'Dots found', value: 0, max: total, ticks: total, valueText: (n, max) => `${n} of ${max} found` });
+      this.pips.element.classList.add('found-pips');
+      this.els.found.after(this.pips.element);
+    } else {
+      this.els.credit.textContent = `Photo: ${surface.credit}. ${surface.creditNote}`;
+    }
     this.listenButton = this.els.listen as HTMLButtonElement;
     this.setListenLabel(false);
 
@@ -189,7 +228,7 @@ export class SurfaceHud {
 
   /** A fact card or the quiz is open (so the game's own keys wait). */
   get isCardOpen(): boolean {
-    return !this.els.overlay.hidden || (this.quizPanel?.isOpen ?? false);
+    return !this.els.overlay.hidden || (this.quizPanel?.isOpen ?? false) || this.creditDialog !== undefined;
   }
 
   get foundCount(): number {
@@ -223,6 +262,7 @@ export class SurfaceHud {
     this.speaker.stop(); // Orbit or the mission may be reading
     this.closeCard(false);
     this.quizPanel?.close();
+    this.creditDialog?.close();
     this.root.hidden = true;
     this.root.classList.remove('is-loading'); // leaving mid-load must not leave the next visit's dots and bubble hidden
   }
@@ -341,6 +381,24 @@ export class SurfaceHud {
       button.setAttribute('aria-label', isFound ? `${spot.label}: found. Tap to read again` : `${spot.label}: tap to learn more`);
     }
     this.els.found.textContent = `Found ${found.size} of ${this.surface.hotspots.length}`;
+    this.pips?.set(found.size);
+  }
+
+  /** The full credit for the photo, in a small dialog (VISUAL_DESIGN 7.5). */
+  private openCredit(opener: HTMLButtonElement): void {
+    if (this.creditDialog) return;
+    const { credit, creditNote, sourceUrl } = this.surface;
+    this.speaker.stop();
+    this.creditDialog = openDialog({
+      title: 'About this photo',
+      body: `Photo: ${credit}.\n\n${creditNote}\n\nWhere it is from: ${sourceUrl}`,
+      actions: [{ label: 'Got it', kind: 'primary' }],
+      world: this.surface.place,
+      opener,
+      parent: this.root,
+      onClose: () => (this.creditDialog = undefined),
+    });
+    this.creditDialog.element.dataset.testid = 'photo-credit-dialog';
   }
 
   private setMood(mood: OrbitMood): void {

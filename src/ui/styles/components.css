@@ -320,6 +320,7 @@
 
 .rp-dialog__body p {
   margin: 0 0 var(--space-3);
+  overflow-wrap: anywhere; /* a long word, such as a web address, wraps instead of running off a phone screen */
 }
 
 .rp-dialog__source {

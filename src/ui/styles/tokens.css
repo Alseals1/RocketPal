@@ -169,6 +169,10 @@
   --legacy-spot-glow: rgba(255, 209, 102, 0.85);
   --legacy-spot-found-glow: rgba(123, 223, 242, 0.7);
   --legacy-arrow-shadow: #000000;
+
+  /* ---- The fly-by cockpit window (VISUAL_DESIGN 7.5): a faint glint on the glass ---- */
+  --cockpit-glint: rgba(255, 255, 255, 0.07);
+  --cockpit-glint-soft: rgba(255, 255, 255, 0.04);
 }
 
 /* 4.3: the edge gutter is wider on wider screens. Breakpoints are literal px (custom properties cannot be used in @media); the values are in src/ui/tokens.ts. */

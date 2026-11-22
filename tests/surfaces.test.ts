@@ -273,7 +273,7 @@ describe('validateSurfaces', () => {
     const earthIndex = copy().surfaces.findIndex((s: any) => s.place === 'earth');
     const marsIndex = copy().surfaces.findIndex((s: any) => s.place === 'mars');
     const flyby = copy();
-    Object.assign(flyby.surfaces[earthIndex], { kind: 'flyby', frame: 'cockpit', wording: 'flyingPast' });
+    Object.assign(flyby.surfaces[earthIndex], { kind: 'flyby', frame: 'cockpit', wording: 'flyingPast', title: 'Flying past Earth' });
     expect(validateSurfaces(flyby, WORLDS)).toEqual([]);
     const flybyStation = copy();
     Object.assign(flybyStation.surfaces[earthIndex], { kind: 'flyby', frame: 'station' });
@@ -296,6 +296,13 @@ describe('validateSurfaces', () => {
     Object.assign(b.surfaces[earthIndex], { kind: 'flyby', frame: 'cockpit' });
     b.surfaces[earthIndex].hotspots[0].azimuth = 120;
     expect(validateSurfaces(b, WORLDS)).toContainEqual(expect.stringContaining('outside the photo'));
+  });
+
+  it('requires a "flyingPast" title to start with "Flying past"', () => {
+    const earthIndex = copy().surfaces.findIndex((s: any) => s.place === 'earth');
+    const a = copy();
+    Object.assign(a.surfaces[earthIndex], { kind: 'flyby', frame: 'cockpit', wording: 'flyingPast' }); // title still "Earth from..."
+    expect(validateSurfaces(a, WORLDS)).toContain('earth: a "flyingPast" title starts with "Flying past " (it is never "landed")');
   });
 
   it('refuses a "course" arrival until the belt is built', () => {

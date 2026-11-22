@@ -128,6 +128,9 @@ export function validateSurface(raw: unknown, places: readonly string[]): string
     }
   }
   if (!isText(surface?.title)) problems.push(`${id}: title is required`);
+  else if (surface.wording === 'flyingPast' && !surface.title.startsWith('Flying past ')) {
+    problems.push(`${id}: a "flyingPast" title starts with "Flying past " (it is never "landed")`);
+  }
   if (!isText(surface?.description) || words(surface.description) > 45) {
     problems.push(`${id}: description is required (what the picture is, for people who cannot see it) and at most 45 words`);
   }
