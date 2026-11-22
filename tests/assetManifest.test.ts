@@ -1,6 +1,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ASSET_BUDGET_BYTES, ASSET_ENTRIES, arrivalPhotoId } from '../src/assets/manifest';
+import { ASSET_BUDGET_BYTES, ASSET_ENTRIES, arrivalPhotoId, thumbnailId } from '../src/assets/manifest';
+import { WORLD_IDS } from '../src/data/ids';
 import type { AssetEntry } from '../src/platform/assets';
 
 const fileSize = (url: string) => statSync(`public${url}`, { throwIfNoEntry: false })?.size;
@@ -73,4 +74,36 @@ describe('the asset manifest', () => {
   it('names the landing photo of a world', () => {
     expect(arrivalPhotoId('mars')).toBe('photo/mars');
   });
+
+  it('names the Star Map thumbnail of a world', () => {
+    expect(thumbnailId('mars')).toBe('thumb/mars');
+  });
+
+  it('has a thumbnail image for every world (#42)', () => {
+    for (const id of WORLD_IDS) {
+      const entry = ASSET_ENTRIES.find((e) => e.id === thumbnailId(id));
+      expect(entry, `no manifest entry for ${thumbnailId(id)}`).toBeDefined();
+      expect(entry!.type).toBe('image');
+      expect(entry!.url.high).toBe(`/thumbnails/${id}.webp`);
+    }
+  });
+
+  it.each(WORLD_IDS.map((id) => [id] as const))('%s: the thumbnail is a 128 x 128 WebP file', (id) => {
+    const bytes = readFileSync(`public/thumbnails/${id}.webp`);
+    expect(bytes.toString('latin1', 0, 4)).toBe('RIFF');
+    expect(bytes.toString('latin1', 8, 12)).toBe('WEBP');
+    expect(webpSize(bytes)).toEqual({ width: 128, height: 128 });
+  });
 });
+
+/** The width and height in a WebP file's header (simple lossy VP8, lossless VP8L, or extended VP8X). */
+function webpSize(b: Buffer): { width: number; height: number } {
+  const chunk = b.toString('latin1', 12, 16);
+  if (chunk === 'VP8 ') return { width: b.readUInt16LE(26) & 0x3fff, height: b.readUInt16LE(28) & 0x3fff };
+  if (chunk === 'VP8L') {
+    const bits = b.readUInt32LE(21);
+    return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
+  }
+  if (chunk === 'VP8X') return { width: b.readUIntLE(24, 3) + 1, height: b.readUIntLE(27, 3) + 1 };
+  throw new Error(`not a WebP image chunk: ${chunk}`);
+}
