@@ -1037,10 +1037,10 @@ button:focus-visible {
   background: linear-gradient(
     115deg,
     transparent 0 14%,
-    rgba(255, 255, 255, 0.07) 18%,
+    var(--cockpit-glint) 18%,
     transparent 26%,
     transparent 70%,
-    rgba(255, 255, 255, 0.04) 74%,
+    var(--cockpit-glint-soft) 74%,
     transparent 80%
   );
 }
